@@ -66,10 +66,10 @@
     $breadcrumb->add(NAVBAR_TITLE);
 
     if ($_SESSION['emp_admin_login'] == true) {
-        $sql = "select * from customers_cc
+        $sql = "select * from " . TABLE_CUSTOMERS_CC . "
         WHERE customers_id = :custID";
     } else {
-        $sql = "select * from customers_cc
+        $sql = "select * from " . TABLE_CUSTOMERS_CC . "
         WHERE customers_id = :custID  and enabled = 'Y' ";
     }
     $sql = $db->bindVars($sql, ':custID', $_SESSION['customer_id'], 'integer');
@@ -121,7 +121,7 @@
     $cim->setParameter('cardNumber', $card_number);
     $cim->setParameter('customerPaymentProfileId', zen_db_prepare_input($_POST['use_cc']));
 
-    $cc_sql = "select * from customers_cc
+    $cc_sql = "select * from " . TABLE_CUSTOMERS_CC . "
       WHERE customers_id = :custID and payment_profile_id = :cppID";
     $cc_sql = $db->bindVars($cc_sql, ':custID', $_SESSION['customer_id'], 'integer');
     $cc_sql = $db->bindVars($cc_sql, ':cppID', zen_db_prepare_input($_POST['use_cc']), 'integer');
@@ -149,7 +149,7 @@
     {
         global $db;
 
-        $sql = "select * from customers_cc
+        $sql = "select * from " . TABLE_CUSTOMERS_CC . "
           WHERE customers_id = :custID and index_id = :iid";
         $sql = $db->bindVars($sql, ':custID', $_SESSION['customer_id'], 'integer');
         $sql = $db->bindVars($sql, ':iid', $ccID, 'integer');

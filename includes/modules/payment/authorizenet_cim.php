@@ -746,7 +746,7 @@
                     $save = 'Y';
                 }
                 
-                $sql = "INSERT customers_cc
+                $sql = "INSERT " . TABLE_CUSTOMERS_CC . "
 	        (customers_id, payment_profile_id, last_four, exp_date, enabled, card_last_modified)
 	        values ('" . $customerID . "',  '" . (int)$this->customerPaymentProfileId . "', '" . substr(strip_tags($this->cardNumber()),
                     -4) . "', '" . strip_tags($this->expirationDate()) . "', '" . $save . "', now() )";
@@ -787,7 +787,7 @@
                 $this->die_message = 'customerPaymentProfileRequest';
                 $this->logError();
                 if ($this->cim_code == 'E00039') {
-                    //$sql = "select * from customers_cc where customers_id = :customerID and last_four = '" . substr($this->params['cardNumber'], -4) . "' order by payment_profile_id desc limit 1";
+                    //$sql = "select * from " . TABLE_CUSTOMERS_CC . " where customers_id = :customerID and last_four = '" . substr($this->params['cardNumber'], -4) . "' order by payment_profile_id desc limit 1";
                     $sql = "UPDATE " . TABLE_ORDERS . "
                   SET payment_profile_id = :cppID, cc_number = :ccNumber, cc_expires = :ccExp, save_cc_data = 'Y'
                   WHERE orders_id = :orderID ";
@@ -800,12 +800,12 @@
                         2), 'string');
                     $db->Execute($sql);
                     $this->log = $sql;
-                    $sql = "select * from customers_cc where customers_id = :customerID and payment_profile_id = :ppid order by payment_profile_id desc limit 1";
+                    $sql = "select * from " . TABLE_CUSTOMERS_CC . " where customers_id = :customerID and payment_profile_id = :ppid order by payment_profile_id desc limit 1";
                     $sql = $db->bindVars($sql, ':ppid', $this->customerPaymentProfileId, 'integer');
                     $sql = $db->bindVars($sql, ':customerID', $customerID, 'integer');
                     $dup_on_file = $db->Execute($sql);
                     if ($dup_on_file->RecordCount() == 0) {
-                        $sql = "INSERT customers_cc (customers_id, payment_profile_id, last_four, exp_date, enabled, card_last_modified)
+                        $sql = "INSERT " . TABLE_CUSTOMERS_CC . " (customers_id, payment_profile_id, last_four, exp_date, enabled, card_last_modified)
                   values ('" . $customerID . "',  '" . (int)$this->customerPaymentProfileId . "', '" . substr(strip_tags($this->cardNumber()),
                             -4) . "', '" . strip_tags($this->expirationDate()) . "', 'Y', now())";
                         $db->Execute($sql);
@@ -1321,7 +1321,7 @@
                 if ($this->params['cc_save'] == 'on' || $order->info['admin'] == 'NEW') {
                     $save = 'Y';
                 }
-                $sql = "UPDATE customers_cc
+                $sql = "UPDATE " . TABLE_CUSTOMERS_CC . "
 		    SET exp_date = '" . strip_tags($this->expirationDate()) . "', card_last_modified = now()
 		    WHERE payment_profile_id = :paymentProfileID  and customers_id = :custID";
                 
@@ -1357,7 +1357,7 @@
                 $messageStack->add_session('CIM: ' . $this->log, 'error');
                 $this->logError();
                 if ($this->cim_code == 'E00039') {
-                    $sql = "select * from customers_cc where last_four = '" . substr($this->params['cardNumber'],
+                    $sql = "select * from " . TABLE_CUSTOMERS_CC . " where last_four = '" . substr($this->params['cardNumber'],
                         -4) . "' limit 1";
                     $dup_on_file = $db->Execute($sql);
                     if ($dup_on_file->RecordCount() > 0) {
@@ -2812,7 +2812,7 @@
             $sql = $db->bindVars($sql, ':customerID', $this->params['delete_customer_id'], 'integer');
             $db->Execute($sql);
             
-            $sql = "delete from customers_cc
+            $sql = "delete from " . TABLE_CUSTOMERS_CC . "
 		WHERE customers_id = :customerID ";
             $sql = $db->bindVars($sql, ':customerID', $this->params['delete_customer_id'], 'integer');
             $db->Execute($sql);
@@ -2849,7 +2849,7 @@
             $this->process();
             
             if (($this->isSuccessful()) || ($this->cim_code == 'E00040')) {
-                $sql = "delete from customers_cc
+                $sql = "delete from " . TABLE_CUSTOMERS_CC . "
 		WHERE customers_id = :custID  and payment_profile_id = :paymtProfId";
                 $sql = $db->bindVars($sql, ':custID', $this->params['refId'], 'integer');
                 //$sql = $db->bindVars($sql, ':custID', $order->customer['id'], 'integer');

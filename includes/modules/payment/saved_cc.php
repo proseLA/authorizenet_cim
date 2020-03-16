@@ -58,7 +58,7 @@ class saved_cc extends base
         if (($_SESSION['emp_admin_login'] == true)) {
             $enabled = '';
         }
-        $sql = "Select * from customers_cc where exp_date >= '" . $cc_test . " ' and customers_id = :custID " . $enabled . " order by index_id desc";
+        $sql = "Select * from " . TABLE_CUSTOMERS_CC . " where exp_date >= '" . $cc_test . " ' and customers_id = :custID " . $enabled . " order by index_id desc";
 
         $sql = $db->bindVars($sql, ':custID', $_SESSION['customer_id'], 'integer');
         $card_on_file = $db->Execute($sql);
@@ -120,7 +120,7 @@ class saved_cc extends base
     {
         global $insert_id, $db, $order;
 
-        $sql = "select * from customers_cc where customers_id = :customerID and index_id = :indexID ";
+        $sql = "select * from " . TABLE_CUSTOMERS_CC . " where customers_id = :customerID and index_id = :indexID ";
         $sql = $db->bindVars($sql, ':indexID', $order->info['saved_cc'], 'integer');
         $sql = $db->bindVars($sql, ':customerID', $_SESSION['customer_id'], 'integer');
         $card_on_file = $db->Execute($sql);
