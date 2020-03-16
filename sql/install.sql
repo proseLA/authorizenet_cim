@@ -18,7 +18,41 @@ CREATE TABLE `customers_cc`
 ) ENGINE = MyISAM
   DEFAULT CHARSET = utf8;
 
+DROP TABLE IF EXISTS `so_payments`;
+CREATE TABLE `so_payments`
+(
+    `payment_id`        int(11)                          NOT NULL AUTO_INCREMENT,
+    `orders_id`         int(11)                          NOT NULL DEFAULT 0,
+    `payment_number`    varchar(32)                      NOT NULL DEFAULT '',
+    `payment_name`      varchar(40)                      NOT NULL DEFAULT '',
+    `payment_amount`    decimal(14, 2)                   NOT NULL DEFAULT 0.00,
+    `payment_type`      varchar(20)                      NOT NULL DEFAULT '',
+    `date_posted`       datetime                         NOT NULL DEFAULT '0000-00-00 00:00:00',
+    `last_modified`     datetime                         NOT NULL DEFAULT '0000-00-00 00:00:00',
+    `purchase_order_id` int(11)                          NOT NULL DEFAULT 0,
+    `refund_amount`     decimal(14, 2) unsigned zerofill NOT NULL DEFAULT 000000000000.00,
+    PRIMARY KEY (`payment_id`),
+    KEY `refund_index` (`orders_id`, `payment_number`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8;
 
+
+DROP TABLE IF EXISTS `so_refunds`;
+CREATE TABLE `so_refunds`
+(
+    `refund_id`      int(11)        NOT NULL AUTO_INCREMENT,
+    `payment_id`     int(11)        NOT NULL DEFAULT 0,
+    `orders_id`      int(11)        NOT NULL DEFAULT 0,
+    `refund_number`  varchar(32)    NOT NULL DEFAULT '',
+    `refund_name`    varchar(40)    NOT NULL DEFAULT '',
+    `refund_amount`  decimal(14, 2) NOT NULL DEFAULT 0.00,
+    `refund_type`    varchar(20)    NOT NULL DEFAULT 'REF',
+    `payment_number` varchar(32)    NOT NULL,
+    `date_posted`    datetime       NOT NULL DEFAULT '0000-00-00 00:00:00',
+    `last_modified`  datetime       NOT NULL DEFAULT '0000-00-00 00:00:00',
+    PRIMARY KEY (`refund_id`)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8;
 
 alter TABLE `customers`
     add `customers_customerProfileId`        int(11) NOT NULL DEFAULT 0 after `customers_paypal_ec`,
@@ -34,3 +68,5 @@ alter TABLE `orders`
     add `approval_code`       varchar(10)    DEFAULT NULL after `payment_profile_id`,
     add `transaction_id`      varchar(20)    DEFAULT NULL after `approval_code`,
     add `save_cc_data`        enum ('Y','N') DEFAULT NULL after `transaction_id`;
+
+
