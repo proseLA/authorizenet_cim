@@ -12,18 +12,23 @@
 class saved_cc extends base
 {
     var $code, $title, $description, $enabled;
-
-// class constructor
+    
+    // class constructor
     function __construct()
     {
         global $order;
-
+        
         $this->code = 'saved_cc';
         $this->title = MODULE_PAYMENT_SAVED_CC_TEXT_TITLE;
-        // $this->title = 'Saved Credit Card';
-        $this->description = MODULE_PAYMENT_SAVED_CC_TEXT_DESCRIPTION; // Descriptive Info about module in Admin
-        $this->sort_order = 1; // Sort Order of this payment option on the customer payment page
-        $this->enabled = true;
+        // this module is entirely dependent on the authorizenet_cim module.  if that is not enabled.  neither is this.
+        $this->enabled = ((MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS == 'True') ? true : false);
+        if ($this->enabled == true) {
+            // $this->title = 'Saved Credit Card';
+            $this->description = MODULE_PAYMENT_SAVED_CC_TEXT_DESCRIPTION; // Descriptive Info about module in Admin
+            $this->sort_order = 1; // Sort Order of this payment option on the customer payment page
+        } else {
+            $this->title .=  ' <span class="alert">(to enable; enable authorizenet CIM module)</span>';
+        }
     }
 
     function javascript_validation()
@@ -163,6 +168,6 @@ class saved_cc extends base
     function keys()
     {
         //  return array('MODULE_PAYMENT_MONEYORDER_STATUS', 'MODULE_PAYMENT_MONEYORDER_ZONE', 'MODULE_PAYMENT_MONEYORDER_ORDER_STATUS_ID', 'MODULE_PAYMENT_MONEYORDER_SORT_ORDER', 'MODULE_PAYMENT_MONEYORDER_PAYTO');
-        return false;
+        return array();
     }
 }

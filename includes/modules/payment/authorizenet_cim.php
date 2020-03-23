@@ -109,7 +109,7 @@
             global $order, $messageStack;
             $this->code = 'authorizenet_cim';
             $this->enabled = ((MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS == 'True') ? true : false); // Whether the module is installed or not
-            if (IS_ADMIN_FLAG === true) {
+            if (($this->enabled) and IS_ADMIN_FLAG === true) {
                 // Payment module title in Admin
                 $this->title = MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CATALOG_TITLE;
                 if (MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS == 'True' && (MODULE_PAYMENT_AUTHORIZENET_CIM_LOGIN == 'testing' || MODULE_PAYMENT_AUTHORIZENET_CIM_TXNKEY == 'Test')) {
@@ -120,28 +120,27 @@
                 if ($this->enabled && !function_exists('curl_init')) {
                     $messageStack->add_session(MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_ERROR_CURL_NOT_FOUND, 'error');
                 }
-            } else {
-                $this->title = 'authorizenet_cim'; // Payment module title in Catalog
+    
+                $this->login = trim(MODULE_PAYMENT_AUTHORIZENET_CIM_LOGIN);
+                $this->transkey = trim(MODULE_PAYMENT_AUTHORIZENET_CIM_TXNKEY);
+                $this->test_mode = (MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE == 'Test' ? true : false);
+                $subdomain = ($this->test_mode) ? 'apitest' : 'api2';
+                $this->url = "https://" . $subdomain . ".authorize.net/xml/v1/request.api";
+                $this->validationMode = MODULE_PAYMENT_AUTHORIZENET_CIM_VALIDATION; // none, testMode or liveMode
+    
+            } elseif (IS_ADMIN_FLAG === true) {
+                $this->title = MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CATALOG_TITLE . ' Authorize.net (CIM)'; // Payment module title in Catalog
             }
             $this->description = 'authorizenet_cim'; // Descriptive Info about module in Admin
-            $this->sort_order = MODULE_PAYMENT_AUTHORIZENET_CIM_SORT_ORDER; // Sort Order of this payment option on the customer payment page
+            $this->sort_order = defined('MODULE_PAYMENT_AUTHORIZENET_CIM_SORT_ORDER') ? MODULE_PAYMENT_AUTHORIZENET_CIM_SORT_ORDER : null; // Sort Order of this payment option on the customer payment page
             $this->form_action_url = zen_href_link(FILENAME_CHECKOUT_PROCESS, '', 'SSL',
               false); // Page to go to upon submitting page info
             $this->order_status = (int)DEFAULT_ORDERS_STATUS_ID;
-            if ((int)MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID > 0) {
+            if (defined('MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID') and (int)MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID > 0) {
                 $this->order_status = (int)MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID;
             }
             
             $this->_logDir = DIR_FS_SQL_CACHE;
-            
-            // cim
-            $this->login = trim(MODULE_PAYMENT_AUTHORIZENET_CIM_LOGIN);
-            $this->transkey = trim(MODULE_PAYMENT_AUTHORIZENET_CIM_TXNKEY);
-            $this->test_mode = (MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE == 'Test' ? true : false);
-            $subdomain = ($this->test_mode) ? 'apitest' : 'api2';
-            $this->url = "https://" . $subdomain . ".authorize.net/xml/v1/request.api";
-            $this->validationMode = MODULE_PAYMENT_AUTHORIZENET_CIM_VALIDATION; // none, testMode or liveMode
-            // cim
             
             if (is_object($order)) {
                 $this->update_status();
@@ -394,6 +393,15 @@
             // cim
             // $cim = new AuthNetCim('api-login-id', 'api-transaction-key', false);
             // creditCard payment method - (aka creditcard)
+            $this->login = trim(MODULE_PAYMENT_AUTHORIZENET_CIM_LOGIN);
+            $this->transkey = trim(MODULE_PAYMENT_AUTHORIZENET_CIM_TXNKEY);
+    
+            $this->test_mode = (MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE == 'Test' ? true : false);
+            $subdomain = ($this->test_mode) ? 'apitest' : 'api2';
+            $this->url = "https://" . $subdomain . ".authorize.net/xml/v1/request.api";
+            $this->validationMode = MODULE_PAYMENT_AUTHORIZENET_CIM_VALIDATION;
+    
+    
             $this->setParameter('paymentType', 'creditCard');
             $this->setParameter('cardNumber', $_POST['cc_number']);
             $this->setParameter('cc_save', $_POST['cc_save']);
@@ -436,6 +444,21 @@
             
             unset($response);
             
+            $this->createCustomerPaymentProfileRequest();
+            if (isset($this->error_messages) && (!empty($this->error_messages))) {
+                foreach ($this->error_messages as $error) {
+                    $messageStack->add_session('checkout_payment', 'CIM payment profile error: ' . $error, 'error');
+                }
+                zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
+            }
+            $order->info['payment_profile_id'] =
+            $this->createCustomerProfileTransactionRequest();
+            if (isset($this->error_messages) && (!empty($this->error_messages))) {
+                foreach ($this->error_messages as $error) {
+                    $messageStack->add_session('checkout_payment', 'CIM payment transaction error: ' . $error, 'error');
+                }
+                zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
+            }
         }
         
         function setParameter($field = "", $value = null)
@@ -581,6 +604,7 @@
         function process($retries = 3)
         {
             // before we make a connection, lets check if there are basic validation errors
+            // echo '--------> ' . . ' <----------';
             if (count($this->error_messages) == 0) {
                 $count = 0;
                 while ($count < $retries) {
@@ -691,11 +715,28 @@
                 //error_log(date(DATE_RFC822) . ': Response:' . $this->response . "\n", 3, $error_log);
             }
         }
+    
+        function getCustomerPaymentProfile($customer_id)
+        {
+            global $db;
         
+            $sql = "SELECT * FROM " . TABLE_CUSTOMERS . "
+            WHERE customers_id = :custId ";
+            $sql = $db->bindVars($sql, ':custId', $customer_id, 'string');
+            $check_customer = $db->Execute($sql);
+        
+            if ($check_customer->fields['customers_customerProfileId'] !== 0) {
+                $customerProfileId = $check_customer->fields['customers_customerProfileId'];
+            } else {
+                $customerProfileId = false;
+            }
+            return $customerProfileId;
+        }
+    
         function createCustomerPaymentProfileRequest()
         {
             global $insert_id, $db, $order, $customerID;
-            
+        
             if ($order->info['admin'] == 'NEW') {
                 $this->setParamsAdmin();
                 $customerID = $order->customer['id'];
@@ -705,10 +746,19 @@
             if ($insert_id == '') {
                 $insert_id = $order->billing['orderID'];
             }
-            
+        
             if ($this->params['customerProfileId'] == 0 || (!isset($this->params['customerProfileId']))) {
-                $this->createCustomerProfileRequest();
+            
+                $customerProfileId = $this->getCustomerPaymentProfile($customerID);
+                if ($customerProfileId == false) {
+                    $this->createCustomerProfileRequest();
+                    $this->setParameter('customerProfileId', $this->customerProfileId);
+                } else {
+                    $this->setParameter('customerProfileId', $customerProfileId);
+                }
             }
+            $this->setParameter('validationMode', $this->validationMode);
+            
     
             $this->xml = "<?xml version='1.0' encoding='utf-8'?>
 	<createCustomerPaymentProfileRequest xmlns='AnetApi/xml/v1/schema/AnetApiSchema.xsd'>
@@ -752,6 +802,9 @@
                     -4) . "', '" . strip_tags($this->expirationDate()) . "', '" . $save . "', now() )";
                 $db->Execute($sql);
                 $this->log = $sql;
+                
+                $order->info['payment_profile_id'] = $this->customerPaymentProfileId;
+                
                 $sql = "UPDATE " . TABLE_CUSTOMERS . "
 	        SET customers_customerPaymentProfileId = '" . (int)$this->customerPaymentProfileId . "'
 	        WHERE customers_id = :customerID ";
@@ -883,7 +936,7 @@
                 if (preg_match('/^[0-9]+$/', $this->params['customerProfileId'])) {
                     return "<customerProfileId>" . $this->params['customerProfileId'] . "</customerProfileId>";
                 } else {
-                    $this->error_messages[] .= 'setParameter(): customerProfileId is required and must be numeric';
+                    $this->error_messages[] .= 'setParameter(): customerProfileId must be numeric';
                 }
             } else {
                 $this->error_messages[] .= 'setParameter(): customerProfileId is required and must be numeric';
@@ -1811,7 +1864,7 @@
         // The customer's first name (optional)
         /**
          * Send communication request
-         */
+         *-/
         function _sendRequest($submit_data)
         {
             die(__FILE__ . ':' . __LINE__);
@@ -1889,7 +1942,7 @@
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
             curl_setopt($ch, CURLOPT_TIMEOUT, 15);
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER,
-              false); /* compatibility for SSL communications on some Windows servers (IIS 5.0+) */
+              false); /* compatibility for SSL communications on some Windows servers (IIS 5.0+) *-/
             if (CURL_PROXY_REQUIRED == 'True') {
                 $this->proxy_tunnel_flag = (defined('CURL_PROXY_TUNNEL_FLAG') && strtoupper(CURL_PROXY_TUNNEL_FLAG) == 'FALSE') ? false : true;
                 curl_setopt($ch, CURLOPT_HTTPPROXYTUNNEL, $this->proxy_tunnel_flag);
@@ -2002,7 +2055,7 @@
 
         /**
          * Used to capture part or all of a given previously-authorized transaction.
-         */
+         *-/
         function _doCapt($oID, $amt = 0, $currency = 'USD')
         {
             global $db, $messageStack;
@@ -2027,7 +2080,7 @@
         $messageStack->add_session(MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_INVALID_CAPTURE_AMOUNT, 'error');
         $proceedToCapture = false;
       }
-*/
+*-/
             }
             if (isset($_POST['captauthid']) && trim($_POST['captauthid']) != '') {
                 // okay to proceed
@@ -2037,7 +2090,7 @@
             }
             /**
              * Submit capture request to Authorize.net
-             */
+             *-/
             if ($proceedToCapture) {
                 // Populate an array that contains all of the data to be sent to Authorize.net
                 unset($submit_data);
@@ -2048,7 +2101,7 @@
                     //                         'x_invoice_num' => $new_order_id,
                     //                         'x_po_num' => $order->info['po_number'],
                     //                         'x_freight' => $order->info['shipping_cost'],
-                    //                         'x_tax_exempt' => 'FALSE', /* 'TRUE' or 'FALSE' */
+                    //                         'x_tax_exempt' => 'FALSE', /* 'TRUE' or 'FALSE' *-/
                     //                         'x_tax' => $order->info['tax'],
                 );
                 
@@ -2086,7 +2139,7 @@
 
         /**
          * Used to void a given previously-authorized transaction.
-         */
+         *-/
         function _doVoid($oID, $note = '')
         {
             global $db, $messageStack;
@@ -2115,7 +2168,7 @@
             );
             /**
              * Submit void request to Gateway
-             */
+             *-/
             if ($proceedToVoid) {
                 $response = $this->_sendRequest($submit_data);
                 $response_code = $response[0];
@@ -2149,6 +2202,8 @@
         
         // The city of the customer's address (optional)
 
+         *-/
+
         function AuthNetCim($login, $transkey, $test_mode)
         {
             $this->login = $login;
@@ -2158,6 +2213,7 @@
             $subdomain = ($this->test_mode) ? 'apitest' : 'api2';
             $this->url = "https://" . $subdomain . ".authorize.net/xml/v1/request.api";
         }
+         * */
         
         // The state of the customer's address (optional)
         // http://www.usps.com/ncsc/lookups/usps_abbreviations.html#states
@@ -2393,10 +2449,14 @@
             global $db, $order, $lookXML, $insert_id;
             
             $lookXML = false;
-            if ($order->delivery['CIM_address_id'] == 0) {
+            /*if ($order->delivery['CIM_address_id'] == 0) {
+                // echo '--------> ' . . ' <----------';
+                new dBug($order);
+                die(__FILE__ . ':' . __LINE__);
+                die(__FILE__ . ':' . __LINE__);
                 $this->setParamsAdmin();
                 $this->createCustomerShippingAddressRequest();
-            }
+            } */
             $this->xml = "<?xml version='1.0' encoding='utf-8'?>
 	<createCustomerProfileTransactionRequest xmlns='AnetApi/xml/v1/schema/AnetApiSchema.xsd'>
 	<merchantAuthentication>
@@ -2634,7 +2694,7 @@
         }
         
         // The ZIP code of the customer's address (optional)
-
+    
         function orderCustomerProfileId()
         {
             global $order;
@@ -2642,10 +2702,16 @@
                 if (preg_match('/^[0-9]+$/', $order->billing['customerProfileId'])) {
                     return "<customerProfileId>" . $order->billing['customerProfileId'] . "</customerProfileId>";
                 } else {
-                    $this->error_messages[] .= 'setParameter(): $order customerProfileId is required and must be numeric';
+                    $this->error_messages[] .= 'setParameter(): $order customerProfileId must be numeric';
+                }
+            } elseif (isset($this->params['customerProfileId'])) {
+                if (preg_match('/^[0-9]+$/', $this->params['customerProfileId'])) {
+                    return "<customerProfileId>" . $this->params['customerProfileId'] . "</customerProfileId>";
+                } else {
+                    $this->error_messages[] .= 'setParameter(): customerProfileId must be numeric';
                 }
             } else {
-                $this->error_messages[] .= 'setParameter(): $order customerProfileId is required and must be numeric';
+                $this->error_messages[] .= 'setParameter(): customerProfileId is required and must be numeric';
             }
         }
         
@@ -2658,10 +2724,16 @@
                 if (preg_match('/^[0-9]+$/', $order->info['payment_profile_id'])) {
                     return "<customerPaymentProfileId>" . $order->info['payment_profile_id'] . "</customerPaymentProfileId>";
                 } else {
-                    $this->error_messages[] .= 'setParameter(): $order paymentProfileId is required and must be numeric';
+                    $this->error_messages[] .= 'setParameter(a): $order paymentProfileId must be numeric';
+                }
+            } elseif (isset($this->customerPaymentProfileId)) {
+                if (preg_match('/^[0-9]+$/', $this->customerPaymentProfileId)) {
+                    return "<customerPaymentProfileId>" . $this->customerPaymentProfileId . "</customerPaymentProfileId>";
+                } else {
+                    $this->error_messages[] .= 'setParameter(b): $order paymentProfileId is must be numeric';
                 }
             } else {
-                $this->error_messages[] .= 'setParameter(): $order paymentProfileId is required and must be numeric';
+                $this->error_messages[] .= 'setParameter(): $order paymentProfileId is required';
             }
         }
         
@@ -2674,18 +2746,18 @@
                 if (preg_match('/^[0-9]+$/', $order->delivery['CIM_address_id'])) {
                     return "<customerShippingAddressId>" . $order->delivery['CIM_address_id'] . "</customerShippingAddressId>";
                 } else {
-                    $this->error_messages[] .= 'setParameter(): $order addressProfileId is required and must be numeric';
+                    // $this->error_messages[] .= 'setParameter(): $order addressProfileId must be numeric';
                 }
             } else {
-                $this->error_messages[] .= 'setParameter(): $order addressProfileId is required and must be numeric';
+                // $this->error_messages[] .= 'setParameter(): $order addressProfileId is required and must be numeric';
             }
         }
         
         // The fax number associated with the customer's address (optional)
-
+    
         function transactionOrder()
         {
-            global $order;
+            global $order, $db;
             if ((isset($this->params['order_invoiceNumber']))
               || (isset($this->params['order_description']))
               || (isset($this->params['order_purchaseOrderNumber']))) {
@@ -2701,9 +2773,14 @@
 			<invoiceNumber>" . $order->info['orders_id'] . "</invoiceNumber>
 		    </order>";
             } else {
-                $this->error_messages[] .= 'setParameter(): orders_id from $order is not good...';
+                $nextID = $db->Execute("SELECT (orders_id + 1) AS nextID FROM " . TABLE_ORDERS . " ORDER BY orders_id DESC LIMIT 1");
+                $nextID = $nextID->fields['nextID'];
+                return "<order>
+			<invoiceNumber>" . $nextID . "</invoiceNumber>
+		    </order>";
+                //$this->error_messages[] .= 'setParameter(): orders_id from $order is not good...';
             }
-            
+        
         }
         
         /************************* Other Functions *************************/

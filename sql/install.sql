@@ -27,8 +27,8 @@ CREATE TABLE `so_payments`
     `payment_name`      varchar(40)                      NOT NULL DEFAULT '',
     `payment_amount`    decimal(14, 2)                   NOT NULL DEFAULT 0.00,
     `payment_type`      varchar(20)                      NOT NULL DEFAULT '',
-    `date_posted`       datetime                         NOT NULL DEFAULT '0000-00-00 00:00:00',
-    `last_modified`     datetime                         NOT NULL DEFAULT '0000-00-00 00:00:00',
+    `date_posted`       datetime                         DEFAULT NULL,
+    `last_modified`     datetime                         DEFAULT NULL,
     `purchase_order_id` int(11)                          NOT NULL DEFAULT 0,
     `refund_amount`     decimal(14, 2) unsigned zerofill NOT NULL DEFAULT 000000000000.00,
     PRIMARY KEY (`payment_id`),
@@ -48,8 +48,8 @@ CREATE TABLE `so_refunds`
     `refund_amount`  decimal(14, 2) NOT NULL DEFAULT 0.00,
     `refund_type`    varchar(20)    NOT NULL DEFAULT 'REF',
     `payment_number` varchar(32)    NOT NULL,
-    `date_posted`    datetime       NOT NULL DEFAULT '0000-00-00 00:00:00',
-    `last_modified`  datetime       NOT NULL DEFAULT '0000-00-00 00:00:00',
+    `date_posted`    datetime       DEFAULT NULL,
+    `last_modified`  datetime       DEFAULT NULL,
     PRIMARY KEY (`refund_id`)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8;
@@ -68,5 +68,8 @@ alter TABLE `orders`
     add `approval_code`       varchar(10)    DEFAULT NULL after `payment_profile_id`,
     add `transaction_id`      varchar(20)    DEFAULT NULL after `approval_code`,
     add `save_cc_data`        enum ('Y','N') DEFAULT NULL after `transaction_id`;
+
+ALTER TABLE `address_book`
+    add `CIM_address_id` int(11) NULL AFTER `entry_zone_id`;
 
 
