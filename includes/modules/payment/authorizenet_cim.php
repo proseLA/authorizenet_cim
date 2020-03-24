@@ -260,7 +260,7 @@
                   'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CREDIT_CARD_EXPIRES,
                   'field' => zen_draw_pull_down_menu('authorizenet_cim_cc_expires_month', $expires_month, '',
                       'id="' . $this->code . '-cc-expires-month"' . $onFocus) . '&nbsp;' . zen_draw_pull_down_menu('authorizenet_cim_cc_expires_year',
-                      $expires_year, '', 'id="' . $this->code . '-cc-expires-year"' . $onFocus),
+                      $expires_year, strftime('%y', mktime(0, 0, 0, 1, 1, $today['year']+1)), 'id="' . $this->code . '-cc-expires-year"' . $onFocus),
                   'tag' => $this->code . '-cc-expires-month'
                 )
               )
@@ -445,14 +445,18 @@
             unset($response);
             
             $this->createCustomerPaymentProfileRequest();
+            
             if (isset($this->error_messages) && (!empty($this->error_messages))) {
                 foreach ($this->error_messages as $error) {
                     $messageStack->add_session('checkout_payment', 'CIM payment profile error: ' . $error, 'error');
                 }
                 zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
             }
-            $order->info['payment_profile_id'] =
+            
+            //$order->info['payment_profile_id'] =
+            
             $this->createCustomerProfileTransactionRequest();
+            
             if (isset($this->error_messages) && (!empty($this->error_messages))) {
                 foreach ($this->error_messages as $error) {
                     $messageStack->add_session('checkout_payment', 'CIM payment transaction error: ' . $error, 'error');
@@ -474,6 +478,8 @@
         function after_process()
         {
             global $insert_id, $db, $order, $customerID;
+            
+            /*
             $sql = "SELECT * FROM " . TABLE_CUSTOMERS . "
             WHERE customers_id = :custId ";
             $sql = $db->bindVars($sql, ':custId', $_SESSION['customer_id'], 'string');
@@ -497,15 +503,33 @@
             } else {
                 $this->customerAddressId = $order->delivery['CIM_address_id'];
             }
-            // cim
+            */
+    
+            $sql = "update  so_payments set orders_id = :insertID
+            WHERE customers_id = :custId and transaction_id = :transID and orders_id = 0";
+            $sql = $db->bindVars($sql, ':custId', $_SESSION['customer_id'], 'string');
+            $sql = $db->bindVars($sql, ':transID', $this->transID, 'string');
+            $sql = $db->bindVars($sql, ':insertID', $insert_id, 'integer');
+            $db->Execute($sql);
+    
+            $sql = "update " . TABLE_ORDERS . "
+        	set approval_code = :approvalCode, transaction_id = :transID, cc_authorized = '1',
+        	payment_profile_id = :payProfileID,
+        	cc_authorized_date = '" . date("Y-m-d H:i:s") . "'
+        	WHERE orders_id = :insertID ";
+            $sql = $db->bindVars($sql, ':approvalCode', $this->approvalCode, 'string');
+            $sql = $db->bindVars($sql, ':transID', $this->transID, 'string');
+            $sql = $db->bindVars($sql, ':insertID', $insert_id, 'integer');
+            $sql = $db->bindVars($sql, ':payProfileID', $this->params['customerPaymentProfileId'], 'integer');
+            $db->Execute($sql);
             
             $sql = "insert into " . TABLE_ORDERS_STATUS_HISTORY . " (comments, orders_id, orders_status_id, date_added) values (:orderComments, :orderID, :orderStatus, now() )";
             $sql = $db->bindVars($sql, ':orderComments',
-              'Credit Card payment.  AUTH: ' . $this->auth_code . '. TransID: ' . $this->transaction_id . '.',
+              'Credit Card payment.  AUTH: ' . $this->approvalCode . '. TransID: ' . $this->transID . '.',
               'string');
             $sql = $db->bindVars($sql, ':orderID', $insert_id, 'integer');
             $sql = $db->bindVars($sql, ':orderStatus', $this->order_status, 'integer');
-            //    $db->Execute($sql);
+            $db->Execute($sql);
             return false;
         }
         
@@ -635,7 +659,7 @@
                 }
     
                 if (DEBUG_CIM) {
-                    $this->logError(true);
+                    //$this->logError(true);
                 }
                 
                 curl_close($ch);
@@ -692,7 +716,7 @@
         
         function logError($log_xml = false)
         {
-            global $messageStack, $order;
+            global $messageStack, $order, $lookXML;
             
             $error_log = DIR_FS_LOGS . '/cim_error.log';
             $error_sent = DIR_FS_LOGS . '/cim_xml_sent.log';
@@ -706,7 +730,10 @@
                 //error_log(date(DATE_RFC822) . ': ' . $order->info . "\n", 3, $error_sent);
             }
             
-            error_log(date(DATE_RFC822) . ': ' . $this->error_messages[0] . '; ->' . $this->log . "\n", 3, $error_log);
+            if (!empty($this->log) || !empty($this->error_messages[0])) {
+                error_log(date(DATE_RFC822) . ': ' . $this->error_messages[0] . '; ->' . $this->log . "\n", 3,
+                  $error_log);
+            }
             if ($this->cim_code == 'E00003') {
                 error_log(date(DATE_RFC822) . ': ' . $this->error_messages[0] . '; XML----->' . $this->xml . "\n", 3,
                   $error_log);
@@ -714,9 +741,10 @@
             if ($this->cim_code == 'E00039') {
                 //error_log(date(DATE_RFC822) . ': Response:' . $this->response . "\n", 3, $error_log);
             }
+            sleep(2);
         }
     
-        function getCustomerPaymentProfile($customer_id)
+        function getCustomerProfile($customer_id)
         {
             global $db;
         
@@ -732,6 +760,24 @@
             }
             return $customerProfileId;
         }
+        
+        function getCustomerPaymentProfile($customer_id)
+        {
+            global $db;
+        
+            $sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . "
+            WHERE customers_id = :custId and last_four = :last4 order by index_id desc limit 1";
+            $sql = $db->bindVars($sql, ':custId', $customer_id, 'string');
+            $sql = $db->bindVars($sql, ':last4', substr(trim($this->params['cardNumber']), -4), 'string');
+            $check_customer_cc = $db->Execute($sql);
+            
+            if ($check_customer_cc->fields['payment_profile_id'] !== 0) {
+                $paymentProfileId = $check_customer_cc->fields['payment_profile_id'];
+            } else {
+                $paymentProfileId = false;
+            }
+            return $paymentProfileId;
+        }
     
         function createCustomerPaymentProfileRequest()
         {
@@ -743,13 +789,17 @@
             } else {
                 $customerID = $_SESSION['customer_id'];
             }
+            /*
             if ($insert_id == '') {
                 $insert_id = $order->billing['orderID'];
             }
+            */
+            
+            $this->setParameter('validationMode', $this->validationMode);
         
             if ($this->params['customerProfileId'] == 0 || (!isset($this->params['customerProfileId']))) {
             
-                $customerProfileId = $this->getCustomerPaymentProfile($customerID);
+                $customerProfileId = $this->getCustomerProfile($customerID);
                 if ($customerProfileId == false) {
                     $this->createCustomerProfileRequest();
                     $this->setParameter('customerProfileId', $this->customerProfileId);
@@ -757,8 +807,13 @@
                     $this->setParameter('customerProfileId', $customerProfileId);
                 }
             }
-            $this->setParameter('validationMode', $this->validationMode);
             
+            $this->customerPaymentProfileId = $this->getCustomerPaymentProfile($customerID);
+            
+            if ($this->customerPaymentProfileId !== false) {
+                $this->setParameter('customerPaymentProfileId', $this->customerPaymentProfileId);
+                return;
+            }
     
             $this->xml = "<?xml version='1.0' encoding='utf-8'?>
 	<createCustomerPaymentProfileRequest xmlns='AnetApi/xml/v1/schema/AnetApiSchema.xsd'>
@@ -791,6 +846,7 @@
             $this->process();
             
             if ($this->isSuccessful()) {
+                $this->setParameter('customerPaymentProfileId', $this->customerPaymentProfileId);
                 $save = 'N';
                 if ($this->params['cc_save'] == 'on') {
                     $save = 'Y';
@@ -830,9 +886,11 @@
                     }
                     $sql = $db->bindVars($sql, ':orderID', $insert_id, 'integer');
                     $sql = $db->bindVars($sql, ':ccexp', $exp_date, 'integer');
-                    $db->Execute($sql);
-                    $this->log = $sql;
-                    $this->die_message = 'TEMP: - customerPaymentProfileRequest:';
+                    if ($insert_id >0) {
+                        $db->Execute($sql);
+                        $this->log = $sql;
+                        $this->die_message = 'TEMP: - customerPaymentProfileRequest:';
+                    }
                     //$this->logError();
                 }
             } else {
@@ -2479,19 +2537,25 @@
 	</transaction>
 	</createCustomerProfileTransactionRequest>";
             
+            
             $this->process();
             
             // if ($lookXML) {error_log(date(DATE_RFC822) . ': ' . $this->xml  . "\n", 3, '../../cim_error.log');}
             $lookXML = false;
             
             if ($this->isSuccessful()) {
-                $sql = "update " . TABLE_ORDERS . "
-		set approval_code = :approval_code, transaction_id = :transID, cc_authorized = '1',
-		orders_status = '2', cc_authorized_date = '" . date("Y-m-d H:i:s") . "'
-		WHERE orders_id = :orderID ";
-                $sql = $db->bindVars($sql, ':orderID', $order->info['orders_id'], 'integer');
-                $sql = $db->bindVars($sql, ':approval_code', $this->approvalCode, 'string');
+                $sql = "INSERT INTO `so_payments` ( `payment_number`, `payment_name`, `payment_amount`, `payment_type`, `date_posted`, `last_modified`,  `transaction_id`, `payment_profile_id`, `approval_code`, `customers_id`)
+VALUES (:transID, :nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :approval_code, :custID)";
+
+                
                 $sql = $db->bindVars($sql, ':transID', $this->transID, 'string');
+                $sql = $db->bindVars($sql, ':nameFull',
+                  $this->params['billTo_firstName'] . ' ' . $this->params['billTo_lastName'], 'string');
+                $sql = $db->bindVars($sql, ':amount', $order->info['total'], 'noquotestring');
+                $sql = $db->bindVars($sql, ':type', $this->code, 'string');
+                $sql = $db->bindVars($sql, ':paymentProfileID', $this->params['customerPaymentProfileId'], 'string');
+                $sql = $db->bindVars($sql, ':approval_code', $this->approvalCode, 'string');
+                 $sql = $db->bindVars($sql, ':custID', $this->params['merchantCustomerId'], 'string');
                 
                 $db->Execute($sql);
                 
@@ -2674,7 +2738,7 @@
                     $xmlcode = '';
                     foreach ($order->products as $items) {
                         $xmlcode .= "<lineItems>\n";
-                        $xmlcode .= "<itemId>" . $items['id'] . "</itemId>\n";
+                        $xmlcode .= "<itemId>" . zen_get_prid($items['id']) . "</itemId>\n";
                         //$xmlcode .= "<name>".substr(preg_replace('/&nbsp;/', ' ',$items['name']),0,30)."</name>\n";
                         $xmlcode .= "<name>" . substr(preg_replace('/[^a-z0-9_ ]/i', '',
                             preg_replace('/&nbsp;/', ' ', $items['name'])), 0, 30) . "</name>\n";

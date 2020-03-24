@@ -72,4 +72,11 @@ alter TABLE `orders`
 ALTER TABLE `address_book`
     add `CIM_address_id` int(11) NULL AFTER `entry_zone_id`;
 
+ALTER TABLE `so_payments`
+ADD `transaction_id` varchar(20) COLLATE 'utf8mb4_general_ci' NOT NULL,
+ADD `payment_profile_id` int(11) unsigned zerofill NOT NULL AFTER `transaction_id`,
+ADD `approval_code` varchar(10) COLLATE 'utf8mb4_general_ci' NULL AFTER `payment_profile_id`,
+ADD `CIM_address_id` int(11) unsigned zerofill NOT NULL AFTER `approval_code`;
+
+
 
