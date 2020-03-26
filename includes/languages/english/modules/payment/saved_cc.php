@@ -6,3 +6,6 @@ define('MODULE_PAYMENT_SAVED_CC_TEXT_EMAIL_FOOTER', 'Footer');
 define('DEBUG_CIM', true);
 define('FILENAME_CARD_UPDATE', 'card_update');
 define('TABLE_CUSTOMERS_CC', 'customers_cc');
+
+define('TABLE_CIM_PAYMENTS', 'autherize_cim_payments');
+define('TABLE_CIM_REFUNDS', 'authnerize_cim_refunds');

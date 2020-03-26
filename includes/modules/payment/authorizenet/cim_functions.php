@@ -12,8 +12,10 @@
         $merchant->appendChild($dom->createElement('transactionKey', trim(MODULE_PAYMENT_AUTHORIZENET_CIM_TXNKEY)));
         $request->appendChild($merchant);
         
-        $node = $dom->importNode($data, true);
-        $request->appendChild($node);
+        foreach ($data->childNodes as $node) {
+            $append_node = $dom->importNode($node, true);
+            $request->appendChild($append_node);
+        }
         
         $dom->appendChild($request);
         
@@ -26,34 +28,23 @@
     {
         $dom = new DOMDocument();
         $dom->formatOutput = true;
+        $data = $dom->createElement('data');
         
         $profile = $dom->createElement('profile');
         $profile->appendChild($dom->createElement('merchantCustomerId', $customer_id));
         $profile->appendChild($dom->createElement('email', $email));
+        $data->appendChild($profile);
         
-        $dom->appendChild($profile);
+        $dom->appendChild($data);
         
-        $node = $dom->getElementsByTagName('profile')->item(0);
+        $node = $dom->getElementsByTagName('data')->item(0);
         return ($node);
     }
     
     function customer_payment_profile($customer_profile_id, $order, $validation_mode)
-    {/*
+    {
         $dom = new DOMDocument();
         $dom->formatOutput = true;
-        
-        $profile = $dom->createElement('profile');
-        $profile->appendChild($dom->createElement('merchantCustomerId', $customer_id));
-        $profile->appendChild($dom->createElement('email', $email));
-        
-        $dom->appendChild($profile);
-        
-        $node = $dom->getElementsByTagName('profile')->item(0);
-        return ($node);
-*/
-        $dom = new DOMDocument();
-        $dom->formatOutput = true;
-        
         $data = $dom->createElement('data');
         
         $element = $dom->createElement('customerProfileId', $customer_profile_id);
@@ -86,12 +77,58 @@
         
         $dom->appendChild($data);
         
-        
-        $node = $dom->getElementsByTagName('data')->item(1);
+        $node = $dom->getElementsByTagName('data')->item(0);
         return $node;
+    }
+    
+    function customer_payment_transaction($customer_profile_id, $payment_id, $order)
+    {
+        $dom = new DOMDocument();
+        $dom->formatOutput = true;
+        $data = $dom->createElement('data');
         
-        //echo $node;
+        $transaction = $dom->createElement('transaction');
+        $profileTransAuthCapture = $dom->createElement('profileTransAuthCapture');
+        $profileTransAuthCapture->appendChild($dom->createElement('amount', $order->info['total']));
         
+        if (count($order->products) > 0) {
+            foreach (array_slice($order->products, 0, 30) as $items) {
+                $line_items = $dom->createElement('lineItems');
+                $line_items->appendChild($dom->createElement('itemId', zen_get_prid($items['id'])));
+                $line_items->appendChild($dom->createElement('name', substr(preg_replace('/[^a-z0-9_ ]/i', '',
+                  preg_replace('/&nbsp;/', ' ', $items['name'])), 0, 30)));
+                $line_items->appendChild($dom->createElement('quantity', $items['qty']));
+                $line_items->appendChild($dom->createElement('unitPrice', $items['final_price']));
+                $line_items->appendChild($dom->createElement('taxable', ($order->info['tax'] == 0 ? 'false' : 'true')));
+                $profileTransAuthCapture->appendChild($line_items);
+            }
+        }
+        
+        $profileTransAuthCapture->appendChild($dom->createElement('customerProfileId', $customer_profile_id));
+        $profileTransAuthCapture->appendChild($dom->createElement('customerPaymentProfileId', $payment_id));
+        
+        $order = $dom->createElement('order');
+        $order->appendChild($dom->createElement('invoiceNumber', order_number($order->info)));
+        $profileTransAuthCapture->appendChild($order);
+        $transaction->appendChild($profileTransAuthCapture);
+        
+        $data->appendChild($transaction);
+        $dom->appendChild($data);
+        
+        $node = $dom->getElementsByTagName('data')->item(0);
+        return $node;
+    }
+    
+    function order_number($order)
+    {
+        global $db;
+        if (isset($order['orders_id'])) {
+            return $order['orders_id'];
+        } else {
+            $nextID = $db->Execute("SELECT (orders_id + 1) AS nextID FROM " . TABLE_ORDERS . " ORDER BY orders_id DESC LIMIT 1");
+            $nextID = $nextID->fields['nextID'];
+            return $nextID;
+        }
     }
     
     function updateCustomer($customerID, $profileID)
@@ -137,4 +174,21 @@
             $paymentProfileId = false;
         }
         return $paymentProfileId;
+    }
+    
+    function save_cc_token($custId, $payment_profile, $lastfour, $exp_date, $save)
+    {
+        global $db;
+        
+        $sql = "INSERT " . TABLE_CUSTOMERS_CC . "
+	        (customers_id, payment_profile_id, last_four, exp_date, enabled, card_last_modified)
+	        values (:custID,  :profID, :lastFour, :expDate, :save, now())";
+        $sql = $db->bindVars($sql, ':custID', $custId, 'integer');
+        $sql = $db->bindVars($sql, ':profID', $payment_profile, 'integer');
+        $sql = $db->bindVars($sql, ':lastFour', $lastfour, 'string');
+        $sql = $db->bindVars($sql, ':expDate', $exp_date, 'string');
+        $sql = $db->bindVars($sql, ':save', $save, 'string');
+        
+        $db->Execute($sql);
+        
     }
