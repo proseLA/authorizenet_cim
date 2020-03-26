@@ -14,6 +14,8 @@
      * You must have SSL active on your server to be compliant with merchant TOS
      *
      */
+    include_once((IS_ADMIN_FLAG === true ? DIR_FS_CATALOG_MODULES : DIR_WS_MODULES) . 'payment/authorizenet/cim_functions.php');
+    
     class authorizenet_cim extends base
     {
         /**
@@ -219,8 +221,6 @@
         function selection()
         {
             global $order;
-            global $reorder_var;
-            global $db;
             
             for ($i = 1; $i < 13; $i++) {
                 $expires_month[] = array(
@@ -252,7 +252,7 @@
                 ),
                 array(
                   'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CREDIT_CARD_NUMBER,
-                  'field' => zen_draw_input_field('authorizenet_cim_cc_number', '',
+                  'field' => zen_draw_input_field('authorizenet_cim_cc_number', '4012888888881881',
                     'id="' . $this->code . '-cc-number"' . $onFocus),
                   'tag' => $this->code . '-cc-number'
                 ),
@@ -269,7 +269,7 @@
             if (MODULE_PAYMENT_AUTHORIZENET_CIM_USE_CVV == 'True') {
                 $selection['fields'][] = array(
                   'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CVV,
-                  'field' => zen_draw_input_field('authorizenet_cim_cc_cvv', '',
+                  'field' => zen_draw_input_field('authorizenet_cim_cc_cvv', '456',
                       'size="4" maxlength="4"' . ' id="' . $this->code . '-cc-cvv"' . $onFocus) . ' ' . '<a href="javascript:popupWindow(\'' . zen_href_link(FILENAME_POPUP_CVV_HELP) . '\')">' . MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_POPUP_CVV_LINK . '</a>',
                   'tag' => $this->code . '-cc-cvv'
                 );
@@ -332,7 +332,6 @@
          */
         function confirmation()
         {
-            global $reorder_var;
             $confirmation = array(
               'fields' => array(
                 array(
@@ -371,7 +370,6 @@
               zen_draw_hidden_field('cc_expires', $this->cc_expiry_month . substr($this->cc_expiry_year, -2)) .
               zen_draw_hidden_field('cc_expires_date', $this->cc_expiry_year . "-" . $this->cc_expiry_month) .
               zen_draw_hidden_field('cc_type', $this->cc_card_type) .
-              zen_draw_hidden_field('reorder', $_POST['authorizenet_cim_reorder']) .
               zen_draw_hidden_field('payment', $_POST['payment']) .
               zen_draw_hidden_field('cc_save', $_POST['authorizenet_cim_save']) .
               zen_draw_hidden_field('cc_number', $this->cc_card_number);
@@ -390,15 +388,13 @@
         function before_process()
         {
             global $response, $db, $order, $messageStack;
-            // cim
-            // $cim = new AuthNetCim('api-login-id', 'api-transaction-key', false);
-            // creditCard payment method - (aka creditcard)
+
+            
             $this->login = trim(MODULE_PAYMENT_AUTHORIZENET_CIM_LOGIN);
             $this->transkey = trim(MODULE_PAYMENT_AUTHORIZENET_CIM_TXNKEY);
-    
             $this->test_mode = (MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE == 'Test' ? true : false);
-            $subdomain = ($this->test_mode) ? 'apitest' : 'api2';
-            $this->url = "https://" . $subdomain . ".authorize.net/xml/v1/request.api";
+            //$subdomain = ($this->test_mode) ? 'apitest' : 'api2';
+            $this->url = "https://" . (($this->test_mode) ? 'apitest' : 'api2') . ".authorize.net/xml/v1/request.api";
             $this->validationMode = MODULE_PAYMENT_AUTHORIZENET_CIM_VALIDATION;
     
     
@@ -431,8 +427,6 @@
             $this->setParameter('email', $order->customer['email_address']); // Up to 255 characters (optional)
             $this->setParameter('customerType', 'individual'); // individual or business (optional)
             
-            $order->info['reorder'] = $_POST['reorder'];
-            // cim
             
             $order->info['cc_number'] = str_pad(substr($_POST['cc_number'], -4), strlen($_POST['cc_number']), "X",
               STR_PAD_LEFT);
@@ -442,24 +436,35 @@
             $order->info['cc_cvv'] = ''; //$_POST['cc_cvv'];
             $order->info['cc_owner'] = $_POST['cc_owner'];
             
-            unset($response);
+            $customerID = $_SESSION['customer_id'];
+            $customerProfileId = getCustomerProfile($customerID);
             
-            $this->createCustomerPaymentProfileRequest();
-            
-            if (isset($this->error_messages) && (!empty($this->error_messages))) {
-                foreach ($this->error_messages as $error) {
-                    $messageStack->add_session('checkout_payment', 'CIM payment profile error: ' . $error, 'error');
-                }
-                zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
+            if ($customerProfileId == false) {
+                unset($response);
+                $this->createCustomerProfileRequest();
+            } else {
+                $this->setParameter('customerProfileId', $customerProfileId);
             }
             
-            //$order->info['payment_profile_id'] =
+            $this->checkErrors('Customer Profile');
+            unset($response);
+    
+            $this->createCustomerPaymentProfileRequest();
+            
+            $this->checkErrors('Customer Payment Profile');
+            unset($response);
             
             $this->createCustomerProfileTransactionRequest();
             
+            $this->checkErrors('Customer Payment Transaction');
+        }
+    
+        function checkErrors($type)
+        {
+            global $messageStack;
             if (isset($this->error_messages) && (!empty($this->error_messages))) {
                 foreach ($this->error_messages as $error) {
-                    $messageStack->add_session('checkout_payment', 'CIM payment transaction error: ' . $error, 'error');
+                    $messageStack->add_session('checkout_payment', 'CIM payment ' . $type . ': ' . $error, 'error');
                 }
                 zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
             }
@@ -479,32 +484,6 @@
         {
             global $insert_id, $db, $order, $customerID;
             
-            /*
-            $sql = "SELECT * FROM " . TABLE_CUSTOMERS . "
-            WHERE customers_id = :custId ";
-            $sql = $db->bindVars($sql, ':custId', $_SESSION['customer_id'], 'string');
-            $check_customer = $db->Execute($sql);
-            
-            if ($check_customer->fields['customers_customerProfileId'] == 0) {
-                $customerID = $_SESSION['customer_id'];
-                $this->createCustomerProfileRequest();
-            } else {
-                $this->customerProfileId = $check_customer->fields['customers_customerProfileId'];
-            }
-            $this->setParameter('customerProfileId', $this->customerProfileId);
-            $this->setParameter('validationMode', $this->validationMode);
-            
-            if ($order->info['payment_method'] == 'authorizenet_cim') {
-                $this->createCustomerPaymentProfileRequest();
-            }
-            //}
-            if ($order->delivery['CIM_address_id'] == 0) {
-                $this->createCustomerShippingAddressRequest();
-            } else {
-                $this->customerAddressId = $order->delivery['CIM_address_id'];
-            }
-            */
-    
             $sql = "update  so_payments set orders_id = :insertID
             WHERE customers_id = :custId and transaction_id = :transID and orders_id = 0";
             $sql = $db->bindVars($sql, ':custId', $_SESSION['customer_id'], 'string');
@@ -535,32 +514,17 @@
         
         function createCustomerProfileRequest()
         {
-            global $db, $customerID, $order, $cust_payment_id;
-            $this->xml = "<?xml version='1.0' encoding='utf-8'?>
-	<createCustomerProfileRequest xmlns='AnetApi/xml/v1/schema/AnetApiSchema.xsd'>
-	<merchantAuthentication>
-		<name>" . $this->login . "</name>
-		<transactionKey>" . $this->transkey . "</transactionKey>
-	</merchantAuthentication>
-	" . $this->refId() . "
-	<profile>
-		" . $this->merchantCustomerId() . "
-		" . $this->description() . "
-		" . $this->email() . "
-
-	</profile>
-	</createCustomerProfileRequest>";
+            global $customerID, $order, $cust_payment_id;
             
+            $customerID = $_SESSION['customer_id'];
+            
+            $data = customer_profile($customerID, $order->customer['email_address']);
+            $this->xml = request_xml('createCustomerProfileRequest', $data);
             $this->process();
             
             if ($this->isSuccessful()) {
-                $sql = "UPDATE " . TABLE_CUSTOMERS . "
-            SET customers_customerProfileId = '" . (int)$this->customerProfileId . "'
-            WHERE customers_id = :custID ";
-                $sql = $db->bindVars($sql, ':custID', $customerID, 'integer');
-                $db->Execute($sql);
+                updateCustomer($customerID, $this->customerProfileId);
                 $this->setParameter('customerProfileId', $this->customerProfileId);
-                //new dBug($this);
             } else {
                 $this->log = 'createCustomerProfileRequest: ' . $customerID . '; Error: ' . $this->cim_code . ' ' . $this->text;
                 $this->die_message = 'no success - customer profile request';
@@ -568,238 +532,21 @@
                 if ($this->cim_code == 'E00039') {
                     $cust_payment_id = substr($this->text, (strpos($this->text, 'with ID ') + 8),
                       (strpos($this->text, ' already exists') - (strpos($this->text, 'with ID ') + 8)));
-                    $sql = "UPDATE " . TABLE_CUSTOMERS . "
-		SET customers_customerProfileId = :duplicateID
-		WHERE customers_id = :custID ";
-                    $sql = $db->bindVars($sql, ':custID', $customerID, 'integer');
-                    $sql = $db->bindVars($sql, ':duplicateID', $cust_payment_id, 'integer');
-                    $db->Execute($sql);
+                    updateCustomer($customerID, $cust_payment_id);
                     $this->setParameter('customerProfileId', $cust_payment_id);
                 }
             }
-        }
-        
-        function refId()
-        {
-            if (isset($this->params['refId'])) {
-                if ((strlen($this->params['refId']) > 0)
-                  && (strlen($this->params['refId']) <= 20)) {
-                    return "<refId>" . $this->params['refId'] . "</refId>";
-                } else {
-                    $this->error_messages[] .= 'setParameter(): refId must be up to 20 characters';
-                }
-            }
-        }
-        
-
-        function merchantCustomerId()
-        {
-            if (isset($this->params['merchantCustomerId'])) {
-                if ((strlen($this->params['merchantCustomerId']) > 0) && (strlen($this->params['merchantCustomerId']) <= 20)) {
-                    return "<merchantCustomerId>" . $this->params['merchantCustomerId'] . "</merchantCustomerId>";
-                } else {
-                    $this->error_messages[] .= 'setParameter(): merchantCustomerId must be up to 20 characters in length';
-                }
-            }
-        }
-        
-        function description()
-        {
-            if (isset($this->params['description'])) {
-                if ((strlen($this->params['description']) > 0) && (strlen($this->params['description']) <= 255)) {
-                    return "<description>" . $this->params['description'] . "</description>";
-                } else {
-                    $this->error_messages[] .= 'setParameter(): description must be up to 255 characters in length';
-                }
-            }
-        }
-        
-        function email()
-        {
-            if (isset($this->params['email'])) {
-                if ((strlen($this->params['email']) > 0) && (strlen($this->params['email']) <= 255)) {
-                    return "<email>" . $this->params['email'] . "</email>";
-                } else {
-                    $this->error_messages[] .= 'setParameter(): email must be up to 255 characters in length';
-                }
-            }
-        }
-        
-        function process($retries = 3)
-        {
-            // before we make a connection, lets check if there are basic validation errors
-            // echo '--------> ' . . ' <----------';
-            if (count($this->error_messages) == 0) {
-                $count = 0;
-                while ($count < $retries) {
-                    $ch = curl_init();
-                    curl_setopt($ch, CURLOPT_URL, $this->url);
-                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-                    curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: text/xml"));
-                    curl_setopt($ch, CURLOPT_HEADER, 1);
-                    curl_setopt($ch, CURLOPT_POSTFIELDS, $this->xml);
-                    curl_setopt($ch, CURLOPT_POST, 1);
-                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
-                    // proxy option for godaddy hosted customers (required)
-                    //curl_setopt($ch, CURLOPT_PROXY,"http://proxy.shr.secureserver.net:3128");
-                    $this->response = curl_exec($ch);
-                    $this->parseResults();
-                    
-                    if ($this->resultCode == "Ok") {
-                        $this->success = true;
-                        $this->error = false;
-                        break;
-                    } else {
-                        $this->success = false;
-                        $this->error = true;
-                        break;
-                    }
-                    
-                    $count++;
-                }
-    
-                if (DEBUG_CIM) {
-                    //$this->logError(true);
-                }
-                
-                curl_close($ch);
-            } else {
-                $this->success = false;
-                $this->error = true;
-            }
-        }
-        
-        function parseResults()
-        {
-            $this->resultCode = $this->substring_between($this->response, '<resultCode>', '</resultCode>');
-            $this->cim_code = $this->substring_between($this->response, '<code>', '</code>');
-            $this->text = $this->substring_between($this->response, '<text>', '</text>');
-            $this->refId = $this->substring_between($this->response, '<refId>', '</refId>');
-            $this->customerProfileId = $this->substring_between($this->response, '<customerProfileId>',
-              '</customerProfileId>');
-            $this->customerPaymentProfileId = $this->substring_between($this->response, '<customerPaymentProfileId>',
-              '</customerPaymentProfileId>');
-            $this->customerAddressId = $this->substring_between($this->response, '<customerAddressId>',
-              '</customerAddressId>');
-            $this->directResponse = $this->substring_between($this->response, '<directResponse>', '</directResponse>');
-            $this->validationDirectResponse = $this->substring_between($this->response, '<validationDirectResponse>',
-              '</validationDirectResponse>');
-            
-            if (!empty($this->directResponse)) {
-                $array = explode($this->responseDelimiter, $this->directResponse);
-                $this->directResponse = $array[3];
-                $this->approvalCode = $array[4];
-                $this->transID = $array[6];
-            }
-            if (!empty($this->validationDirectResponse)) {
-                $array = explode($this->responseDelimiter, $this->validationDirectResponse);
-                $this->validationDirectResponse = $array[3];
-            }
-            
-        }
-        
-        function substring_between($haystack, $start, $end)
-        {
-            if (strpos($haystack, $start) === false || strpos($haystack, $end) === false) {
-                return false;
-            } else {
-                $start_position = strpos($haystack, $start) + strlen($start);
-                $end_position = strpos($haystack, $end);
-                return substr($haystack, $start_position, $end_position - $start_position);
-            }
-        }
-        
-        function isSuccessful()
-        {
-            return $this->success;
-        }
-        
-        function logError($log_xml = false)
-        {
-            global $messageStack, $order, $lookXML;
-            
-            $error_log = DIR_FS_LOGS . '/cim_error.log';
-            $error_sent = DIR_FS_LOGS . '/cim_xml_sent.log';
-            
-            if (IS_ADMIN_FLAG && !$lookXML) {
-                $messageStack->add_session('CIM: ' . $this->error_messages[0] . '; ->' . $this->log, 'error');
-            }
-            
-            if ($log_xml) {
-                error_log(date(DATE_RFC822) . ': ' . $this->xml . "\n", 3, $error_sent);
-                //error_log(date(DATE_RFC822) . ': ' . $order->info . "\n", 3, $error_sent);
-            }
-            
-            if (!empty($this->log) || !empty($this->error_messages[0])) {
-                error_log(date(DATE_RFC822) . ': ' . $this->error_messages[0] . '; ->' . $this->log . "\n", 3,
-                  $error_log);
-            }
-            if ($this->cim_code == 'E00003') {
-                error_log(date(DATE_RFC822) . ': ' . $this->error_messages[0] . '; XML----->' . $this->xml . "\n", 3,
-                  $error_log);
-            }
-            if ($this->cim_code == 'E00039') {
-                //error_log(date(DATE_RFC822) . ': Response:' . $this->response . "\n", 3, $error_log);
-            }
-            sleep(2);
-        }
-    
-        function getCustomerProfile($customer_id)
-        {
-            global $db;
-        
-            $sql = "SELECT * FROM " . TABLE_CUSTOMERS . "
-            WHERE customers_id = :custId ";
-            $sql = $db->bindVars($sql, ':custId', $customer_id, 'string');
-            $check_customer = $db->Execute($sql);
-        
-            if ($check_customer->fields['customers_customerProfileId'] !== 0) {
-                $customerProfileId = $check_customer->fields['customers_customerProfileId'];
-            } else {
-                $customerProfileId = false;
-            }
-            return $customerProfileId;
-        }
-        
-        function getCustomerPaymentProfile($customer_id)
-        {
-            global $db;
-        
-            $sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . "
-            WHERE customers_id = :custId and last_four = :last4 order by index_id desc limit 1";
-            $sql = $db->bindVars($sql, ':custId', $customer_id, 'string');
-            $sql = $db->bindVars($sql, ':last4', substr(trim($this->params['cardNumber']), -4), 'string');
-            $check_customer_cc = $db->Execute($sql);
-            
-            if ($check_customer_cc->fields['payment_profile_id'] !== 0) {
-                $paymentProfileId = $check_customer_cc->fields['payment_profile_id'];
-            } else {
-                $paymentProfileId = false;
-            }
-            return $paymentProfileId;
         }
     
         function createCustomerPaymentProfileRequest()
         {
             global $insert_id, $db, $order, $customerID;
-        
-            if ($order->info['admin'] == 'NEW') {
-                $this->setParamsAdmin();
-                $customerID = $order->customer['id'];
-            } else {
-                $customerID = $_SESSION['customer_id'];
-            }
-            /*
-            if ($insert_id == '') {
-                $insert_id = $order->billing['orderID'];
-            }
-            */
             
             $this->setParameter('validationMode', $this->validationMode);
         
             if ($this->params['customerProfileId'] == 0 || (!isset($this->params['customerProfileId']))) {
             
-                $customerProfileId = $this->getCustomerProfile($customerID);
+                $customerProfileId = getCustomerProfile($customerID);
                 if ($customerProfileId == false) {
                     $this->createCustomerProfileRequest();
                     $this->setParameter('customerProfileId', $this->customerProfileId);
@@ -807,10 +554,13 @@
                     $this->setParameter('customerProfileId', $customerProfileId);
                 }
             }
+    
             
-            $this->customerPaymentProfileId = $this->getCustomerPaymentProfile($customerID);
+            $this->customerPaymentProfileId = getCustomerPaymentProfile($customerID, substr(trim($_POST['cc_number']), -4));
+    
+            echo '--------> ' .$this->params['customerProfileId'] . ' <----------' . $customerProfileId . '00000';
             
-            if ($this->customerPaymentProfileId !== false) {
+            if (!is_null($this->customerPaymentProfileId)) {
                 $this->setParameter('customerPaymentProfileId', $this->customerPaymentProfileId);
                 return;
             }
@@ -843,6 +593,61 @@
 	</paymentProfile>
 	" . $this->validationMode() . "
 	</createCustomerPaymentProfileRequest>";
+            
+            echo '--------> ' .$this->xml . ' <----------';
+            // echo '--------> ' . . ' <----------';
+            //new dBug($order);
+            //die(__FILE__ . ':' . __LINE__);
+       /*     $dom = new DOMDocument();
+        $dom->formatOutput = true;
+        
+        $data = $dom->createElement('data');
+        
+        $element = $dom->createElement('customerProfileId', $this->params['customerProfileId']);
+        $data->appendChild($element);
+        
+        $paymentProfile = $dom->createElement('paymentProfile');
+        $billTo         = $dom->createElement('billTo');
+        $billTo->appendChild($dom->createElement('firstName', $order->billing['firstname']));
+        $billTo->appendChild($dom->createElement('lastName', $order->billing['lastname']));
+        $billTo->appendChild($dom->createElement('company', $order->billing['company']));
+        $billTo->appendChild($dom->createElement('address', $order->billing['street_address']));
+        $billTo->appendChild($dom->createElement('city',$order->billing['city']));
+        $billTo->appendChild($dom->createElement('zip',$order->billing['postcode']));
+        $billTo->appendChild($dom->createElement('country', $order->billing['country']['title']));
+        
+        $paymentProfile->appendChild($billTo);
+        
+        $payment = $dom->createElement('payment');
+    
+            $creditCard = $dom->createElement('creditCard');
+    
+            $creditCard->appendChild($dom->createElement('cardNumber', $_POST['cc_number']));
+            $creditCard->appendChild($dom->createElement('expirationDate', $_POST['cc_expires']));
+            $creditCard->appendChild($dom->createElement('cardCode', $_POST['cc_cvv']));
+            
+            $payment->appendChild($creditCard);
+            $paymentProfile->appendChild($payment);
+            $data->appendChild($paymentProfile);
+                $data->appendChild($dom->createElement('validationMode', $this->validationMode));
+                
+                $dom->appendChild($data);
+                
+                echo $dom->saveXML();
+                
+                $node = $dom->getElementsByTagName('data')->item(0);
+                
+                echo $node;
+        */
+       
+       
+       $data = customer_payment_profile($this->params['customerProfileId'], $order, $this->validationMode);
+       $this->xml = request_xml('createCustomerPaymentProfileRequest', $data);
+       
+       echo '--------> ' .$this->xml . ' <----------';
+            
+            die(__FILE__ . ':' . __LINE__);
+            
             $this->process();
             
             if ($this->isSuccessful()) {
@@ -860,12 +665,6 @@
                 $this->log = $sql;
                 
                 $order->info['payment_profile_id'] = $this->customerPaymentProfileId;
-                
-                $sql = "UPDATE " . TABLE_CUSTOMERS . "
-	        SET customers_customerPaymentProfileId = '" . (int)$this->customerPaymentProfileId . "'
-	        WHERE customers_id = :customerID ";
-                $sql = $db->bindVars($sql, ':customerID', $customerID, 'integer');
-                //$db->Execute($sql);
                 
                 if (!isset($this->params['card_update'])) {
                     $exp_date = strip_tags($this->expirationDate());
@@ -933,6 +732,178 @@
                 }
             }
         }
+
+        
+        function refId()
+        {
+            if (isset($this->params['refId'])) {
+                if ((strlen($this->params['refId']) > 0)
+                  && (strlen($this->params['refId']) <= 20)) {
+                    return "<refId>" . $this->params['refId'] . "</refId>";
+                } else {
+                    $this->error_messages[] .= 'setParameter(): refId must be up to 20 characters';
+                }
+            }
+        }
+        
+
+        function merchantCustomerId()
+        {
+            if (isset($this->params['merchantCustomerId'])) {
+                if ((strlen($this->params['merchantCustomerId']) > 0) && (strlen($this->params['merchantCustomerId']) <= 20)) {
+                    return "<merchantCustomerId>" . $this->params['merchantCustomerId'] . "</merchantCustomerId>";
+                } else {
+                    $this->error_messages[] .= 'setParameter(): merchantCustomerId must be up to 20 characters in length';
+                }
+            }
+        }
+        
+        function description()
+        {
+            if (isset($this->params['description'])) {
+                if ((strlen($this->params['description']) > 0) && (strlen($this->params['description']) <= 255)) {
+                    return "<description>" . $this->params['description'] . "</description>";
+                } else {
+                    $this->error_messages[] .= 'setParameter(): description must be up to 255 characters in length';
+                }
+            }
+        }
+        
+        function process($retries = 3)
+        {
+            // before we make a connection, lets check if there are basic validation errors
+            if (count($this->error_messages) == 0) {
+                $count = 0;
+                while ($count < $retries) {
+                    $ch = curl_init();
+                    curl_setopt($ch, CURLOPT_URL, $this->url);
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, array("Content-Type: text/xml"));
+                    curl_setopt($ch, CURLOPT_HEADER, 1);
+                    curl_setopt($ch, CURLOPT_POSTFIELDS, $this->xml);
+                    curl_setopt($ch, CURLOPT_POST, 1);
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+                    
+                    curl_setopt($ch,CURLOPT_HEADER,false);
+                    // proxy option for godaddy hosted customers (required)
+                    //curl_setopt($ch, CURLOPT_PROXY,"http://proxy.shr.secureserver.net:3128");
+                    $this->response = curl_exec($ch);
+                    $this->curlError = curl_error($ch);
+                    $this->parseResults();
+                    
+                    if ($this->resultCode == "Ok") {
+                        $this->success = true;
+                        $this->error = false;
+                        break;
+                    } else {
+                        $this->success = false;
+                        $this->error = true;
+                        break;
+                    }
+                    
+                    $count++;
+                }
+    
+                if (DEBUG_CIM) {
+                    //$this->logError(true);
+                }
+                curl_close($ch);
+            } else {
+                $this->success = false;
+                $this->error = true;
+            }
+        }
+    
+        function customParse($xmlTag)
+        {
+            foreach ($this->dom->getElementsByTagName($xmlTag) as $element) {
+                return $element->nodeValue;
+            }
+        }
+        
+        function parseResults()
+        {
+            $this->dom = new DOMDocument();
+            $this->dom->loadXML($this->response);
+    
+            $this->resultCode = $this->customParse('resultCode');
+            $this->cim_code = $this->customParse('code');
+            $this->text = $this->customParse('text');
+            $this->refId = $this->customParse('refId');
+            $this->customerProfileId = $this->customParse('customerProfileId');
+            $this->customerPaymentProfileId = $this->customParse('customerPaymentProfileId');
+            $this->customerAddressId = $this->customParse('customerAddressId');
+            $this->directResponse = $this->customParse('directResponse');
+            $this->validationDirectResponse = $this->customParse('validationDirectResponse');
+            
+            $allowed_errors = array('E00039');
+            
+            if ($this->resultCode == 'Error' and (!in_array($this->cim_code, $allowed_errors))) {
+                array_push($this->error_messages, $this->cim_code . ': ' . $this->text);
+            }
+
+//            $this->directResponse = $this->substring_between($this->response, '<directResponse>', '</directResponse>');
+
+            if (!empty($this->directResponse)) {
+                $array = explode($this->responseDelimiter, $this->directResponse);
+                $this->directResponse = $array[3];
+                $this->approvalCode = $array[4];
+                $this->transID = $array[6];
+            }
+            if (!empty($this->validationDirectResponse)) {
+                $array = explode($this->responseDelimiter, $this->validationDirectResponse);
+                $this->validationDirectResponse = $array[3];
+            }
+            
+        }
+        
+        function substring_between($haystack, $start, $end)
+        {
+            if (strpos($haystack, $start) === false || strpos($haystack, $end) === false) {
+                return false;
+            } else {
+                $start_position = strpos($haystack, $start) + strlen($start);
+                $end_position = strpos($haystack, $end);
+                return substr($haystack, $start_position, $end_position - $start_position);
+            }
+        }
+        
+        function isSuccessful()
+        {
+            return $this->success;
+        }
+        
+        function logError($log_xml = false)
+        {
+            global $messageStack, $order, $lookXML;
+            
+            $error_log = DIR_FS_LOGS . '/cim_error.log';
+            $error_sent = DIR_FS_LOGS . '/cim_xml_sent.log';
+            
+            if (IS_ADMIN_FLAG && !$lookXML) {
+                $messageStack->add_session('CIM: ' . $this->error_messages[0] . '; ->' . $this->log, 'error');
+            }
+            
+            if ($log_xml) {
+                error_log(date(DATE_RFC822) . ': ' . $this->xml . "\n", 3, $error_sent);
+                //error_log(date(DATE_RFC822) . ': ' . $order->info . "\n", 3, $error_sent);
+            }
+            
+            if (!empty($this->log) || !empty($this->error_messages[0])) {
+                error_log(date(DATE_RFC822) . ': ' . $this->error_messages[0] . '; ->' . $this->log . "\n", 3,
+                  $error_log);
+            }
+            if ($this->cim_code == 'E00003') {
+                error_log(date(DATE_RFC822) . ': ' . $this->error_messages[0] . '; XML----->' . $this->xml . "\n", 3,
+                  $error_log);
+            }
+            if ($this->cim_code == 'E00039') {
+                //error_log(date(DATE_RFC822) . ': Response:' . $this->response . "\n", 3, $error_log);
+            }
+            sleep(2);
+        }
+    
+
         
         // cim
         
@@ -1441,12 +1412,6 @@
                 $db->Execute($sql);
                 //$this->log = $sql;
                 //$this->logError();
-                
-                $sql = "UPDATE " . TABLE_CUSTOMERS . "
-		    SET customers_customerPaymentProfileId = '" . (int)$this->params['customerPaymentProfileId'] . "'
-		    WHERE customers_id = :customerID ";
-                $sql = $db->bindVars($sql, ':customerID', $customerID, 'integer');
-                //$db->Execute($sql);
                 
                 if (!isset($this->params['card_update'])) {
                     $sql = "UPDATE " . TABLE_ORDERS . "
