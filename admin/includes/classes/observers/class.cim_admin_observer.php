@@ -8,13 +8,7 @@
 	class cim_admin_observer extends base {
 		public function __construct() {
 			$this->attach($this, array(
-				'NOTIFY_ADMIN_CUSTOMERS_MENU_BUTTONS',
-				'NOTIFY_ADMIN_CUSTOMERS_LISTING_NEW_FIELDS',
-				'NOTIFY_ADMIN_CUSTOMERS_MENU_BUTTONS_END',
-				'NOTIFY_ADMIN_ORDER_PREDISPLAY_HOOK',
-				'NOTIFY_ADMIN_ORDERS_MENU_BUTTONS',
-				'NOTIFY_ADMIN_ORDERS_MENU_BUTTONS_END',
-				'NOTIFY_ADMIN_ORDERS_EDIT_BUTTONS'
+        'NOTIFY_ADMIN_ORDERS_PAYMENTDATA_COLUMN2',
 			));
 			
 		}
@@ -28,6 +22,190 @@
 				// $p2 ... A reference to the current $contents array; the NEXT-TO-LAST element has been updated
 				//         with the built-in button list.
 				//
+        
+          case 'NOTIFY_ADMIN_ORDERS_PAYMENTDATA_COLUMN2':
+              					require_once(DIR_WS_CLASSES . 'cim_order.php');
+					$so = new super_order($p1);
+              echo '<div>hey paully</div>';
+                    ?><tr>
+        <td><table border="0" cellspacing="0" cellpadding="2" width="100%">
+          <tr>
+            <td class="main"><strong><?php echo zen_image(DIR_WS_IMAGES . 'icon_money_add.png', TEXT_PAYMENT_DATA) . '&nbsp;' . TEXT_PAYMENT_DATA; ?></strong></td>
+            <!--td align="right" colspan="7"><?php $so->button_add('payment'); $so->button_add('purchase_order'); $so->button_add('refund'); ?></td-->
+          </tr>
+          <tr class="dataTableHeadingRow">
+            <td class="dataTableHeadingContent" align="left" width="15%"><?php echo PAYMENT_TABLE_NUMBER; ?></td>
+            <td class="dataTableHeadingContent" align="left" width="15%"><?php echo PAYMENT_TABLE_NAME; ?></td>
+            <td class="dataTableHeadingContent" align="right" width="15%"><?php echo PAYMENT_TABLE_AMOUNT; ?></td>
+            <td class="dataTableHeadingContent" align="center" width="15%"><?php echo PAYMENT_TABLE_TYPE; ?></td>
+            <td class="dataTableHeadingContent" align="left" width="15%"><?php echo PAYMENT_TABLE_POSTED; ?></td>
+            <td class="dataTableHeadingContent" align="left" width="15%"><?php echo PAYMENT_TABLE_MODIFIED; ?></td>
+            <td class="dataTableHeadingContent" align="right" width="10%"><?php echo PAYMENT_TABLE_ACTION; ?></td>
+          </tr>
+<?php
+	$original_grand_total_paid=0;
+        if ($so->payment) {
+          for($a = 0; $a < sizeof($so->payment); $a++) {
+            if ($a != 0) {
+?>
+          <tr>
+            <td><?php echo zen_draw_separator('pixel_trans.gif', '1', '5'); ?></td>
+          </tr>
+<?php
+            }
+			$original_grand_total_paid =$original_grand_total_paid + $so->payment[$a]['amount'];
+?>
+          <!-- VINO_MOD out...tr class="paymentRow" onMouseOver="rowOverEffect(this)" onMouseOut="rowOutEffect(this)" <?php echo 'onclick="popupWindow(\'' . zen_href_link(FILENAME_SUPER_PAYMENTS, 'oID=' . $so->oID . '&payment_mode=payment&index=' . $so->payment[$a]['index'] . '&action=my_update', 'SSL') . '\', \'scrollbars=yes,resizable=yes,width=400,height=300,screenX=150,screenY=100,top=100,left=150\')"'; ?>-->
+          <tr class="paymentRow" >
+            <td class="paymentContent" align="left"><?php echo $so->payment[$a]['number']; ?></td>
+            <td class="paymentContent" align="left"><?php echo $so->payment[$a]['name']; ?></td>
+            <td class="paymentContent" align="right"><strong><?php echo $currencies->format($so->payment[$a]['amount']); ?></strong></td>
+            <td class="paymentContent" align="center"><?php echo $so->full_type($so->payment[$a]['type']); ?></td>
+            <td class="paymentContent" align="left"><?php echo zen_datetime_short($so->payment[$a]['posted']); ?></td>
+            <td class="paymentContent" align="left"><?php echo zen_datetime_short($so->payment[$a]['modified']); ?></td>
+            <td class="paymentContent" align="right"><?php /*$so->button_update('payment', $so->payment[$a]['index']); */ ($so->payment[$a]['amount']> $so->payment[$a]['refund_amount'] ? $so->button_delete('payment', $so->payment[$a]['index']) : "");?></td>
+          
+          </tr>
+<?php
+            if ($so->refund) {
+              for($b = 0; $b < sizeof($so->refund); $b++) {
+                if ($so->refund[$b]['payment'] == $so->payment[$a]['index']) {
+?>
+          <!-- vino_mod tr class="refundRow" onMouseOver="rowOverEffect(this)" onMouseOut="rowOutEffect(this)" <?php echo 'onclick="popupWindow(\'' . zen_href_link(FILENAME_SUPER_PAYMENTS, 'oID=' . $so->oID . '&payment_mode=refund&index=' . $so->refund[$b]['index'] . '&action=my_update', 'SSL') . '\', \'scrollbars=yes,resizable=yes,width=400,height=300,screenX=150,screenY=100,top=100,left=150\')"'; ?>-->
+          <tr class="refundRow" onMouseOver="rowOverEffect(this)" onMouseOut="rowOutEffect(this)" >
+            <td class="refundContent" align="left"><?php echo $so->refund[$b]['number']; ?></td>
+            <td class="refundContent" align="left"><?php echo $so->refund[$b]['name']; ?></td>
+            <td class="refundContent" align="right"><strong><?php echo '-' . $currencies->format($so->refund[$b]['amount']); ?></strong></td>
+            <td class="refundContent" align="center"><?php echo $so->full_type($so->refund[$b]['type']); ?></td>
+            <td class="refundContent" align="left"><?php echo zen_datetime_short($so->refund[$b]['posted']); ?></td>
+            <td class="refundContent" align="left"><?php echo zen_datetime_short($so->refund[$b]['modified']); ?></td>
+            <td class="refundContent" align="right"><?php /*$so->button_update('refund', $so->refund[$b]['index']); *-/ $so->button_delete('refund', $so->refund[$b]['index']);*/ ?> </td>
+          </tr>
+<?php
+                }  // END if ($so->refund[$b]['payment'] == $so->payment[$a]['index'])
+              }  // END for($b = 0; $b < sizeof($so->refund); $b++)
+            }  // END if ($so->refund)
+          }  // END for($a = 0; $a < sizeof($payment); $a++)
+        }  // END if ($so->payment)
+        if ($so->purchase_order) {
+          for($c = 0; $c < sizeof($so->purchase_order); $c++) {
+            if ($c < 1 && $so->payment) {
+?>
+          <tr>
+            <td><?php echo zen_draw_separator('pixel_trans.gif', '1', '5'); ?></td>
+          </tr>
+          <tr>
+            <td colspan="7"><?php echo zen_black_line(); ?></td>
+          </tr>
+          <tr>
+            <td><?php echo zen_draw_separator('pixel_trans.gif', '1', '5'); ?></td>
+          </tr>
+<?php
+            }
+            elseif ($c > 1) {
+?>
+          <tr>
+            <td><?php echo zen_draw_separator('pixel_trans.gif', '1', '5'); ?></td>
+          </tr>
+<?php
+            }
+?>
+          <!-- vino_mod tr class="purchaseOrderRow" onMouseOver="rowOverEffect(this)" onMouseOut="rowOutEffect(this)" <?php echo 'onclick="popupWindow(\'' . zen_href_link(FILENAME_SUPER_PAYMENTS, 'oID=' . $so->oID . '&payment_mode=purchase_order&index=' . $so->purchase_order[$c]['index'] . '&action=my_update', 'SSL') . '\', \'scrollbars=yes,resizable=yes,width=400,height=300,screenX=150,screenY=100,top=100,left=150\')"'; ?>-->
+          <tr class="purchaseOrderRow" onMouseOver="rowOverEffect(this)" onMouseOut="rowOutEffect(this)" >
+            <td class="purchaseOrderContent" colspan="4" align="left"><?php echo $so->purchase_order[$c]['number']; ?></td>
+            <td class="purchaseOrderContent" align="left"><?php echo zen_datetime_short($so->purchase_order[$c]['posted']); ?></td>
+            <td class="purchaseOrderContent" align="left"><?php echo zen_datetime_short($so->purchase_order[$c]['modified']); ?></td>
+            <td class="purchaseOrderContent" align="right"><?php /*$so->button_update('purchase_order', $so->purchase_order[$c]['index']); */ $so->button_delete('purchase_order', $so->purchase_order[$c]['index']);?></td>
+          </tr>
+<?php
+            if ($so->po_payment) {
+              for($d = 0; $d < sizeof($so->po_payment); $d++) {
+                if ($so->po_payment[$d]['assigned_po'] == $so->purchase_order[$c]['index']) {
+                  if ($d != 0) {
+?>
+          <tr>
+            <td><?php echo zen_draw_separator('pixel_trans.gif', '1', '5'); ?></td>
+          </tr>
+<?php
+                  }
+?>
+          <!-- vino_mod tr class="paymentRow" onMouseOver="rowOverEffect(this)" onMouseOut="rowOutEffect(this)" <?php echo 'onclick="popupWindow(\'' . zen_href_link(FILENAME_SUPER_PAYMENTS, 'oID=' . $so->oID . '&payment_mode=payment&index=' . $so->po_payment[$d]['index'] . '&action=my_update', 'SSL') . '\', \'scrollbars=yes,resizable=yes,width=400,height=300,screenX=150,screenY=100,top=100,left=150\')"'; ?>-->
+          <tr class="paymentRow" onMouseOver="rowOverEffect(this)" onMouseOut="rowOutEffect(this)" >
+            <td class="paymentContent" align="left"><?php echo $so->po_payment[$d]['number']; ?></td>
+            <td class="paymentContent" align="left"><?php echo $so->po_payment[$d]['name']; ?></td>
+            <td class="paymentContent" align="right"><strong><?php echo $currencies->format($so->po_payment[$d]['amount']); ?></strong></td>
+            <td class="paymentContent" align="center"><?php echo $so->full_type($so->po_payment[$d]['type']); ?></td>
+            <td class="paymentContent" align="left"><?php echo zen_datetime_short($so->po_payment[$d]['posted']); ?></td>
+            <td class="paymentContent" align="left"><?php echo zen_datetime_short($so->po_payment[$d]['modified']); ?></td>
+            <td class="paymentContent" align="right"><?php /*$so->button_update('payment', $so->po_payment[$d]['index']); */ $so->button_delete('payment', $so->po_payment[$d]['index']); ?></td>
+          </tr>
+<?php
+                  if ($so->refund) {
+                    for($e = 0; $e < sizeof($so->refund); $e++) {
+                      if ($so->refund[$e]['payment'] == $so->po_payment[$d]['index']) {
+?>
+          <!-- vino_mod tr class="refundRow" onMouseOver="rowOverEffect(this)" onMouseOut="rowOutEffect(this)" <?php echo 'onclick="popupWindow(\'' . zen_href_link(FILENAME_SUPER_PAYMENTS, 'oID=' . $so->oID . '&payment_mode=refund&index=' . $so->refund[$e]['index'] . '&action=my_update', 'SSL') . '\', \'scrollbars=yes,resizable=yes,width=400,height=300,screenX=150,screenY=100,top=100,left=150\')"'; ?>-->
+          <tr class="refundRow" onMouseOver="rowOverEffect(this)" onMouseOut="rowOutEffect(this)" >
+            <td class="refundContent" align="left"><?php echo $so->refund[$e]['number']; ?></td>
+            <td class="refundContent" align="left"><?php echo $so->refund[$e]['name']; ?></td>
+            <td class="refundContent" align="right"><strong><?php echo '-' . $currencies->format($so->refund[$e]['amount']); ?></strong></td>
+            <td class="refundContent" align="center"><?php echo $so->full_type($so->refund[$e]['type']); ?></td>
+            <td class="refundContent" align="left"><?php echo zen_datetime_short($so->refund[$e]['posted']); ?></td>
+            <td class="refundContent" align="left"><?php echo zen_datetime_short($so->refund[$e]['modified']); ?></td>
+            <td class="refundContent" align="right"><?php /* $so->button_update('refund', $so->refund[$e]['index']); */ $so->button_delete('refund', $so->refund[$e]['index']); ?></td>
+          </tr>
+<?php
+                      }  // END if ($so->refund[$e]['payment'] == $so->po_payment[$d]['index'])
+                    }  // END for($e = 0; $e < sizeof($so->refund); $e++)
+                  }  // END if ($so->refund)
+                }  // END if ($so->po_payment[$d]['assigned_po'] == $so->purchase_order[$c]['index'])
+              }  // END for($d = 0; $d < sizeof($so->po_payment); $d++)
+            }  // END if ($so->po_payment)
+          }  // END for($c = 0; $c < sizeof($so->purchase_order); $c++)
+        }  // END if ($so->purchase_order)
+        // display any refunds not tied directly to a payment
+        if ($so->refund) {
+          for ($f = 0; $f < sizeof($so->refund); $f++) {
+            if ($so->refund[$f]['payment'] == 0) {
+              if ($f < 1) {
+?>
+          <tr>
+            <td><?php echo zen_draw_separator('pixel_trans.gif', '1', '5'); ?></td>
+          </tr>
+          <tr>
+            <td colspan="7"><?php echo zen_black_line(); ?></td>
+          </tr>
+          <tr>
+            <td><?php echo zen_draw_separator('pixel_trans.gif', '1', '5'); ?></td>
+          </tr>
+<?php
+              } else {
+?>
+          <tr>
+            <td><?php echo zen_draw_separator('pixel_trans.gif', '1', '5'); ?></td>
+          </tr>
+<?php
+              }
+?>
+          <!-- vino_mod tr class="refundRow" onMouseOver="rowOverEffect(this)" onMouseOut="rowOutEffect(this)" <?php echo 'onclick="popupWindow(\'' . zen_href_link(FILENAME_SUPER_PAYMENTS, 'oID=' . $so->oID . '&payment_mode=refund&index=' . $so->refund[$f]['index'] . '&action=my_update', 'SSL') . '\', \'scrollbars=yes,resizable=yes,width=400,height=300,screenX=150,screenY=100,top=100,left=150\')"'; ?>-->
+          <tr class="refundRow" onMouseOver="rowOverEffect(this)" onMouseOut="rowOutEffect(this)" >
+            <td class="refundContent" align="left"><?php echo $so->refund[$f]['number']; ?></td>
+            <td class="refundContent" align="left"><?php echo $so->refund[$f]['name']; ?></td>
+            <td class="refundContent" align="right"><strong><?php echo '-' . $currencies->format($so->refund[$f]['amount']); ?></strong></td>
+            <td class="refundContent" align="center"><?php echo $so->full_type($so->refund[$f]['type']); ?></td>
+            <td class="refundContent" align="left"><?php echo zen_datetime_short($so->refund[$f]['posted']); ?></td>
+            <td class="refundContent" align="left"><?php echo zen_datetime_short($so->refund[$f]['modified']); ?></td>
+            <td class="refundContent" align="right"><?php /* $so->button_update('refund', $so->refund[$f]['index']); */ $so->button_delete('refund', $so->refund[$f]['index']); ?></td>
+          </tr>
+<?php
+            }
+          }
+        }  // END if ($so->refund)
+?>
+        </table></td>
+      </tr>
+<?php
+              //die(__FILE__ . ':' . __LINE__);
 				case 'NOTIFY_ADMIN_ORDERS_MENU_BUTTONS':
 					if (is_object($p1)) {
 						$index_to_update = count($p2) - 2;
@@ -73,6 +251,7 @@
 				// $p2 ... An updateable copy of the current right-sidebar contents.
 				//
 				case 'NOTIFY_ADMIN_ORDER_PREDISPLAY_HOOK':
+				    break;
 					require_once(DIR_WS_CLASSES . 'super_order.php');
 					$p3 = new super_order($p1);
 					break;
@@ -102,6 +281,7 @@
 					$one_year_ago = date('Y-m-d');
 					$one_year_ago = strtotime('-1 year', strtotime($one_year_ago));
 					$one_year_ago = date('Y-m-j', $one_year_ago);
+					break;
 					
 					$customers_bottles = $GLOBALS['db']->Execute("SELECT sum(products_quantity) as bottle_count, sum(products_quantity_shipped) as shipped_count from " . TABLE_ORDERS . " o left join " . TABLE_ORDERS_PRODUCTS . " op on o.orders_id = op.orders_id WHERE o.customers_id = '" . $p1->customers_id . "'  and o.orders_status <> 199 group by o.customers_id");
 					$customers_shipping = $GLOBALS['db']->Execute("SELECT sum(value) as ship_total from " . TABLE_ORDERS . " o left join orders_total ot on o.orders_id = ot.orders_id WHERE o.customers_id = '" . $p1->customers_id . "'  and o.orders_status <> 199 and ot.class = 'ot_shipping' group by o.customers_id");

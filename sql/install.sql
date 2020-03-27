@@ -18,8 +18,8 @@ CREATE TABLE `customers_cc`
 ) ENGINE = MyISAM
   DEFAULT CHARSET = utf8;
 
-DROP TABLE IF EXISTS `so_payments`;
-CREATE TABLE `so_payments`
+DROP TABLE IF EXISTS `cim_payments`;
+CREATE TABLE `cim_payments`
 (
     `payment_id`        int(11)                          NOT NULL AUTO_INCREMENT,
     `orders_id`         int(11)                          NOT NULL DEFAULT 0,
@@ -37,8 +37,8 @@ CREATE TABLE `so_payments`
   DEFAULT CHARSET = utf8;
 
 
-DROP TABLE IF EXISTS `so_refunds`;
-CREATE TABLE `so_refunds`
+DROP TABLE IF EXISTS `cim_refunds`;
+CREATE TABLE `cim_refunds`
 (
     `refund_id`      int(11)        NOT NULL AUTO_INCREMENT,
     `payment_id`     int(11)        NOT NULL DEFAULT 0,
@@ -54,9 +54,39 @@ CREATE TABLE `so_refunds`
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8;
 
+DROP TABLE IF EXISTS `cim_payment_types`;
+CREATE TABLE `cim_payment_types` (
+  `payment_type_id` int(11) NOT NULL AUTO_INCREMENT,
+  `language_id` int(11) NOT NULL DEFAULT 1,
+  `payment_type_code` varchar(4) NOT NULL DEFAULT '',
+  `payment_type_full` varchar(20) NOT NULL DEFAULT '',
+  PRIMARY KEY (`payment_type_id`),
+  UNIQUE KEY `type_code` (`payment_type_code`),
+  KEY `type_code_2` (`payment_type_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+INSERT INTO `cim_payment_types` (`payment_type_id`, `language_id`, `payment_type_code`, `payment_type_full`) VALUES
+(1,	1,	'CA',	'Cash'),
+(2,	1,	'CK',	'Check'),
+(3,	1,	'MO',	'Money Order'),
+(4,	1,	'WU',	'Western Union'),
+(5,	1,	'ADJ',	'Adjustment'),
+(6,	1,	'REF',	'Refund'),
+(7,	1,	'CC',	'Credit Card'),
+(8,	1,	'MC',	'MasterCard'),
+(9,	1,	'VISA',	'Visa'),
+(10,	1,	'AMEX',	'American Express'),
+(11,	1,	'DISC',	'Discover'),
+(12,	1,	'DINE',	'Diners Club'),
+(13,	1,	'SOLO',	'Solo'),
+(14,	1,	'MAES',	'Maestro'),
+(15,	1,	'JCB',	'JCB');
+
+
+
+
 alter TABLE `customers`
-    add `customers_customerProfileId`        int(11) NOT NULL DEFAULT 0 after `customers_paypal_ec`,
-    add `customers_customerPaymentProfileId` int(11) NOT NULL DEFAULT 0 after `customers_customerProfileId`;
+    add `customers_customerProfileId`        int(11) NOT NULL DEFAULT 0 after `customers_paypal_ec`;
 
 
 alter TABLE `orders`

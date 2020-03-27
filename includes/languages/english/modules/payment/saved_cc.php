@@ -8,4 +8,5 @@ define('FILENAME_CARD_UPDATE', 'card_update');
 define('TABLE_CUSTOMERS_CC', 'customers_cc');
 
 define('TABLE_CIM_PAYMENTS', 'autherize_cim_payments');
-define('TABLE_CIM_REFUNDS', 'authnerize_cim_refunds');
+define('TABLE_CIM_REFUNDS', 'autherize_cim_refunds');
+define('TABLE_CIM_PAYMENT_TYPES', 'autherize_cim_payment_types');
