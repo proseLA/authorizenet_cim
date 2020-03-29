@@ -8,6 +8,8 @@ to use this module, you must subscribe to the authorize.net CIM program.  the la
 
 currently, the module does NOT modify any ZC core files.
 
+the code was developed for ZC v156 running php 7.3.  there is no implication that it will run with earlier versions of ZC, and while anyone is free to do as they wish, no support will be provided for earlier versions of ZC.
+
 # quick note on PCI-DSS
 PCI-DSS is legal document.  i am not a lawyer.  i offer no opinion on this module as to how it effects your PCI-DSS status.  
 
