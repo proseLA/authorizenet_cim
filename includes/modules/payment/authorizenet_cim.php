@@ -484,7 +484,7 @@
         {
             global $insert_id, $db, $order, $customerID;
             
-            $sql = "update  so_payments set orders_id = :insertID
+            $sql = "update  " . TABLE_CIM_PAYMENTS . " set orders_id = :insertID
             WHERE customers_id = :custId and transaction_id = :transID and orders_id = 0";
             $sql = $db->bindVars($sql, ':custId', $_SESSION['customer_id'], 'string');
             $sql = $db->bindVars($sql, ':transID', $this->transID, 'string');
@@ -644,7 +644,164 @@
                 }
             }
         }
+        
+        function createCustomerProfileTransactionRequest()
+        {
+            global $db, $order, $lookXML, $insert_id;
+            
+            $lookXML = false;
+            
+            $data = customer_payment_transaction($this->params['customerProfileId'], $this->params['customerPaymentProfileId'], $order);
+            $this->xml = request_xml('createCustomerProfileTransactionRequest', $data);
+    
+            $this->process();
+            
+            // if ($lookXML) {error_log(date(DATE_RFC822) . ': ' . $this->xml  . "\n", 3, '../../cim_error.log');}
+            $lookXML = false;
+            
+            if ($this->isSuccessful()) {
+                $sql = "INSERT INTO `" . TABLE_CIM_PAYMENTS . "` ( `payment_name`, `payment_amount`, `payment_type`, `date_posted`, `last_modified`,  `transaction_id`, `payment_profile_id`, `approval_code`, `customers_id`)
+VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :approval_code, :custID)";
 
+                
+                $sql = $db->bindVars($sql, ':transID', $this->transID, 'string');
+                $sql = $db->bindVars($sql, ':nameFull',
+                  $this->params['billTo_firstName'] . ' ' . $this->params['billTo_lastName'], 'string');
+                $sql = $db->bindVars($sql, ':amount', $order->info['total'], 'noquotestring');
+                $sql = $db->bindVars($sql, ':type', $this->code, 'string');
+                $sql = $db->bindVars($sql, ':paymentProfileID', $this->params['customerPaymentProfileId'], 'string');
+                $sql = $db->bindVars($sql, ':approval_code', $this->approvalCode, 'string');
+                 $sql = $db->bindVars($sql, ':custID', $this->params['merchantCustomerId'], 'string');
+                
+                $db->Execute($sql);
+                
+                if ($order->info['save_cc_data'] == 'N') {
+                    $sql = "Select orders_id from " . TABLE_ORDERS . "
+                WHERE customers_id = :custID  and payment_profile_id = :paymtProfId
+                and approval_code = ''";
+                    $sql = $db->bindVars($sql, ':custID', $order->info['customers_id'], 'integer');
+                    $sql = $db->bindVars($sql, ':paymtProfId', $order->info['payment_profile_id'], 'integer');
+                    $open_orders = $db->Execute($sql);
+                    $this->log = $sql . '<---rec Count--->' . $open_orders->RecordCount();
+                    //$this->logError();
+                    if ($open_orders->RecordCount() == 0) {
+                        $this->params['customerProfileId'] = $order->billing['customerProfileId'];
+                        $this->params['customerPaymentProfileId'] = $order->info['payment_profile_id'];
+                        // $this->deleteCustomerPaymentProfileRequest();
+                    }
+                }
+            } else {
+                if ($this->cim_code == 'E00027') {
+                    $this->log = 'createCustomerProfileTransactionRequest_1 order: ' . $order->info['orders_id'] . '; Error: ' . $this->cim_code . ' ' . $this->text;
+                    if ((strpos($this->text, 'declined') !== false) || (strpos($this->text, 'duplicate') !== false)) {
+                    } else {
+                        //$this->log .= ' trying to update CC expiration date off new CC number';
+                    }
+                    $this->die_message = 'customerPaymentProfileTransactionRequest';
+                    $this->logError();
+                    $order->info['admin'] = 'NEW';
+                    $this->setParameter('customerPaymentProfileId', $this->orderPaymentProfileId());
+                    $this->setParameter('customerProfileId', $this->orderCustomerProfileId());
+                    if ((strpos($this->text, 'declined') !== false) || (strpos($this->text, 'duplicate') !== false)) {
+                    } else {
+                        if ($order->info['cc_expires'] != '') {
+                            //$this->updateCustomerPaymentProfileRequest();
+                        }
+                    }
+                } else {
+                    $this->log = 'createCustomerProfileTransactionRequest_2 order: ' . $order->info['orders_id'] . '; Error: ' . $this->cim_code . ' ' . $this->text;
+                    $this->die_message = 'no success - customer profile Transaction request';
+                    $this->logError();
+                }
+            }
+        }
+    
+        // this function tries to refund against the transaction 1st; then tries to credit the card 2nd,
+        // and finally tries to void the transaction 3rd
+        function doCimRefund($ordersID, $refund_amount)
+        {
+            global $db, $messageStack;
+        
+            $sql = "select cust.customers_customerProfileId, cim.*, ord.order_total from " . TABLE_CIM_PAYMENTS . " cim
+            left join " . TABLE_CUSTOMERS . " cust on cim.customers_id = cust.customers_id
+            left join " . TABLE_ORDERS . " ord on cim.orders_id = ord.orders_id
+            where cim.orders_id = :orderID and cim.refund_amount = 0 order by cim.payment_id desc limit 1";
+            $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
+            $refund = $db->Execute($sql);
+        
+            $max_refund = $refund->fields['payment_amount'];
+        
+            if (!(isset($refund_amount)) || ($refund_amount == 0) || ($refund_amount > $max_refund)) {
+                $refund_amount = $max_refund;
+            }
+        
+            $data = customer_refund_transaction($refund->fields['customers_customerProfileId'],
+              $refund->fields['payment_profile_id'], trim($refund->fields['transaction_id']),
+              number_format($refund_amount, 2, '.', ''));
+            $this->xml = request_xml('createCustomerProfileTransactionRequest', $data);
+        
+            $this->process();
+            
+            if (!$this->isSuccessful()) {
+                $this->log = 'CIM Refund transaction fail: ' . $ordersID . '; Error: ' . $this->cim_code . ' ' . $this->text;
+                $this->die_message = 'FAILED - CIM Refund transaction.';
+                $this->logError();
+    
+                $data = customer_refund_payment($refund->fields['customers_customerProfileId'],
+                  $refund->fields['payment_profile_id'], number_format($refund_amount, 2, '.', ''));
+                $this->xml = request_xml('createCustomerProfileTransactionRequest', $data);
+    
+                $this->process();
+            }
+    
+            if (!$this->isSuccessful()) {
+                $this->log = 'CIM Refund payment fail: ' . $ordersID . '; Error: ' . $this->cim_code . ' ' . $this->text;
+                $this->die_message = 'FAILED - CIM Refund payment.';
+                $this->logError();
+                $data = customer_void_transaction($refund->fields['customers_customerProfileId'],
+                  $refund->fields['payment_profile_id'], trim($refund->fields['transaction_id']));
+                $this->xml = request_xml('createCustomerProfileTransactionRequest', $data);
+        
+                $this->process();
+            }
+            
+            if (!$this->isSuccessful()) {
+                $this->log = 'CIM Void Transaction fail: ' . $ordersID . '; Error: ' . $this->cim_code . ' ' . $this->text;
+                $this->die_message = 'FAILED - CIM Void Transaction.';
+                $this->logError();
+            }
+    
+    
+            if ($this->isSuccessful()) {
+                $this->log = 'do CIM Refund order: ' . $ordersID . '; Error: ' . $this->cim_code . ' ' . $this->text;
+                $this->die_message = 'Success - CIM Refund order:';
+                if (DEBUG_CIM) {
+                    $this->logError();
+                } else {
+                    if (IS_ADMIN_FLAG) {
+                        $messageStack->add_session('CIM refund success: ' . $this->error_messages[0] . '; ->' . $this->log, 'warning');
+                    }
+                }
+                if ($refund_amount == $refund->fields['order_total']) {
+                    updateOrderInfo($ordersID);
+                }
+        
+                $sql = "insert into " . TABLE_CIM_REFUNDS . " (payment_id, orders_id, transaction_id, refund_name, refund_amount, refund_type, payment_trans_id, date_posted, last_modified) values (:paymentID, :orderID, :transID, :payment_name, :amount, 'REF', :payment_trans_id, now(), now() )";
+                $sql = $db->bindVars($sql, ':paymentID', $refund->fields['payment_id'], 'integer');
+                $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
+                $sql = $db->bindVars($sql, ':transID', $this->transID, 'string');
+                $sql = $db->bindVars($sql, ':payment_name', $refund->fields['customers_name'], 'string');
+                $sql = $db->bindVars($sql, ':payment_trans_id', trim($refund->fields['transaction_id']), 'string');
+                $sql = $db->bindVars($sql, ':amount', $this->params['transaction_amount'], 'noquotestring');
+            
+                $db->Execute($sql);
+                $sql = "update " . TABLE_CIM_PAYMENTS . " set refund_amount = (refund_amount + :amount) where transaction_id = :transID and orders_id = :orderID";
+                $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
+                $sql = $db->bindVars($sql, ':transID', trim($refund->fields['transaction_id']), 'string');
+                $sql = $db->bindVars($sql, ':amount', $this->params['transaction_amount'], 'noquotestring');
+                $db->Execute($sql);
+            }
+        }
         
         function refId()
         {
@@ -788,6 +945,8 @@
         function logError($log_xml = false)
         {
             global $messageStack, $order, $lookXML;
+            $lookXML = false;
+            $log_xml = true;
             
             $error_log = DIR_FS_LOGS . '/cim_error.log';
             $error_sent = DIR_FS_LOGS . '/cim_xml_sent.log';
@@ -2005,185 +2164,6 @@
             return $parsedresponse;
         }
         
-        // The ZIP code of the customer's address (optional)
-
-        function doCimRefund($ordersID, $refund_amount)
-        {
-            global $db, $messageStack;
-            
-            $cim_refund = $db->Execute("select customers_name, customers_id, payment_profile_id, transaction_id, order_total, balance_due from orders where orders_id = '" . (int)$ordersID . "'");
-            $customer = $db->Execute("select customers_customerProfileId from customers where customers_id = '" . (int)$cim_refund->fields['customers_id'] . "'");
-            $sql = "select * from so_payments where orders_id = :orderID and payment_number = :payment_id";
-            $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
-            $sql = $db->bindVars($sql, ':payment_id', $cim_refund->fields['transaction_id'], 'string');
-            $payment = $db->Execute($sql);
-            
-            $max_refund = ($cim_refund->fields['order_total'] - $cim_refund->fields['balance_due']);
-            
-            if (!(isset($refund_amount)) || ($refund_amount == 0) || ($refund_amount > $max_refund)) {
-                $refund_amount = $max_refund;
-            }
-            
-            $this->setParameter('customerProfileId', $customer->fields['customers_customerProfileId']);
-            $this->setParameter('transactionId', trim($cim_refund->fields['transaction_id']));
-            $this->setParameter('transaction_amount', number_format($refund_amount, 2, '.', ''));
-            $this->setParameter('customerPaymentProfileId', $cim_refund->fields['payment_profile_id']);
-            
-            $this->xml = "<?xml version='1.0' encoding='utf-8'?>
-	<createCustomerProfileTransactionRequest xmlns='AnetApi/xml/v1/schema/AnetApiSchema.xsd'>
-	<merchantAuthentication>
-		<name>" . $this->login . "</name>
-		<transactionKey>" . $this->transkey . "</transactionKey>
-	</merchantAuthentication>
-	<transaction>
-	    <profileTransRefund>
-			" . $this->transaction_amount() . "
-			" . $this->customerProfileId() . "
-			" . $this->customerPaymentProfileId() . "
-			" . $this->transactionId() . "
-	    </profileTransRefund>
-	</transaction>
-	</createCustomerProfileTransactionRequest>";
-            
-            $this->process();
-            
-            if ($this->isSuccessful()) {
-                $this->log = 'do CIM Refund order: ' . $ordersID . '; Error: ' . $this->cim_code . ' ' . $this->text;
-                $this->die_message = 'Success - CIM Refund order:';
-                $this->logError();
-                if ($refund_amount == $cim_refund->fields['order_total']) {
-                    $sql = "update " . TABLE_ORDERS . "
-        	set approval_code = ' ', transaction_id = ' ', cc_authorized = '0', cc_authorized_date = ''
-        	WHERE orders_id = :orderID ";
-                    $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
-                    $db->Execute($sql);
-                }
-                
-                $sql = "insert into so_refunds (payment_id, orders_id, refund_number, refund_name, refund_amount, refund_type, payment_number, date_posted, last_modified) values (:paymentID, :orderID, :transID, :payment_name, :amount, 'REF', :payment_number, now(), now() )";
-                $sql = $db->bindVars($sql, ':paymentID', $payment->fields['payment_id'], 'integer');
-                $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
-                $sql = $db->bindVars($sql, ':transID', $this->transID, 'string');
-                $sql = $db->bindVars($sql, ':payment_name', $cim_refund->fields['customers_name'], 'string');
-                $sql = $db->bindVars($sql, ':payment_number', trim($cim_refund->fields['transaction_id']), 'string');
-                $sql = $db->bindVars($sql, ':amount', $this->params['transaction_amount'], 'noquotestring');
-                
-                $db->Execute($sql);
-                $sql = "update so_payments set refund_amount = (refund_amount + :amount) where payment_number = :payment_number and orders_id = :orderID";
-                $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
-                $sql = $db->bindVars($sql, ':payment_number', trim($cim_refund->fields['transaction_id']), 'string');
-                $sql = $db->bindVars($sql, ':amount', $this->params['transaction_amount'], 'noquotestring');
-                $db->Execute($sql);
-            } else {
-                // new 6_2015 for transactions older than 120 days....
-                //first log  first attempt...
-                $this->log = 'CIM Refund problem first attempt: ' . $ordersID . '; Error: ' . $this->cim_code . ' ' . $this->text;
-                $this->die_message = 'no success - CIM Refund order first attempt.';
-                $this->logError();
-                $this->xml = "<?xml version='1.0' encoding='utf-8'?>
-        <createCustomerProfileTransactionRequest xmlns='AnetApi/xml/v1/schema/AnetApiSchema.xsd'>
-            <merchantAuthentication>
-            	<name>" . $this->login . "</name>
-            	<transactionKey>" . $this->transkey . "</transactionKey>
-            </merchantAuthentication>
-            <transaction>
-                <profileTransRefund>
-            		" . $this->transaction_amount() . "
-            		" . $this->customerProfileId() . "
-            		" . $this->customerPaymentProfileId() . "
-                </profileTransRefund>
-            </transaction>
-        </createCustomerProfileTransactionRequest>";
-                
-                $this->process();
-                
-                if ($this->isSuccessful()) {
-                    $this->log = 'CIM Refund order with ID: ' . $ordersID . '; Error: ' . $this->cim_code . ' ' . $this->text;
-                    $this->die_message = 'Success - CIM Refund order with ID:';
-                    $this->logError();
-                    if ($refund_amount == $cim_refund->fields['order_total']) {
-                        $sql = "update " . TABLE_ORDERS . "
-            	set approval_code = ' ', transaction_id = ' ', cc_authorized = '0', cc_authorized_date = ''
-            	WHERE orders_id = :orderID ";
-                        $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
-                        $db->Execute($sql);
-                    }
-                    
-                    $sql = "insert into so_refunds (payment_id, orders_id, refund_number, refund_name, refund_amount, refund_type, payment_number, date_posted, last_modified) values (:paymentID, :orderID, :transID, :payment_name, :amount, 'REF', :payment_number, now(), now() )";
-                    $sql = $db->bindVars($sql, ':paymentID', $payment->fields['payment_id'], 'integer');
-                    $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
-                    $sql = $db->bindVars($sql, ':transID', $this->transID, 'string');
-                    $sql = $db->bindVars($sql, ':payment_name', $cim_refund->fields['customers_name'], 'string');
-                    $sql = $db->bindVars($sql, ':payment_number', trim($cim_refund->fields['transaction_id']),
-                      'string');
-                    $sql = $db->bindVars($sql, ':amount', $this->params['transaction_amount'], 'noquotestring');
-                    
-                    $db->Execute($sql);
-                    $sql = "update so_payments set refund_amount = (refund_amount + :amount) where payment_number = :payment_number and orders_id = :orderID";
-                    $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
-                    $sql = $db->bindVars($sql, ':payment_number', trim($cim_refund->fields['transaction_id']),
-                      'string');
-                    $sql = $db->bindVars($sql, ':amount', $this->params['transaction_amount'], 'noquotestring');
-                    $db->Execute($sql);
-                } else {
-                    // end 6_2015 change...
-                    /* pmr 6/2015 i think this whole section with the E00027 is misplaced and does not belong here.
-         * does belong here!  10_2015 */
-                    if ($this->cim_code == 'E00027') {
-                        $this->xml = "<?xml version='1.0' encoding='utf-8'?>
-		    <createCustomerProfileTransactionRequest xmlns='AnetApi/xml/v1/schema/AnetApiSchema.xsd'>
-		    <merchantAuthentication>
-			<name>" . $this->login . "</name>
-			<transactionKey>" . $this->transkey . "</transactionKey>
-		    </merchantAuthentication>
-		    <transaction>
-		    <profileTransVoid>
-			" . $this->customerProfileId() . "
-			" . $this->customerPaymentProfileId() . "
-			" . $this->transactionId() . "
-		    </profileTransVoid>
-		    </transaction>
-		    </createCustomerProfileTransactionRequest>";
-                        $this->process();
-                        if ($this->isSuccessful()) {
-                            // change status to what??  vino_mod
-                            $sql = "update " . TABLE_ORDERS . "
-		set approval_code = ' ', transaction_id = ' ', cc_authorized = '0', cc_authorized_date = ''
-		WHERE orders_id = :orderID ";
-                            $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
-                            $db->Execute($sql);
-                            
-                            $sql = "insert into so_refunds (payment_id, orders_id, refund_number, refund_name, refund_amount, refund_type, payment_number, date_posted, last_modified) values (:paymentID, :orderID, :transID, :payment_name, :amount, 'VOID', :payment_number, now(), now() )";
-                            $sql = $db->bindVars($sql, ':paymentID', $payment->fields['payment_id'], 'integer');
-                            $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
-                            $sql = $db->bindVars($sql, ':transID', $this->transID, 'string');
-                            $sql = $db->bindVars($sql, ':payment_name', $cim_refund->fields['customers_name'],
-                              'string');
-                            $sql = $db->bindVars($sql, ':payment_number', trim($cim_refund->fields['transaction_id']),
-                              'string');
-                            $sql = $db->bindVars($sql, ':amount', $payment->fields['payment_amount'], 'float');
-                            $db->Execute($sql);
-                            $sql = "update so_payments set refund_amount = (refund_amount + :amount) where payment_number = :payment_number and orders_id = :orderID";
-                            $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
-                            $sql = $db->bindVars($sql, ':payment_number', $this->transID, 'string');
-                            $sql = $db->bindVars($sql, ':amount', $payment->fields['payment_amount'], 'float');
-                            $db->Execute($sql);
-                        } else {
-                            $this->log = 'CIM Refund/Void order: ' . $ordersID . '; Error: ' . $this->cim_code . ' ' . $this->text;
-                            $this->die_message = 'no success - CIM Refund/Void order:';
-                            $this->logError();
-                        }
-                    } else {
-                        
-                        $this->log = 'do CIM Refund order both ways: ' . $ordersID . '; Error: ' . $this->cim_code . ' ' . $this->text;
-                        $this->die_message = 'no success - CIM Refund order both ways.';
-                        $this->logError();
-                    }
-                }
-            }
-        }
-        
-        // This element is optional
-
         function transaction_amount()
         {
             global $order;
@@ -2218,77 +2198,6 @@
         
         // This element is optional
 
-        function createCustomerProfileTransactionRequest()
-        {
-            global $db, $order, $lookXML, $insert_id;
-            
-            $lookXML = false;
-            
-            $data = customer_payment_transaction($this->params['customerProfileId'], $this->params['customerPaymentProfileId'], $order);
-            $this->xml = request_xml('createCustomerProfileTransactionRequest', $data);
-    
-            $this->process();
-            
-            // if ($lookXML) {error_log(date(DATE_RFC822) . ': ' . $this->xml  . "\n", 3, '../../cim_error.log');}
-            $lookXML = false;
-            
-            if ($this->isSuccessful()) {
-                $sql = "INSERT INTO `so_payments` ( `payment_number`, `payment_name`, `payment_amount`, `payment_type`, `date_posted`, `last_modified`,  `transaction_id`, `payment_profile_id`, `approval_code`, `customers_id`)
-VALUES (:transID, :nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :approval_code, :custID)";
-
-                
-                $sql = $db->bindVars($sql, ':transID', $this->transID, 'string');
-                $sql = $db->bindVars($sql, ':nameFull',
-                  $this->params['billTo_firstName'] . ' ' . $this->params['billTo_lastName'], 'string');
-                $sql = $db->bindVars($sql, ':amount', $order->info['total'], 'noquotestring');
-                $sql = $db->bindVars($sql, ':type', $this->code, 'string');
-                $sql = $db->bindVars($sql, ':paymentProfileID', $this->params['customerPaymentProfileId'], 'string');
-                $sql = $db->bindVars($sql, ':approval_code', $this->approvalCode, 'string');
-                 $sql = $db->bindVars($sql, ':custID', $this->params['merchantCustomerId'], 'string');
-                
-                $db->Execute($sql);
-                
-                if ($order->info['save_cc_data'] == 'N') {
-                    $sql = "Select orders_id from " . TABLE_ORDERS . "
-                WHERE customers_id = :custID  and payment_profile_id = :paymtProfId
-                and approval_code = ''";
-                    $sql = $db->bindVars($sql, ':custID', $order->info['customers_id'], 'integer');
-                    $sql = $db->bindVars($sql, ':paymtProfId', $order->info['payment_profile_id'], 'integer');
-                    $open_orders = $db->Execute($sql);
-                    $this->log = $sql . '<---rec Count--->' . $open_orders->RecordCount();
-                    //$this->logError();
-                    if ($open_orders->RecordCount() == 0) {
-                        $this->params['customerProfileId'] = $order->billing['customerProfileId'];
-                        $this->params['customerPaymentProfileId'] = $order->info['payment_profile_id'];
-                        // $this->deleteCustomerPaymentProfileRequest();
-                    }
-                }
-            } else {
-                if ($this->cim_code == 'E00027') {
-                    $this->log = 'createCustomerProfileTransactionRequest_1 order: ' . $order->info['orders_id'] . '; Error: ' . $this->cim_code . ' ' . $this->text;
-                    if ((strpos($this->text, 'declined') !== false) || (strpos($this->text, 'duplicate') !== false)) {
-                    } else {
-                        //$this->log .= ' trying to update CC expiration date off new CC number';
-                    }
-                    $this->die_message = 'customerPaymentProfileTransactionRequest';
-                    $this->logError();
-                    $order->info['admin'] = 'NEW';
-                    $this->setParameter('customerPaymentProfileId', $this->orderPaymentProfileId());
-                    $this->setParameter('customerProfileId', $this->orderCustomerProfileId());
-                    if ((strpos($this->text, 'declined') !== false) || (strpos($this->text, 'duplicate') !== false)) {
-                    } else {
-                        if ($order->info['cc_expires'] != '') {
-                            //$this->updateCustomerPaymentProfileRequest();
-                        }
-                    }
-                } else {
-                    $this->log = 'createCustomerProfileTransactionRequest_2 order: ' . $order->info['orders_id'] . '; Error: ' . $this->cim_code . ' ' . $this->text;
-                    $this->die_message = 'no success - customer profile Transaction request';
-                    $this->logError();
-                }
-            }
-        }
-        
         /************************* Shipping Functions *************************/
         
         // The customer's first name (optional)

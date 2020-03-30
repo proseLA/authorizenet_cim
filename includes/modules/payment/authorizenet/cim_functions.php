@@ -119,6 +119,70 @@
         return $node;
     }
     
+    function customer_refund_transaction($customer_profile_id, $payment_profile_id, $transaction_id, $amount)
+    {
+        $dom = new DOMDocument();
+        $dom->formatOutput = true;
+        $data = $dom->createElement('data');
+        
+        $transaction = $dom->createElement('transaction');
+        $profileTransRefund = $dom->createElement('profileTransRefund');
+        $profileTransRefund->appendChild($dom->createElement('amount', $amount));
+        $profileTransRefund->appendChild($dom->createElement('customerProfileId', $customer_profile_id));
+        $profileTransRefund->appendChild($dom->createElement('customerPaymentProfileId', $payment_profile_id));
+        $profileTransRefund->appendChild($dom->createElement('transId', $transaction_id));
+        
+        $transaction->appendChild($profileTransRefund);
+        
+        $data->appendChild($transaction);
+        $dom->appendChild($data);
+        
+        $node = $dom->getElementsByTagName('data')->item(0);
+        return $node;
+    }
+    
+    function customer_refund_payment($customer_profile_id, $payment_profile_id, $amount)
+    {
+        $dom = new DOMDocument();
+        $dom->formatOutput = true;
+        $data = $dom->createElement('data');
+        
+        $transaction = $dom->createElement('transaction');
+        $profileTransRefund = $dom->createElement('profileTransRefund');
+        $profileTransRefund->appendChild($dom->createElement('amount', $amount));
+        $profileTransRefund->appendChild($dom->createElement('customerProfileId', $customer_profile_id));
+        $profileTransRefund->appendChild($dom->createElement('customerPaymentProfileId', $payment_profile_id));
+        
+        $transaction->appendChild($profileTransRefund);
+        
+        $data->appendChild($transaction);
+        $dom->appendChild($data);
+        
+        $node = $dom->getElementsByTagName('data')->item(0);
+        return $node;
+    }
+    
+    function customer_void_transaction($customer_profile_id, $payment_profile_id, $transaction_id)
+    {
+        $dom = new DOMDocument();
+        $dom->formatOutput = true;
+        $data = $dom->createElement('data');
+        
+        $transaction = $dom->createElement('transaction');
+        $profileTransVoid = $dom->createElement('profileTransVoid');
+        $profileTransVoid->appendChild($dom->createElement('customerProfileId', $customer_profile_id));
+        $profileTransVoid->appendChild($dom->createElement('customerPaymentProfileId', $payment_profile_id));
+        $profileTransVoid->appendChild($dom->createElement('transId', $transaction_id));
+        
+        $transaction->appendChild($profileTransVoid);
+        
+        $data->appendChild($transaction);
+        $dom->appendChild($data);
+        
+        $node = $dom->getElementsByTagName('data')->item(0);
+        return $node;
+    }
+    
     function order_number($order)
     {
         global $db;
@@ -191,4 +255,21 @@
         
         $db->Execute($sql);
         
+    }
+    
+    // function called only for full refund.
+    function updateOrderInfo($ordersID)
+    {
+        global $db;
+    
+        $new_order_status = (int)MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID;
+        if ($new_order_status == 0) {
+            $new_order_status = 1;
+        }
+        $sql = "update " . TABLE_ORDERS . "
+        	set approval_code = ' ', transaction_id = ' ', cc_authorized = 0 , cc_authorized_date = '', order_status = :stat
+        	WHERE orders_id = :orderID ";
+        $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
+        $sql = $db->bindVars($sql, ':stat', $new_order_status, 'integer');
+        $db->Execute($sql);
     }

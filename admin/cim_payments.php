@@ -26,6 +26,9 @@
     
     require('includes/application_top.php');
     require_once(DIR_WS_CLASSES . 'cim_order.php');
+    if (!defined('FILENAME_CIM_PAYMENTS')) {
+        require_once DIR_FS_CATALOG . DIR_WS_LANGUAGES . $_SESSION['language'] . '/modules/payment/authorizenet_cim.php';
+    }
     global $db;
     
     $oID = $_GET['oID'];
@@ -162,10 +165,8 @@
                         require_once(DIR_FS_CATALOG_MODULES . 'payment/' . 'authorizenet_cim.php');
                         $cim = new authorizenet_cim();
                         $cim->CimRefund = abs(round((float)($_GET['refund_amount']), 2));
-                        //new dBug($cim->CimRefund);
-                        //die(__FILE__ . ':' . __LINE__);
                         
-                        $cim->doCimRefund(($cim->oID), $cim->CimRefund);
+                        $cim->doCimRefund($oID, $cim->CimRefund);
                         $affected_rows++;
                         
                         break;  // END case 'payment'
@@ -417,7 +418,7 @@
                 switch ($payment_mode) {
                     case 'payment':
                         echo zen_draw_hidden_field('payment_id', $index);
-                        $payment = $db->Execute("select * from " . TABLE_SO_PAYMENTS . " where payment_id = '" . $index . "'");
+                        $payment = $db->Execute("select * from " . TABLE_CIM_PAYMENTS . " where payment_id = '" . $index . "'");
                         $po_array = $cim->build_po_array(TEXT_NONE);
                         ?>
                         <tr>
@@ -757,8 +758,8 @@
                 switch ($payment_mode) {
                     case 'payment':
                         $payment_info = $db->Execute("select p.*, po.po_number
-                                          from " . TABLE_SO_PAYMENTS . " p
-                                          left join " . TABLE_SO_PURCHASE_ORDERS . " po
+                                          from " . TABLE_CIM_PAYMENTS . " p
+                                          left join " . TABLE_CIM_PURCHASE_ORDERS . " po
                                           on p.purchase_order_id = po.purchase_order_id
                                           where p.payment_id = '" . $index . "' limit 1");
                         ?>
@@ -805,31 +806,10 @@
                         </tr>
                         <?php
                         break;
-                    case 'purchase_order':
-                        $po = $db->Execute("select po_number from " . TABLE_SO_PURCHASE_ORDERS . " where purchase_order_id = '" . $index . "' limit 1");
-                        ?>
-                        <tr>
-                            <td colspan="2" align="center" class="pageHeading"><?php echo HEADER_CONFIRM_PO; ?></td>
-                        </tr>
-                        <tr>
-                            <td align="center" colspan="2" class="main">
-                                <strong><?php echo HEADER_ORDER_ID . $cim->oID . '<br />' . HEADER_PO_UID . $index; ?></strong>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td colspan="2" align="center"><?php echo zen_draw_separator('pixel_trans.gif', '1',
-                                  '10'); ?></td>
-                        </tr>
-                        <tr>
-                            <td class="main" width="50%" align="right"><?php echo TEXT_PO_NUMBER; ?></td>
-                            <td class="main" width="50%"><strong><?php echo $po->fields['po_number']; ?></strong></td>
-                        </tr>
-                        <?php
-                        break;
                     case 'refund':
                         $refund = $db->Execute("select r.*, p.payment_number
-                                    from " . TABLE_SO_REFUNDS . " r
-                                    left join " . TABLE_SO_PAYMENTS . " p on p.payment_id = r.payment_id
+                                    from " . TABLE_CIM_REFUNDS . " r
+                                    left join " . TABLE_CIM_PAYMENTS . " p on p.payment_id = r.payment_id
                                     where refund_id = '" . $index . "' limit 1");
                         ?>
                         <tr>
@@ -853,7 +833,7 @@
                         <tr>
                             <td class="main" width="50%" align="right"><?php echo TEXT_REFUND_NUMBER; ?></td>
                             <td class="main" width="50%">
-                                <strong><?php echo $refund->fields['refund_number']; ?></strong></td>
+                                <strong><?php echo $refund->fields['transaction_id']; ?></strong></td>
                         </tr>
                         <tr>
                             <td class="main" width="50%" align="right"><?php echo TEXT_REFUND_NAME; ?></td>

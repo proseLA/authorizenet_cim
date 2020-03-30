@@ -8,13 +8,13 @@
     define('FILENAME_CIM_PAYMENTS', 'cim_payments');
     
     define('TEXT_CIM_DATA', 'Authorizenet CIM Payments');
-    define('CIM_TABLE_NUMBER', 'Transaction ID');
-    define('CIM_TABLE_NAME', 'Payment Name');
-    define('CIM_TABLE_AMOUNT', 'Amount');
-    define('CIM_TABLE_TYPE', 'Payment Type');
-    define('CIM_TABLE_POSTED', 'Date Posted');
-    define('CIM_TABLE_MODIFIED', 'Last Modified');
-    define('CIM_TABLE_ACTION', 'Action');
+    define('CIM_NUMBER', 'Transaction ID');
+    define('CIM_NAME', 'Payment Name');
+    define('CIM_AMOUNT', 'Amount');
+    define('CIM_TYPE', 'Payment Type');
+    define('CIM_POSTED', 'Date Posted');
+    define('CIM_MODIFIED', 'Last Modified');
+    define('CIM_ACTION', 'Action');
     
     define('ALT_TEXT_ADD', 'Add');
     

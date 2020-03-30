@@ -18,6 +18,7 @@
             if (!defined('TABLE_CIM_PAYMENTS')) {
                 include DIR_FS_CATALOG . DIR_WS_LANGUAGES . $_SESSION['language'] . '/modules/payment/cim_tables.php';
             }
+            include DIR_FS_CATALOG . DIR_WS_ADMIN . DIR_WS_LANGUAGES . $_SESSION['language'] . '/cim_order.php';
             $this->start();
         }
         
@@ -61,14 +62,13 @@
             // get all payments not tied to a purchase order
             $payments_query = $db->Execute("select * from " . TABLE_CIM_PAYMENTS . "
                                     where orders_id = '" . $this->oID . "'
-                                    and purchase_order_id = 0
                                     order by date_posted asc");
             
             if (zen_not_null($payments_query->fields['orders_id'])) {
                 while (!$payments_query->EOF) {
                     $this->payment[] = array(
                       'index' => $payments_query->fields['payment_id'],
-                      'number' => $payments_query->fields['payment_number'],
+                      'number' => $payments_query->fields['transaction_id'],
                       'name' => $payments_query->fields['payment_name'],
                       'amount' => $payments_query->fields['payment_amount'],
                       'refund_amount' => $payments_query->fields['refund_amount'],
@@ -94,11 +94,11 @@
                         $this->refund[] = array(
                           'index' => $refunds_query->fields['refund_id'],
                           'payment' => $refunds_query->fields['payment_id'],
-                          'number' => $refunds_query->fields['refund_number'],
+                          'number' => $refunds_query->fields['transaction_id'],
                           'name' => $refunds_query->fields['refund_name'],
                           'amount' => $refunds_query->fields['refund_amount'],
                           'type' => $refunds_query->fields['refund_type'],
-                          'payment_number' => $refunds_query->fields['payment_number'],
+                          'payment_number' => $refunds_query->fields['payment_trans_id'],
                           'posted' => $refunds_query->fields['date_posted'],
                           'modified' => $refunds_query->fields['last_modified']
                         );
@@ -141,8 +141,8 @@
         // field in the orders table
         function new_balance()
         {
-            $a['balance_due'] = $this->balance_due;
-            zen_db_perform(TABLE_ORDERS, $a, 'update', 'orders_id = ' . $this->oID);
+            //$a['balance_due'] = $this->balance_due;
+            //zen_db_perform(TABLE_ORDERS, $a, 'update', 'orders_id = ' . $this->oID);
         }
         
         
@@ -257,12 +257,12 @@
                 );
             }
             
-            $payment_query = $db->Execute("select payment_id, payment_number from " . TABLE_CIM_PAYMENTS . " where orders_id = '" . $this->oID . "'");
+            $payment_query = $db->Execute("select payment_id, transaction_id from " . TABLE_CIM_PAYMENTS . " where orders_id = '" . $this->oID . "'");
             
             while (!$payment_query->EOF) {
                 $payment_array[] = array(
                   'id' => $payment_query->fields['payment_id'],
-                  'text' => $payment_query->fields['payment_number']
+                  'text' => $payment_query->fields['transaction_id']
                 );
                 $payment_query->MoveNext();
             }
@@ -315,7 +315,7 @@
             
             $new_payment = array(
               'orders_id' => $this->oID,
-              'payment_number' => zen_db_prepare_input($payment_number),
+              'transaction_id' => zen_db_prepare_input($payment_number),
               'payment_name' => zen_db_prepare_input($payment_name),
               'payment_amount' => zen_db_prepare_input($payment_amount),
               'payment_type' => zen_db_prepare_input($payment_type),
@@ -376,7 +376,7 @@
             $new_refund = array(
               'payment_id' => (int)$payment_id,
               'orders_id' => $this->oID,
-              'refund_number' => zen_db_prepare_input($refund_number),
+              'transaction_id' => zen_db_prepare_input($refund_number),
               'refund_name' => zen_db_prepare_input($refund_name),
               'refund_amount' => zen_db_prepare_input($refund_amount),
               'refund_type' => zen_db_prepare_input($refund_type),
@@ -407,7 +407,7 @@
                 $update_refund['payment_id'] = (int)$payment_id;
             }
             if ($refund_number && $refund_number != '') {
-                $update_refund['refund_number'] = zen_db_prepare_input($refund_number);
+                $update_refund['transaction_id'] = zen_db_prepare_input($refund_number);
             }
             if ($refund_name && $refund_name != '') {
                 $update_refund['refund_name'] = zen_db_prepare_input($refund_name);
