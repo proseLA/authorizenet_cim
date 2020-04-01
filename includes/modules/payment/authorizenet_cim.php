@@ -99,17 +99,15 @@
                 if ($this->enabled && !function_exists('curl_init')) {
                     $messageStack->add_session(MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_ERROR_CURL_NOT_FOUND, 'error');
                 }
-    
-                $this->login = trim(MODULE_PAYMENT_AUTHORIZENET_CIM_LOGIN);
-                $this->transkey = trim(MODULE_PAYMENT_AUTHORIZENET_CIM_TXNKEY);
-                $this->test_mode = (MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE == 'Test' ? true : false);
-                $subdomain = ($this->test_mode) ? 'apitest' : 'api2';
-                $this->url = "https://" . $subdomain . ".authorize.net/xml/v1/request.api";
-                $this->validationMode = MODULE_PAYMENT_AUTHORIZENET_CIM_VALIDATION; // none, testMode or liveMode
-    
+                //$this->login = trim(MODULE_PAYMENT_AUTHORIZENET_CIM_LOGIN);
+                //$this->transkey = trim(MODULE_PAYMENT_AUTHORIZENET_CIM_TXNKEY);
             } elseif (IS_ADMIN_FLAG === true) {
                 $this->title = MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CATALOG_TITLE . ' Authorize.net (CIM)'; // Payment module title in Catalog
             }
+            $this->test_mode = (MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE == 'Test' ? true : false);
+            $subdomain = ($this->test_mode) ? 'apitest' : 'api2';
+            $this->url = "https://" . $subdomain . ".authorize.net/xml/v1/request.api";
+            $this->validationMode = MODULE_PAYMENT_AUTHORIZENET_CIM_VALIDATION; // none, testMode or liveMode
             $this->description = 'authorizenet_cim'; // Descriptive Info about module in Admin
             $this->sort_order = defined('MODULE_PAYMENT_AUTHORIZENET_CIM_SORT_ORDER') ? MODULE_PAYMENT_AUTHORIZENET_CIM_SORT_ORDER : null; // Sort Order of this payment option on the customer payment page
             $this->form_action_url = zen_href_link(FILENAME_CHECKOUT_PROCESS, '', 'SSL',
@@ -445,35 +443,8 @@
         {
             global $insert_id, $db, $customerID;
             
-            
             after_process_common($customerID, $this->transID, $insert_id, $this->approvalCode, $this->params['customerPaymentProfileId'], $this->order_status);
             
-            $sql = "update  " . TABLE_CIM_PAYMENTS . " set orders_id = :insertID
-            WHERE customers_id = :custId and transaction_id = :transID and orders_id = 0";
-            $sql = $db->bindVars($sql, ':custId', $customerID, 'integer');
-            $sql = $db->bindVars($sql, ':transID', $this->transID, 'string');
-            $sql = $db->bindVars($sql, ':insertID', $insert_id, 'integer');
-            $db->Execute($sql);
-    
-            $sql = "update " . TABLE_ORDERS . "
-        	set approval_code = :approvalCode, transaction_id = :transID, cc_authorized = '1',
-        	payment_profile_id = :payProfileID,
-        	cc_authorized_date = '" . date("Y-m-d H:i:s") . "'
-        	WHERE orders_id = :insertID ";
-            $sql = $db->bindVars($sql, ':approvalCode', $this->approvalCode, 'string');
-            $sql = $db->bindVars($sql, ':transID', $this->transID, 'string');
-            $sql = $db->bindVars($sql, ':insertID', $insert_id, 'integer');
-            $sql = $db->bindVars($sql, ':payProfileID', $this->params['customerPaymentProfileId'], 'integer');
-            $db->Execute($sql);
-            
-            $sql = "insert into " . TABLE_ORDERS_STATUS_HISTORY . " (comments, orders_id, orders_status_id, date_added) values (:orderComments, :orderID, :orderStatus, now() )";
-            $sql = $db->bindVars($sql, ':orderComments',
-              'Credit Card payment.  AUTH: ' . $this->approvalCode . '. TransID: ' . $this->transID . '.',
-              'string');
-            $sql = $db->bindVars($sql, ':orderID', $insert_id, 'integer');
-            $sql = $db->bindVars($sql, ':orderStatus', $this->order_status, 'integer');
-            $db->Execute($sql);
-            //return false;
         }
         
         function createCustomerProfileRequest()
@@ -579,7 +550,7 @@
             
             if ($this->isSuccessful()) {
     
-                insert_payment($this->transID, $this->params['billTo_firstName'] . ' ' . $this->params['billTo_lastName'], $order->info['total'], $this->code, $this->params['customerPaymentProfileId'], $this->approvalCode, $_SESSION['customer_id'] );
+                insert_payment($this->transID, $order->billing['firstname'] . ' ' . $order->billing['lastname'], $order->info['total'], $this->code, $this->params['customerPaymentProfileId'], $this->approvalCode, $_SESSION['customer_id'] );
 
             } else {
                     $this->log = 'payment request order: ' . $order->info['orders_id'] . '; Error: ' . $this->cim_code . ' ' . $this->text;
@@ -735,6 +706,7 @@
         function process($retries = 3)
         {
             // before we make a connection, lets check if there are basic validation errors
+                
             if (count($this->error_messages) == 0) {
                 $count = 0;
                 while ($count < $retries) {
@@ -766,6 +738,7 @@
                     
                     $count++;
                 }
+
     
                 if (DEBUG_CIM) {
                     $this->logError(true);
@@ -834,26 +807,19 @@
             $error_log = DIR_FS_LOGS . '/cim_error.log';
             $error_sent = DIR_FS_LOGS . '/cim_xml_sent.log';
             
-            //if (IS_ADMIN_FLAG && !$lookXML) {
-                $messageStack->add_session('CIM: ' . $this->error_messages[0] . '; ->' . $this->log, 'error');
-            //}
-            
-            if ($log_xml) {
-                error_log(date(DATE_RFC822) . ': ' . $this->xml . "\n", 3, $error_sent);
-            }
-            
+            $messageStack->add_session('CIM: ' . $this->error_messages[0] . '; ->' . $this->log, 'error');
+    
             if (!empty($this->log) || !empty($this->error_messages[0])) {
-                error_log(date(DATE_RFC822) . ': ' . print_r($this->error_messages) . '; ->' . $this->log . "\n", 3,
+                error_log(date(DATE_RFC2822) . ': ' . print_r($this->error_messages) . '; ->' . $this->log . "\n", 3,
                   $error_log);
-            }
-            if ($this->cim_code == 'E00003') {
-                error_log(date(DATE_RFC822) . ': ' . $this->error_messages[0] . '; XML----->' . $this->xml . "\n", 3,
-                  $error_log);
+                if ($log_xml || $this->cim_code == 'E00003') {
+                    error_log(date(DATE_RFC2822) . ': ' . $this->xml . "\n", 3, $error_sent);
+                }
             }
             if ($this->cim_code == 'E00027') {
                 //error_log(date(DATE_RFC822) . ': Response:' . $this->response . "\n", 3, $error_log);
             }
-            //sleep(2);
+            trigger_error('hit the error log.');
         }
         
         
@@ -1893,171 +1859,6 @@
             }
         }
         
-        // The name of the company associated with the customer, if applicable (optional)
-
-        /**
-         * Used to capture part or all of a given previously-authorized transaction.
-         *-/
-        function _doCapt($oID, $amt = 0, $currency = 'USD')
-        {
-            global $db, $messageStack;
-            
-            //@TODO: Read current order status and determine best status to set this to
-            $new_order_status = (int)MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID;
-            if ($new_order_status == 0) {
-                $new_order_status = 1;
-            }
-            
-            $proceedToCapture = true;
-            $captureNote = strip_tags(zen_db_input($_POST['captnote']));
-            if (isset($_POST['captconfirm']) && $_POST['captconfirm'] == 'on') {
-            } else {
-                $messageStack->add_session(MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CAPTURE_CONFIRM_ERROR, 'error');
-                $proceedToCapture = false;
-            }
-            if (isset($_POST['btndocapture']) && $_POST['btndocapture'] == MODULE_PAYMENT_AUTHORIZENET_CIM_ENTRY_CAPTURE_BUTTON_TEXT) {
-                $captureAmt = (float)$_POST['captamt'];
-                /*
-      if ($captureAmt == 0) {
-        $messageStack->add_session(MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_INVALID_CAPTURE_AMOUNT, 'error');
-        $proceedToCapture = false;
-      }
-*-/
-            }
-            if (isset($_POST['captauthid']) && trim($_POST['captauthid']) != '') {
-                // okay to proceed
-            } else {
-                $messageStack->add_session(MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_TRANS_ID_REQUIRED_ERROR, 'error');
-                $proceedToCapture = false;
-            }
-            /**
-             * Submit capture request to Authorize.net
-             *-/
-            if ($proceedToCapture) {
-                // Populate an array that contains all of the data to be sent to Authorize.net
-                unset($submit_data);
-                $submit_data = array(
-                  'x_type' => 'PRIOR_AUTH_CAPTURE',
-                  'x_amount' => number_format($captureAmt, 2),
-                  'x_trans_id' => strip_tags(trim($_POST['captauthid'])),
-                    //                         'x_invoice_num' => $new_order_id,
-                    //                         'x_po_num' => $order->info['po_number'],
-                    //                         'x_freight' => $order->info['shipping_cost'],
-                    //                         'x_tax_exempt' => 'FALSE', /* 'TRUE' or 'FALSE' *-/
-                    //                         'x_tax' => $order->info['tax'],
-                );
-                
-                $response = $this->_sendRequest($submit_data);
-                $response_code = $response[0];
-                $response_text = $response[3];
-                $response_alert = $response_text . ($this->commError == '' ? '' : ' Communications Error - Please notify webmaster.');
-                $this->reportable_submit_data['Note'] = $captureNote;
-                $this->_debugActions($response);
-                
-                if ($response_code != '1' || ($response[0] == 1 && $response[2] == 311)) {
-                    $messageStack->add_session($response_alert, 'error');
-                } else {
-                    // Success, so save the results
-                    $sql_data_array = array(
-                      'orders_id' => (int)$oID,
-                      'orders_status_id' => (int)$new_order_status,
-                      'date_added' => 'now()',
-                      'comments' => 'FUNDS COLLECTED. Auth Code: ' . $response[4] . "\n" . 'Trans ID: ' . $response[6] . "\n" . ' Amount: ' . ($response[9] == 0.00 ? 'Full Amount' : $response[9]) . "\n" . 'Time: ' . date('Y-m-D h:i:s') . "\n" . $captureNote,
-                      'customer_notified' => 0
-                    );
-                    zen_db_perform(TABLE_ORDERS_STATUS_HISTORY, $sql_data_array);
-                    $db->Execute("update " . TABLE_ORDERS . "
-                      set orders_status = '" . (int)$new_order_status . "'
-                      where orders_id = '" . (int)$oID . "'");
-                    $messageStack->add_session(sprintf(MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CAPT_INITIATED,
-                      ($response[9] == 0.00 ? 'Full Amount' : $response[9]), $response[6], $response[4]), 'success');
-                    return true;
-                }
-            }
-            return false;
-        }
-        
-        // The customer's address (optional)
-
-        /**
-         * Used to void a given previously-authorized transaction.
-         *-/
-        function _doVoid($oID, $note = '')
-        {
-            global $db, $messageStack;
-            
-            $new_order_status = (int)MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID;
-            if ($new_order_status == 0) {
-                $new_order_status = 1;
-            }
-            $voidNote = strip_tags(zen_db_input($_POST['voidnote'] . $note));
-            $voidAuthID = trim(strip_tags(zen_db_input($_POST['voidauthid'])));
-            $proceedToVoid = true;
-            if (isset($_POST['ordervoid']) && $_POST['ordervoid'] == MODULE_PAYMENT_AUTHORIZENET_CIM_ENTRY_VOID_BUTTON_TEXT) {
-                if (isset($_POST['voidconfirm']) && $_POST['voidconfirm'] != 'on') {
-                    $messageStack->add_session(MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_VOID_CONFIRM_ERROR, 'error');
-                    $proceedToVoid = false;
-                }
-            }
-            if ($voidAuthID == '') {
-                $messageStack->add_session(MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_TRANS_ID_REQUIRED_ERROR, 'error');
-                $proceedToVoid = false;
-            }
-            // Populate an array that contains all of the data to be sent to gateway
-            $submit_data = array(
-              'x_type' => 'VOID',
-              'x_trans_id' => trim($voidAuthID)
-            );
-            /**
-             * Submit void request to Gateway
-             *-/
-            if ($proceedToVoid) {
-                $response = $this->_sendRequest($submit_data);
-                $response_code = $response[0];
-                $response_text = $response[3];
-                $response_alert = $response_text . ($this->commError == '' ? '' : ' Communications Error - Please notify webmaster.');
-                $this->reportable_submit_data['Note'] = $voidNote;
-                $this->_debugActions($response);
-                
-                if ($response_code != '1' || ($response[0] == 1 && $response[2] == 310)) {
-                    $messageStack->add_session($response_alert, 'error');
-                } else {
-                    // Success, so save the results
-                    $sql_data_array = array(
-                      'orders_id' => (int)$oID,
-                      'orders_status_id' => (int)$new_order_status,
-                      'date_added' => 'now()',
-                      'comments' => 'VOIDED. Trans ID: ' . $response[6] . ' ' . $response[4] . "\n" . $voidNote,
-                      'customer_notified' => 0
-                    );
-                    zen_db_perform(TABLE_ORDERS_STATUS_HISTORY, $sql_data_array);
-                    $db->Execute("update " . TABLE_ORDERS . "
-                      set orders_status = '" . (int)$new_order_status . "'
-                      where orders_id = '" . (int)$oID . "'");
-                    $messageStack->add_session(sprintf(MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_VOID_INITIATED,
-                      $response[6], $response[4]), 'success');
-                    return true;
-                }
-            }
-            return false;
-        }
-        
-        // The city of the customer's address (optional)
-
-         */
-        
-        function parse_api_response($content)
-        {
-            $parsedresponse = simplexml_load_string($content, "SimpleXMLElement", LIBXML_NOWARNING);
-            if ("Ok" != $parsedresponse->messages->resultCode) {
-                echo "The operation failed with the following errors:<br>";
-                foreach ($parsedresponse->messages->message as $msg) {
-                    echo "[" . htmlspecialchars($msg->code) . "] " . htmlspecialchars($msg->text) . "<br>";
-                }
-                echo "<br>";
-            }
-            return $parsedresponse;
-        }
         
         function transaction_amount()
         {

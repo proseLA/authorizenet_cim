@@ -347,8 +347,8 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
         
         $sql = "update " . TABLE_ORDERS . "
         	set approval_code = :approvalCode, transaction_id = :transID, cc_authorized = '1',
-        	payment_profile_id = :payProfileID, orders_status = :orderStatus
-        	cc_authorized_date = '" . date("Y-m-d H:i:s") . "'
+        	payment_profile_id = :payProfileID, orders_status = :orderStatus,
+        	cc_authorized_date = now()
         	WHERE orders_id = :insertID ";
         $sql = $db->bindVars($sql, ':approvalCode', $approval, 'string');
         $sql = $db->bindVars($sql, ':transID', $transID, 'string');
