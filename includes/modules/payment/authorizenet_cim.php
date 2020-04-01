@@ -2,17 +2,6 @@
     /**
      * authorize.net CIM payment method class
      *
-     * @package paymentMethod
-     * @copyright Copyright 2003-2007 Zen Cart Development Team
-     * @copyright Portions Copyright 2003 osCommerce
-     * @license http://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
-     * @version $Id: authorizenet_cim.php 7620 2007-12-11 19:12:46Z drbyte $
-     */
-    
-    /**
-     * Authorize.net Payment Module (CIM version)
-     * You must have SSL active on your server to be compliant with merchant TOS
-     *
      */
     include_once((IS_ADMIN_FLAG === true ? DIR_FS_CATALOG_MODULES : DIR_WS_MODULES) . 'payment/authorizenet/cim_functions.php');
     
@@ -43,18 +32,6 @@
          */
         var $enabled;
         /**
-         * $delimiter determines what separates each field of returned data from authorizenet
-         *
-         * @var string (single char)
-         */
-        var $delimiter = '|';
-        /**
-         * $encapChar denotes what character is used to encapsulate the response fields
-         *
-         * @var string (single char)
-         */
-        var $encapChar = '*';
-        /**
          * log file folder
          *
          * @var string
@@ -75,7 +52,7 @@
         
         // cim
         
-        var $version = '1.3'; // the code revision number for this class
+        var $version = '2.0'; // the code revision number for this class
         var $params = array();
         var $LineItems = array();
         var $success = false;
@@ -387,7 +364,7 @@
          */
         function before_process()
         {
-            global $response, $db, $order, $messageStack;
+            global $response, $db, $order, $messageStack, $customerID;
 
             
             $this->login = trim(MODULE_PAYMENT_AUTHORIZENET_CIM_LOGIN);
@@ -458,22 +435,6 @@
             
             $this->checkErrors('Customer Payment Transaction');
         }
-    
-        function checkErrors($type)
-        {
-            global $messageStack;
-            if (isset($this->error_messages) && (!empty($this->error_messages))) {
-                foreach ($this->error_messages as $error) {
-                    $messageStack->add_session('checkout_payment', 'CIM payment ' . $type . ': ' . $error, 'error');
-                }
-                zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
-            }
-        }
-        
-        function setParameter($field = "", $value = null)
-        {
-            $this->params[$field] = $value;
-        }
         
         /**
          * Post-process activities. Updates the order-status history data with the auth code from the transaction.
@@ -482,11 +443,14 @@
          */
         function after_process()
         {
-            global $insert_id, $db, $order, $customerID;
+            global $insert_id, $db, $customerID;
+            
+            
+            after_process_common($customerID, $this->transID, $insert_id, $this->approvalCode, $this->params['customerPaymentProfileId'], $this->order_status);
             
             $sql = "update  " . TABLE_CIM_PAYMENTS . " set orders_id = :insertID
             WHERE customers_id = :custId and transaction_id = :transID and orders_id = 0";
-            $sql = $db->bindVars($sql, ':custId', $_SESSION['customer_id'], 'string');
+            $sql = $db->bindVars($sql, ':custId', $customerID, 'integer');
             $sql = $db->bindVars($sql, ':transID', $this->transID, 'string');
             $sql = $db->bindVars($sql, ':insertID', $insert_id, 'integer');
             $db->Execute($sql);
@@ -509,7 +473,7 @@
             $sql = $db->bindVars($sql, ':orderID', $insert_id, 'integer');
             $sql = $db->bindVars($sql, ':orderStatus', $this->order_status, 'integer');
             $db->Execute($sql);
-            return false;
+            //return false;
         }
         
         function createCustomerProfileRequest()
@@ -576,52 +540,11 @@
                 save_cc_token($customerID, $this->customerPaymentProfileId, substr($_POST['cc_number'], -4), $_POST['cc_expires'], $save);
            
                 $order->info['payment_profile_id'] = $this->customerPaymentProfileId;
-    
-            /*
-                if (!isset($this->params['card_update'])) {
-                    $exp_date = strip_tags($this->expirationDate());
-                    $exp_date = substr($exp_date, -2) . substr($exp_date, 2, 2);
-                    if ($order->info['admin'] == 'NEW') {
-                        $sql = "UPDATE " . TABLE_ORDERS . "
-        	    SET payment_profile_id = '" . (int)$this->customerPaymentProfileId . "',
-        	    cc_number = 'xxxx-xxxx-xxxx-" . substr(strip_tags($this->cardNumber()), -4) . "',
-        	    save_cc_data = 'Y', cc_expires = :ccexp,
-        	    payment_module_code = 'authorizenet_cim', payment_method = 'authorizenet_cim'
-        	    WHERE orders_id = :orderID ";
-                    } else {
-                        $sql = "UPDATE " . TABLE_ORDERS . "
-                SET payment_profile_id = '" . (int)$this->customerPaymentProfileId . "',
-                cc_number = 'xxxx-xxxx-xxxx-" . substr(strip_tags($this->cardNumber()), -4) . "',
-                save_cc_data = '" . $save . "', cc_expires = :ccexp
-                WHERE orders_id = :orderID ";
-                    }
-                    $sql = $db->bindVars($sql, ':orderID', $insert_id, 'integer');
-                    $sql = $db->bindVars($sql, ':ccexp', $exp_date, 'integer');
-                    if ($insert_id > 0) {
-                        $db->Execute($sql);
-                        $this->log = $sql;
-                        $this->die_message = 'TEMP: - customerPaymentProfileRequest:';
-                    }
-                    //$this->logError();
-                } */
             } else {
                 $this->log = 'PaymentProfileRequest. Order: ' . $insert_id . '; Error: ' . $this->cim_code . ' ' . $this->text;
                 $this->die_message = 'customerPaymentProfileRequest';
                 $this->logError();
                 if ($this->cim_code == 'E00039') {
-                    /*$sql = "select * from " . TABLE_CUSTOMERS_CC . " where customers_id = :customerID and last_four = '" . substr($this->params['cardNumber'], -4) . "' order by payment_profile_id desc limit 1";
-                    $sql = "UPDATE " . TABLE_ORDERS . "
-                  SET payment_profile_id = :cppID, cc_number = :ccNumber, cc_expires = :ccExp, save_cc_data = 'Y'
-                  WHERE orders_id = :orderID ";
-                    $sql = $db->bindVars($sql, ':orderID', $insert_id, 'integer');
-                    $sql = $db->bindVars($sql, ':cppID', $this->customerPaymentProfileId, 'integer');
-                    $sql = $db->bindVars($sql, ':ccNumber',
-                      'xxxx-xxxx-xxxx-' . substr(strip_tags($this->cardNumber()), -4), 'string');
-                    $sql = $db->bindVars($sql, ':ccExp',
-                      substr(strip_tags($this->expirationDate()), -2) . substr(strip_tags($this->expirationDate()), 2,
-                        2), 'string');
-                    $db->Execute($sql);
-                    $this->log = $sql; */
                     $sql = "select * from " . TABLE_CUSTOMERS_CC . " where customers_id = :customerID and payment_profile_id = :ppid order by payment_profile_id desc limit 1";
                     $sql = $db->bindVars($sql, ':ppid', $this->customerPaymentProfileId, 'integer');
                     $sql = $db->bindVars($sql, ':customerID', $customerID, 'integer');
@@ -647,72 +570,21 @@
         
         function createCustomerProfileTransactionRequest()
         {
-            global $db, $order, $lookXML, $insert_id;
-            
-            $lookXML = false;
-            
+            global $order;
+    
             $data = customer_payment_transaction($this->params['customerProfileId'], $this->params['customerPaymentProfileId'], $order);
             $this->xml = request_xml('createCustomerProfileTransactionRequest', $data);
     
             $this->process();
             
-            // if ($lookXML) {error_log(date(DATE_RFC822) . ': ' . $this->xml  . "\n", 3, '../../cim_error.log');}
-            $lookXML = false;
-            
             if ($this->isSuccessful()) {
-                $sql = "INSERT INTO `" . TABLE_CIM_PAYMENTS . "` ( `payment_name`, `payment_amount`, `payment_type`, `date_posted`, `last_modified`,  `transaction_id`, `payment_profile_id`, `approval_code`, `customers_id`)
-VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :approval_code, :custID)";
+    
+                insert_payment($this->transID, $this->params['billTo_firstName'] . ' ' . $this->params['billTo_lastName'], $order->info['total'], $this->code, $this->params['customerPaymentProfileId'], $this->approvalCode, $_SESSION['customer_id'] );
 
-                
-                $sql = $db->bindVars($sql, ':transID', $this->transID, 'string');
-                $sql = $db->bindVars($sql, ':nameFull',
-                  $this->params['billTo_firstName'] . ' ' . $this->params['billTo_lastName'], 'string');
-                $sql = $db->bindVars($sql, ':amount', $order->info['total'], 'noquotestring');
-                $sql = $db->bindVars($sql, ':type', $this->code, 'string');
-                $sql = $db->bindVars($sql, ':paymentProfileID', $this->params['customerPaymentProfileId'], 'string');
-                $sql = $db->bindVars($sql, ':approval_code', $this->approvalCode, 'string');
-                 $sql = $db->bindVars($sql, ':custID', $this->params['merchantCustomerId'], 'string');
-                
-                $db->Execute($sql);
-                
-                if ($order->info['save_cc_data'] == 'N') {
-                    $sql = "Select orders_id from " . TABLE_ORDERS . "
-                WHERE customers_id = :custID  and payment_profile_id = :paymtProfId
-                and approval_code = ''";
-                    $sql = $db->bindVars($sql, ':custID', $order->info['customers_id'], 'integer');
-                    $sql = $db->bindVars($sql, ':paymtProfId', $order->info['payment_profile_id'], 'integer');
-                    $open_orders = $db->Execute($sql);
-                    $this->log = $sql . '<---rec Count--->' . $open_orders->RecordCount();
-                    //$this->logError();
-                    if ($open_orders->RecordCount() == 0) {
-                        $this->params['customerProfileId'] = $order->billing['customerProfileId'];
-                        $this->params['customerPaymentProfileId'] = $order->info['payment_profile_id'];
-                        // $this->deleteCustomerPaymentProfileRequest();
-                    }
-                }
             } else {
-                if ($this->cim_code == 'E00027') {
-                    $this->log = 'createCustomerProfileTransactionRequest_1 order: ' . $order->info['orders_id'] . '; Error: ' . $this->cim_code . ' ' . $this->text;
-                    if ((strpos($this->text, 'declined') !== false) || (strpos($this->text, 'duplicate') !== false)) {
-                    } else {
-                        //$this->log .= ' trying to update CC expiration date off new CC number';
-                    }
-                    $this->die_message = 'customerPaymentProfileTransactionRequest';
-                    $this->logError();
-                    $order->info['admin'] = 'NEW';
-                    $this->setParameter('customerPaymentProfileId', $this->orderPaymentProfileId());
-                    $this->setParameter('customerProfileId', $this->orderCustomerProfileId());
-                    if ((strpos($this->text, 'declined') !== false) || (strpos($this->text, 'duplicate') !== false)) {
-                    } else {
-                        if ($order->info['cc_expires'] != '') {
-                            //$this->updateCustomerPaymentProfileRequest();
-                        }
-                    }
-                } else {
-                    $this->log = 'createCustomerProfileTransactionRequest_2 order: ' . $order->info['orders_id'] . '; Error: ' . $this->cim_code . ' ' . $this->text;
+                    $this->log = 'payment request order: ' . $order->info['orders_id'] . '; Error: ' . $this->cim_code . ' ' . $this->text;
                     $this->die_message = 'no success - customer profile Transaction request';
-                    $this->logError();
-                }
+                    $this->logError(DEBUG_CIM);
             }
         }
     
@@ -730,6 +602,15 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
             $refund = $db->Execute($sql);
         
             $max_refund = $refund->fields['payment_amount'];
+            
+            // need to look at previous amounts refunded on transaction
+            $sql = "select sum(refund_amount) as refunded from " . TABLE_CIM_REFUNDS . "  where payment_trans_id = :transID";
+            $sql = $db->bindVars($sql, ':transID', $refund->fields['transaction_id'], 'string');
+            $previous_refund = $db->Execute($sql);
+    
+            if (isset($previous_refund->fields['refunded']) and (!is_null($previous_refund->fields['refunded']))) {
+                $max_refund -= $previous_refund->fields['refunded'];
+            }
         
             if (!(isset($refund_amount)) || ($refund_amount == 0) || ($refund_amount > $max_refund)) {
                 $refund_amount = $max_refund;
@@ -745,7 +626,7 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
             if (!$this->isSuccessful()) {
                 $this->log = 'CIM Refund transaction fail: ' . $ordersID . '; Error: ' . $this->cim_code . ' ' . $this->text;
                 $this->die_message = 'FAILED - CIM Refund transaction.';
-                $this->logError();
+                $this->logError(DEBUG_CIM);
     
                 $data = customer_refund_payment($refund->fields['customers_customerProfileId'],
                   $refund->fields['payment_profile_id'], number_format($refund_amount, 2, '.', ''));
@@ -757,10 +638,12 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
             if (!$this->isSuccessful()) {
                 $this->log = 'CIM Refund payment fail: ' . $ordersID . '; Error: ' . $this->cim_code . ' ' . $this->text;
                 $this->die_message = 'FAILED - CIM Refund payment.';
-                $this->logError();
-                $data = customer_void_transaction($refund->fields['customers_customerProfileId'],
-                  $refund->fields['payment_profile_id'], trim($refund->fields['transaction_id']));
+                $this->logError(DEBUG_CIM);
+                $data = customer_void_transaction($ordersID, trim($refund->fields['transaction_id']));
                 $this->xml = request_xml('createCustomerProfileTransactionRequest', $data);
+                
+                //voids do not get amounts, so the amount is the total initially authorized
+                $refund_amount = $refund->fields['order_total'];
         
                 $this->process();
             }
@@ -768,7 +651,7 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
             if (!$this->isSuccessful()) {
                 $this->log = 'CIM Void Transaction fail: ' . $ordersID . '; Error: ' . $this->cim_code . ' ' . $this->text;
                 $this->die_message = 'FAILED - CIM Void Transaction.';
-                $this->logError();
+                $this->logError(DEBUG_CIM);
             }
     
     
@@ -776,7 +659,7 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
                 $this->log = 'do CIM Refund order: ' . $ordersID . '; Error: ' . $this->cim_code . ' ' . $this->text;
                 $this->die_message = 'Success - CIM Refund order:';
                 if (DEBUG_CIM) {
-                    $this->logError();
+                    $this->logError(DEBUG_CIM);
                 } else {
                     if (IS_ADMIN_FLAG) {
                         $messageStack->add_session('CIM refund success: ' . $this->error_messages[0] . '; ->' . $this->log, 'warning');
@@ -785,22 +668,16 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
                 if ($refund_amount == $refund->fields['order_total']) {
                     updateOrderInfo($ordersID);
                 }
-        
-                $sql = "insert into " . TABLE_CIM_REFUNDS . " (payment_id, orders_id, transaction_id, refund_name, refund_amount, refund_type, payment_trans_id, date_posted, last_modified) values (:paymentID, :orderID, :transID, :payment_name, :amount, 'REF', :payment_trans_id, now(), now() )";
-                $sql = $db->bindVars($sql, ':paymentID', $refund->fields['payment_id'], 'integer');
-                $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
-                $sql = $db->bindVars($sql, ':transID', $this->transID, 'string');
-                $sql = $db->bindVars($sql, ':payment_name', $refund->fields['customers_name'], 'string');
-                $sql = $db->bindVars($sql, ':payment_trans_id', trim($refund->fields['transaction_id']), 'string');
-                $sql = $db->bindVars($sql, ':amount', $this->params['transaction_amount'], 'noquotestring');
-            
-                $db->Execute($sql);
-                $sql = "update " . TABLE_CIM_PAYMENTS . " set refund_amount = (refund_amount + :amount) where transaction_id = :transID and orders_id = :orderID";
-                $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
-                $sql = $db->bindVars($sql, ':transID', trim($refund->fields['transaction_id']), 'string');
-                $sql = $db->bindVars($sql, ':amount', $this->params['transaction_amount'], 'noquotestring');
-                $db->Execute($sql);
+                
+                insert_refund($refund->fields['payment_id'], $ordersID, $this->transID, $refund->fields['payment_name'], $refund->fields['transaction_id'], $refund_amount);
+                
+                update_payment($ordersID, $refund->fields['transaction_id'], $refund_amount);
+                
+                $return = true;
+            } else {
+                $return = false;
             }
+            return $return;
         }
         
         function refId()
@@ -837,7 +714,24 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
                 }
             }
         }
-        
+    
+        function checkErrors($type)
+        {
+            global $messageStack;
+            if (isset($this->error_messages) && (!empty($this->error_messages))) {
+                foreach ($this->error_messages as $error) {
+                    $messageStack->add_session('checkout_payment', 'CIM payment ' . $type . ': ' . $error, 'error');
+                }
+                zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
+            }
+        }
+    
+        function setParameter($field = "", $value = null)
+        {
+            $this->params[$field] = $value;
+        }
+    
+    
         function process($retries = 3)
         {
             // before we make a connection, lets check if there are basic validation errors
@@ -874,7 +768,7 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
                 }
     
                 if (DEBUG_CIM) {
-                    //$this->logError(true);
+                    $this->logError(true);
                 }
                 curl_close($ch);
             } else {
@@ -925,6 +819,43 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
             }
             
         }
+
+        function isSuccessful()
+        {
+            return $this->success;
+        }
+        
+        function logError($log_xml = false)
+        {
+            global $messageStack, $order, $lookXML;
+            $lookXML = false;
+            //$log_xml = true;
+            
+            $error_log = DIR_FS_LOGS . '/cim_error.log';
+            $error_sent = DIR_FS_LOGS . '/cim_xml_sent.log';
+            
+            //if (IS_ADMIN_FLAG && !$lookXML) {
+                $messageStack->add_session('CIM: ' . $this->error_messages[0] . '; ->' . $this->log, 'error');
+            //}
+            
+            if ($log_xml) {
+                error_log(date(DATE_RFC822) . ': ' . $this->xml . "\n", 3, $error_sent);
+            }
+            
+            if (!empty($this->log) || !empty($this->error_messages[0])) {
+                error_log(date(DATE_RFC822) . ': ' . print_r($this->error_messages) . '; ->' . $this->log . "\n", 3,
+                  $error_log);
+            }
+            if ($this->cim_code == 'E00003') {
+                error_log(date(DATE_RFC822) . ': ' . $this->error_messages[0] . '; XML----->' . $this->xml . "\n", 3,
+                  $error_log);
+            }
+            if ($this->cim_code == 'E00027') {
+                //error_log(date(DATE_RFC822) . ': Response:' . $this->response . "\n", 3, $error_log);
+            }
+            //sleep(2);
+        }
+        
         
         function substring_between($haystack, $start, $end)
         {
@@ -937,42 +868,6 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
             }
         }
         
-        function isSuccessful()
-        {
-            return $this->success;
-        }
-        
-        function logError($log_xml = false)
-        {
-            global $messageStack, $order, $lookXML;
-            $lookXML = false;
-            $log_xml = true;
-            
-            $error_log = DIR_FS_LOGS . '/cim_error.log';
-            $error_sent = DIR_FS_LOGS . '/cim_xml_sent.log';
-            
-            if (IS_ADMIN_FLAG && !$lookXML) {
-                $messageStack->add_session('CIM: ' . $this->error_messages[0] . '; ->' . $this->log, 'error');
-            }
-            
-            if ($log_xml) {
-                error_log(date(DATE_RFC822) . ': ' . $this->xml . "\n", 3, $error_sent);
-                //error_log(date(DATE_RFC822) . ': ' . $order->info . "\n", 3, $error_sent);
-            }
-            
-            if (!empty($this->log) || !empty($this->error_messages[0])) {
-                error_log(date(DATE_RFC822) . ': ' . $this->error_messages[0] . '; ->' . $this->log . "\n", 3,
-                  $error_log);
-            }
-            if ($this->cim_code == 'E00003') {
-                error_log(date(DATE_RFC822) . ': ' . $this->error_messages[0] . '; XML----->' . $this->xml . "\n", 3,
-                  $error_log);
-            }
-            if ($this->cim_code == 'E00039') {
-                //error_log(date(DATE_RFC822) . ': Response:' . $this->response . "\n", 3, $error_log);
-            }
-            //sleep(2);
-        }
     
 
         

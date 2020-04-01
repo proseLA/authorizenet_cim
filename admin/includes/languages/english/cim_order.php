@@ -67,6 +67,7 @@
     define('PAYMENT_ACTION_DROP', 'Remove it along with the payment');
     
     define('HEADER_DELETE_CONFIRM', 'Delete Successful');
+    define('HEADER_DELETE_FAIL', 'Delete Failed!');
     define('TEXT_DELETE_CONFIRM', 'The operation is complete.<p><strong>%s</strong> line(s) affected in the process.');
     define('BUTTON_DELETE_CONFIRM', 'Return');
     

@@ -115,6 +115,12 @@
         $data->appendChild($transaction);
         $dom->appendChild($data);
         
+        /*
+        $html = $dom->saveHTML();
+        print_r($html);
+        die(__FILE__ . ':' . __LINE__);
+        */
+        
         $node = $dom->getElementsByTagName('data')->item(0);
         return $node;
     }
@@ -162,21 +168,18 @@
         return $node;
     }
     
-    function customer_void_transaction($customer_profile_id, $payment_profile_id, $transaction_id)
+    function customer_void_transaction($orderID, $transaction_id)
     {
         $dom = new DOMDocument();
         $dom->formatOutput = true;
         $data = $dom->createElement('data');
         
-        $transaction = $dom->createElement('transaction');
-        $profileTransVoid = $dom->createElement('profileTransVoid');
-        $profileTransVoid->appendChild($dom->createElement('customerProfileId', $customer_profile_id));
-        $profileTransVoid->appendChild($dom->createElement('customerPaymentProfileId', $payment_profile_id));
-        $profileTransVoid->appendChild($dom->createElement('transId', $transaction_id));
+        $data->appendChild($dom->createElement('refId', $orderID));
+        $transactionRequest = $dom->createElement('transactionRequest');
+        $transactionRequest->appendChild($dom->createElement('TransactionType','voidTransaction'));
+        $transactionRequest->appendChild($dom->createElement('reftransId', $transaction_id));
         
-        $transaction->appendChild($profileTransVoid);
-        
-        $data->appendChild($transaction);
+        $data->appendChild($transactionRequest);
         $dom->appendChild($data);
         
         $node = $dom->getElementsByTagName('data')->item(0);
@@ -267,9 +270,98 @@
             $new_order_status = 1;
         }
         $sql = "update " . TABLE_ORDERS . "
-        	set approval_code = ' ', transaction_id = ' ', cc_authorized = 0 , cc_authorized_date = '', order_status = :stat
+        	set approval_code = ' ', transaction_id = ' ', cc_authorized = '0', cc_authorized_date = null, orders_status = :stat
         	WHERE orders_id = :orderID ";
         $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
         $sql = $db->bindVars($sql, ':stat', $new_order_status, 'integer');
+        $db->Execute($sql);
+    }
+    
+    function insert_payment($transID, $name, $total, $type, $profileID, $approval, $custID)
+    {
+        global $db;
+        $sql = "insert into " . TABLE_CIM_PAYMENTS . " ( payment_name, payment_amount, payment_type, date_posted, last_modified,  transaction_id, payment_profile_id, approval_code, customers_id)
+VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :approval_code, :custID)";
+        
+        $sql = $db->bindVars($sql, ':transID', $transID, 'string');
+        $sql = $db->bindVars($sql, ':nameFull', $name, 'string');
+        $sql = $db->bindVars($sql, ':amount', $total, 'noquotestring');
+        $sql = $db->bindVars($sql, ':type', $type, 'string');
+        $sql = $db->bindVars($sql, ':paymentProfileID', $profileID, 'string');
+        $sql = $db->bindVars($sql, ':approval_code', $approval, 'string');
+        $sql = $db->bindVars($sql, ':custID', $custID, 'string');
+        $db->Execute($sql);
+    }
+    
+    function insert_refund($paymentID, $ordersID, $transID, $name, $payment_trans_id, $amount)
+    {
+        global $db;
+        $sql = "insert into " . TABLE_CIM_REFUNDS . " (payment_id, orders_id, transaction_id, refund_name, refund_amount, refund_type, payment_trans_id, date_posted, last_modified) values (:paymentID, :orderID, :transID, :payment_name, :amount, 'REF', :payment_trans_id, now(), now() )";
+        $sql = $db->bindVars($sql, ':paymentID', $paymentID, 'integer');
+        $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
+        $sql = $db->bindVars($sql, ':transID', $transID, 'string');
+        $sql = $db->bindVars($sql, ':payment_name', $name, 'string');
+        $sql = $db->bindVars($sql, ':payment_trans_id', trim($payment_trans_id), 'string');
+        $sql = $db->bindVars($sql, ':amount', $amount, 'noquotestring');
+        $db->Execute($sql);
+    }
+    
+    function update_payment($ordersID, $transID, $amount)
+    {
+        global $db;
+        $sql = "update " . TABLE_CIM_PAYMENTS . " set refund_amount = (refund_amount + :amount) where transaction_id = :transID and orders_id = :orderID";
+        $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
+        $sql = $db->bindVars($sql, ':transID', trim($transID), 'string');
+        $sql = $db->bindVars($sql, ':amount', $amount, 'noquotestring');
+        $db->Execute($sql);
+    }
+    
+    // returns payment profile ID or false if the index is not found or it does not match the logged in customer.
+    function check_customer_card($customerID, $cc_index)
+    {
+        global $db;
+        $sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . "
+            WHERE index_id = :indexID";
+        $sql = $db->bindVars($sql, ':indexID', $cc_index, 'integer');
+        $check_customer_cc = $db->Execute($sql);
+        
+        if ($check_customer_cc->fields['customers_id'] !== $customerID) {
+            $return = false;
+        } else {
+            $return = $check_customer_cc->fields['payment_profile_id'];
+        }
+        return $return;
+    
+    }
+    
+    function after_process_common($customerID, $transID, $insertID, $approval, $payment_profile_id, $status)
+    {
+        global $db;
+        
+        $sql = "update  " . TABLE_CIM_PAYMENTS . " set orders_id = :insertID
+            WHERE customers_id = :custId and transaction_id = :transID and orders_id = 0";
+        $sql = $db->bindVars($sql, ':custId', $customerID, 'integer');
+        $sql = $db->bindVars($sql, ':transID', $transID, 'string');
+        $sql = $db->bindVars($sql, ':insertID', $insertID, 'integer');
+        $db->Execute($sql);
+        
+        $sql = "update " . TABLE_ORDERS . "
+        	set approval_code = :approvalCode, transaction_id = :transID, cc_authorized = '1',
+        	payment_profile_id = :payProfileID, orders_status = :orderStatus
+        	cc_authorized_date = '" . date("Y-m-d H:i:s") . "'
+        	WHERE orders_id = :insertID ";
+        $sql = $db->bindVars($sql, ':approvalCode', $approval, 'string');
+        $sql = $db->bindVars($sql, ':transID', $transID, 'string');
+        $sql = $db->bindVars($sql, ':insertID', $insertID, 'integer');
+        $sql = $db->bindVars($sql, ':orderStatus', $status, 'integer');
+        $sql = $db->bindVars($sql, ':payProfileID', $payment_profile_id, 'integer');
+        $db->Execute($sql);
+        
+        $sql = "insert into " . TABLE_ORDERS_STATUS_HISTORY . " (comments, orders_id, orders_status_id, date_added) values (:orderComments, :orderID, :orderStatus, now() )";
+        $sql = $db->bindVars($sql, ':orderComments',
+          'Credit Card payment.  AUTH: ' . $approval . '. TransID: ' . $transID . '.',
+          'string');
+        $sql = $db->bindVars($sql, ':orderID', $insertID, 'integer');
+        $sql = $db->bindVars($sql, ':orderStatus', $status, 'integer');
         $db->Execute($sql);
     }

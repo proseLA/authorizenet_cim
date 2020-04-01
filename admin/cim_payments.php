@@ -166,7 +166,7 @@
                         $cim = new authorizenet_cim();
                         $cim->CimRefund = abs(round((float)($_GET['refund_amount']), 2));
                         
-                        $cim->doCimRefund($oID, $cim->CimRefund);
+                        $_SESSION['refund_status'] = $cim->doCimRefund($oID, $cim->CimRefund);
                         $affected_rows++;
                         
                         break;  // END case 'payment'
@@ -221,10 +221,10 @@
         //_TODO code to customize the TITLE goes here
         ?>
         <!doctype html public "-//W3C//DTD HTML 4.01 Transitional//EN">
-        <html <?php echo HTML_PARAMS; ?>>
+        <html <?= HTML_PARAMS; ?>>
         <head>
-            <meta http-equiv="Content-Type" content="text/html; charset=<?php echo CHARSET; ?>">
-            <title><?php echo TITLE; ?></title>
+            <meta http-equiv="Content-Type" content="text/html; charset=<?= CHARSET; ?>">
+            <title><?= TITLE; ?></title>
             <link rel="stylesheet" type="text/css" href="includes/super_stylesheet.css">
             <link rel="stylesheet" type="text/css" href="includes/stylesheet.css">
             <link rel="stylesheet" type="text/css" href="includes/cssjsmenuhover.css" media="all" id="hoverJS">
@@ -261,6 +261,17 @@
             </script>
         </head>
         <body onload="self.focus()">
+        <?php
+        // display alerts/error messages, if any
+        if ($messageStack->size > 0) {
+            ?>
+            <div class="messageStack-header noprint">
+                <?php
+                    echo $messageStack->output();
+                ?>
+            </div>
+            <?php
+        } ?>
         <table border="0" width="100%" cellspacing="0" cellpadding="0" align="center">
         <tr>
         <td align="center">
@@ -279,36 +290,36 @@
                         $po_array = $cim->build_po_array(TEXT_NONE);
                         ?>
                         <tr>
-                            <td colspan="2" align="center" class="pageHeading"><?php echo HEADER_ENTER_PAYMENT; ?></td>
+                            <td colspan="2" align="center" class="pageHeading"><?= HEADER_ENTER_PAYMENT; ?></td>
                         </tr>
                         <tr>
                             <td colspan="2" align="center" class="main">
-                                <strong><?php echo HEADER_ORDER_ID . $cim->oID; ?></strong></td>
+                                <strong><?= HEADER_ORDER_ID . $cim->oID; ?></strong></td>
                         </tr>
                         <tr>
-                            <td colspan="2" align="center"><?php echo zen_draw_separator('pixel_trans.gif', '1',
+                            <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1',
                                   '10'); ?></td>
                         </tr>
                         <tr>
-                            <td class="main" align="right"><?php echo TEXT_PAYMENT_NUMBER; ?></td>
-                            <td class="main"><?php echo zen_draw_input_field('payment_number', '', 'size="25"'); ?></td>
+                            <td class="main" align="right"><?= TEXT_PAYMENT_NUMBER; ?></td>
+                            <td class="main"><?= zen_draw_input_field('payment_number', '', 'size="25"'); ?></td>
                         </tr>
                         <tr>
-                            <td class="main" align="right"><?php echo TEXT_PAYMENT_NAME; ?></td>
-                            <td class="main"><?php echo zen_draw_input_field('payment_name', '', 'size="25"'); ?></td>
+                            <td class="main" align="right"><?= TEXT_PAYMENT_NAME; ?></td>
+                            <td class="main"><?= zen_draw_input_field('payment_name', '', 'size="25"'); ?></td>
                         </tr>
                         <tr>
-                            <td class="main" align="right"><?php echo TEXT_PAYMENT_AMOUNT; ?></td>
-                            <td class="main"><?php echo zen_draw_input_field('payment_amount', '', 'size="8"'); ?></td>
+                            <td class="main" align="right"><?= TEXT_PAYMENT_AMOUNT; ?></td>
+                            <td class="main"><?= zen_draw_input_field('payment_amount', '', 'size="8"'); ?></td>
                         </tr>
                         <tr>
-                            <td class="main" align="right"><?php echo TEXT_PAYMENT_TYPE; ?></td>
-                            <td class="main"><?php echo zen_draw_pull_down_menu('payment_type', $cim->payment_key, '',
+                            <td class="main" align="right"><?= TEXT_PAYMENT_TYPE; ?></td>
+                            <td class="main"><?= zen_draw_pull_down_menu('payment_type', $cim->payment_key, '',
                                   ''); ?></td>
                         </tr>
                         <tr>
-                            <td class="main" align="right"><?php echo TEXT_ATTACHED_PO; ?></td>
-                            <td class="main"><?php echo zen_draw_pull_down_menu('purchase_order_id', $po_array, '',
+                            <td class="main" align="right"><?= TEXT_ATTACHED_PO; ?></td>
+                            <td class="main"><?= zen_draw_pull_down_menu('purchase_order_id', $po_array, '',
                                   ''); ?></td>
                         </tr>
                         <?php
@@ -317,19 +328,19 @@
                     case 'purchase_order':
                         ?>
                         <tr>
-                            <td colspan="2" align="center" class="pageHeading"><?php echo HEADER_ENTER_PO; ?></td>
+                            <td colspan="2" align="center" class="pageHeading"><?= HEADER_ENTER_PO; ?></td>
                         </tr>
                         <tr>
                             <td colspan="2" align="center" class="main">
-                                <strong><?php echo HEADER_ORDER_ID . $cim->oID; ?></strong></td>
+                                <strong><?= HEADER_ORDER_ID . $cim->oID; ?></strong></td>
                         </tr>
                         <tr>
-                            <td colspan="2" align="center"><?php echo zen_draw_separator('pixel_trans.gif', '1',
+                            <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1',
                                   '10'); ?></td>
                         </tr>
                         <tr>
-                            <td class="main" align="right"><?php echo TEXT_PO_NUMBER; ?></td>
-                            <td class="main"><?php echo zen_draw_input_field('po_number', '', 'size="25"'); ?></td>
+                            <td class="main" align="right"><?= TEXT_PO_NUMBER; ?></td>
+                            <td class="main"><?= zen_draw_input_field('po_number', '', 'size="25"'); ?></td>
                         </tr>
                         <?php
                         break;
@@ -338,37 +349,37 @@
                         $payment_array = $cim->build_payment_array(TEXT_NONE);
                         ?>
                         <tr>
-                            <td colspan="2" align="center" class="pageHeading"><?php echo HEADER_ENTER_REFUND; ?></td>
+                            <td colspan="2" align="center" class="pageHeading"><?= HEADER_ENTER_REFUND; ?></td>
                         </tr>
                         <tr>
                             <td colspan="2" align="center" class="main">
-                                <strong><?php echo HEADER_ORDER_ID . $cim->oID; ?></strong></td>
+                                <strong><?= HEADER_ORDER_ID . $cim->oID; ?></strong></td>
                         </tr>
                         <tr>
-                            <td colspan="2" align="center"><?php echo zen_draw_separator('pixel_trans.gif', '1',
+                            <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1',
                                   '10'); ?></td>
                         </tr>
                         <tr>
-                            <td class="main" align="right"><?php echo TEXT_ATTACHED_PAYMENT; ?></td>
-                            <td class="main"><?php echo zen_draw_pull_down_menu('payment_id', $payment_array, '',
+                            <td class="main" align="right"><?= TEXT_ATTACHED_PAYMENT; ?></td>
+                            <td class="main"><?= zen_draw_pull_down_menu('payment_id', $payment_array, '',
                                   ''); ?></td>
                         </tr>
                         <tr>
-                            <td class="main" align="right"><?php echo TEXT_REFUND_NUMBER; ?></td>
-                            <td class="main"><?php echo zen_draw_input_field('refund_number', '', 'size="25"'); ?></td>
+                            <td class="main" align="right"><?= TEXT_REFUND_NUMBER; ?></td>
+                            <td class="main"><?= zen_draw_input_field('refund_number', '', 'size="25"'); ?></td>
                         </tr>
                         <tr>
-                            <td class="main" align="right"><?php echo TEXT_REFUND_NAME; ?></td>
-                            <td class="main"><?php echo zen_draw_input_field('refund_name', '', 'size="25"'); ?></td>
+                            <td class="main" align="right"><?= TEXT_REFUND_NAME; ?></td>
+                            <td class="main"><?= zen_draw_input_field('refund_name', '', 'size="25"'); ?></td>
                         </tr>
                         <tr>
-                            <td class="main" align="right"><?php echo TEXT_REFUND_AMOUNT; ?></td>
-                            <td class="main"><?php echo zen_draw_input_field('refund_amount', '',
+                            <td class="main" align="right"><?= TEXT_REFUND_AMOUNT; ?></td>
+                            <td class="main"><?= zen_draw_input_field('refund_amount', '',
                                     'size="8"') . '<span class="alert">' . TEXT_NO_MINUS . '</span>'; ?></td>
                         </tr>
                         <tr>
-                            <td class="main" align="right"><?php echo TEXT_REFUND_TYPE; ?></td>
-                            <td class="main"><?php echo zen_draw_pull_down_menu('refund_type', $cim->payment_key, '',
+                            <td class="main" align="right"><?= TEXT_REFUND_TYPE; ?></td>
+                            <td class="main"><?= zen_draw_pull_down_menu('refund_type', $cim->payment_key, '',
                                   ''); ?></td>
                         </tr>
                         <?php
@@ -377,29 +388,29 @@
                 ?>
                 </table></td>
                 <tr>
-                    <td colspan="2" align="center"><?php echo zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
+                    <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
                 </tr>
                 <tr>
                     <td align="center" colspan="2">
                         <table border="0" cellspacing="0" cellpadding="0">
                             <tr>
-                                <td class="main"><?php echo zen_draw_checkbox_field('update_status', 1,
+                                <td class="main"><?= zen_draw_checkbox_field('update_status', 1,
                                         false) . CHECKBOX_UPDATE_STATUS; ?></td>
                             </tr>
                             <tr>
-                                <td class="main"><?php echo zen_draw_checkbox_field('notify_customer', 1,
+                                <td class="main"><?= zen_draw_checkbox_field('notify_customer', 1,
                                         false) . CHECKBOX_NOTIFY_CUSTOMER; ?></td>
                             </tr>
                         </table>
                     </td>
                 </tr>
                 <tr>
-                    <td colspan="2" align="center"><?php echo zen_draw_separator('pixel_trans.gif', '1', '15'); ?></td>
+                    <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1', '15'); ?></td>
                 </tr>
                 <tr>
                     <td class="main" colspan="2" align="center">
-                        <INPUT TYPE="BUTTON" VALUE="<?php echo BUTTON_CANCEL; ?>" onclick="returnParent()">
-                        <INPUT TYPE="SUBMIT" VALUE="<?php echo BUTTON_SUBMIT; ?>"
+                        <INPUT TYPE="BUTTON" VALUE="<?= BUTTON_CANCEL; ?>" onclick="returnParent()">
+                        <INPUT TYPE="SUBMIT" VALUE="<?= BUTTON_SUBMIT; ?>"
                                onclick="document.add.submit();this.disabled=true">
                     </td>
                 </tr>
@@ -423,40 +434,40 @@
                         ?>
                         <tr>
                             <td colspan="2" align="center"
-                                class="pageHeading"><?php echo HEADER_UPDATE_PAYMENT . '<br />' . $payment->fields['payment_number']; ?></td>
+                                class="pageHeading"><?= HEADER_UPDATE_PAYMENT . '<br />' . $payment->fields['payment_number']; ?></td>
                         </tr>
                         <tr>
                             <td colspan="2" class="main" align="center">
-                                <strong><?php echo HEADER_ORDER_ID . $cim->oID . '<br />' . HEADER_PAYMENT_UID . $index; ?></strong>
+                                <strong><?= HEADER_ORDER_ID . $cim->oID . '<br />' . HEADER_PAYMENT_UID . $index; ?></strong>
                             </td>
                         </tr>
                         <tr>
-                            <td colspan="2" align="center"><?php echo zen_draw_separator('pixel_trans.gif', '1',
+                            <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1',
                                   '10'); ?></td>
                         </tr>
                         <tr>
-                            <td class="main" align="right"><?php echo TEXT_PAYMENT_NUMBER; ?></td>
-                            <td class="main"><?php echo zen_draw_input_field('payment_number',
+                            <td class="main" align="right"><?= TEXT_PAYMENT_NUMBER; ?></td>
+                            <td class="main"><?= zen_draw_input_field('payment_number',
                                   $payment->fields['payment_number'], 'size="25"'); ?></td>
                         </tr>
                         <tr>
-                            <td class="main" align="right"><?php echo TEXT_PAYMENT_NAME; ?></td>
-                            <td class="main"><?php echo zen_draw_input_field('payment_name',
+                            <td class="main" align="right"><?= TEXT_PAYMENT_NAME; ?></td>
+                            <td class="main"><?= zen_draw_input_field('payment_name',
                                   $payment->fields['payment_name'], 'size="25"'); ?></td>
                         </tr>
                         <tr>
-                            <td class="main" align="right"><?php echo TEXT_PAYMENT_AMOUNT; ?></td>
-                            <td class="main"><?php echo zen_draw_input_field('payment_amount',
+                            <td class="main" align="right"><?= TEXT_PAYMENT_AMOUNT; ?></td>
+                            <td class="main"><?= zen_draw_input_field('payment_amount',
                                   $payment->fields['payment_amount'], 'size="8"'); ?></td>
                         </tr>
                         <tr>
-                            <td class="main" align="right"><?php echo TEXT_PAYMENT_TYPE; ?></td>
-                            <td class="main"><?php echo zen_draw_pull_down_menu('payment_type', $cim->payment_key,
+                            <td class="main" align="right"><?= TEXT_PAYMENT_TYPE; ?></td>
+                            <td class="main"><?= zen_draw_pull_down_menu('payment_type', $cim->payment_key,
                                   $payment->fields['payment_type'], ''); ?></td>
                         </tr>
                         <tr>
-                            <td class="main" align="right"><?php echo TEXT_ATTACHED_PO; ?></td>
-                            <td class="main"><?php echo zen_draw_pull_down_menu('purchase_order_id', $po_array,
+                            <td class="main" align="right"><?= TEXT_ATTACHED_PO; ?></td>
+                            <td class="main"><?= zen_draw_pull_down_menu('purchase_order_id', $po_array,
                                   $payment->fields['purchase_order_id'], ''); ?></td>
                         </tr>
                         <?php
@@ -473,20 +484,20 @@
                         ?>
                         <tr>
                             <td colspan="2" align="center"
-                                class="pageHeading"><?php echo HEADER_UPDATE_PO . '<br />' . $cim->purchase_order[$x]['number']; ?></td>
+                                class="pageHeading"><?= HEADER_UPDATE_PO . '<br />' . $cim->purchase_order[$x]['number']; ?></td>
                         </tr>
                         <tr>
                             <td colspan="2" align="center" class="main">
-                                <strong><?php echo HEADER_ORDER_ID . $cim->oID . '<br />' . HEADER_PO_UID . $index; ?></strong>
+                                <strong><?= HEADER_ORDER_ID . $cim->oID . '<br />' . HEADER_PO_UID . $index; ?></strong>
                             </td>
                         </tr>
                         <tr>
-                            <td colspan="2" align="center"><?php echo zen_draw_separator('pixel_trans.gif', '1',
+                            <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1',
                                   '10'); ?></td>
                         </tr>
                         <tr>
-                            <td class="main" align="right"><?php echo TEXT_PO_NUMBER; ?></td>
-                            <td class="main"><?php echo zen_draw_input_field('po_number',
+                            <td class="main" align="right"><?= TEXT_PO_NUMBER; ?></td>
+                            <td class="main"><?= zen_draw_input_field('po_number',
                                   $cim->purchase_order[$x]['number'], 'size="25"'); ?></td>
                         </tr>
                         <?php
@@ -505,41 +516,41 @@
                         ?>
                         <tr>
                             <td colspan="2" align="center"
-                                class="pageHeading"><?php echo HEADER_UPDATE_REFUND . '<br />' . $cim->refund[$x]['number']; ?></td>
+                                class="pageHeading"><?= HEADER_UPDATE_REFUND . '<br />' . $cim->refund[$x]['number']; ?></td>
                         </tr>
                         <tr>
                             <td colspan="2" align="center" class="main">
-                                <strong><?php echo HEADER_ORDER_ID . $cim->oID . '<br />' . HEADER_REFUND_UID . $index; ?></strong>
+                                <strong><?= HEADER_ORDER_ID . $cim->oID . '<br />' . HEADER_REFUND_UID . $index; ?></strong>
                             </td>
                         </tr>
                         <tr>
-                            <td colspan="2" align="center"><?php echo zen_draw_separator('pixel_trans.gif', '1',
+                            <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1',
                                   '10'); ?></td>
                         </tr>
                         <tr>
-                            <td class="main" align="right"><?php echo TEXT_ATTACHED_PAYMENT; ?></td>
-                            <td class="main"><?php echo zen_draw_pull_down_menu('payment_id', $payment_array,
+                            <td class="main" align="right"><?= TEXT_ATTACHED_PAYMENT; ?></td>
+                            <td class="main"><?= zen_draw_pull_down_menu('payment_id', $payment_array,
                                   $cim->refund[$x]['payment'], ''); ?></td>
                         </tr>
                         <tr>
-                            <td class="main" align="right"><?php echo TEXT_REFUND_NUMBER; ?></td>
-                            <td class="main"><?php echo zen_draw_input_field('refund_number',
+                            <td class="main" align="right"><?= TEXT_REFUND_NUMBER; ?></td>
+                            <td class="main"><?= zen_draw_input_field('refund_number',
                                   $cim->refund[$x]['number'], 'size="25"'); ?></td>
                         </tr>
                         <tr>
-                            <td class="main" align="right"><?php echo TEXT_REFUND_NAME; ?></td>
-                            <td class="main"><?php echo zen_draw_input_field('refund_name', $cim->refund[$x]['name'],
+                            <td class="main" align="right"><?= TEXT_REFUND_NAME; ?></td>
+                            <td class="main"><?= zen_draw_input_field('refund_name', $cim->refund[$x]['name'],
                                   'size="25"'); ?></td>
                         </tr>
                         <tr>
-                            <td class="main" align="right"><?php echo TEXT_REFUND_AMOUNT; ?></td>
-                            <td class="main"><?php echo zen_draw_input_field('refund_amount',
+                            <td class="main" align="right"><?= TEXT_REFUND_AMOUNT; ?></td>
+                            <td class="main"><?= zen_draw_input_field('refund_amount',
                                     $cim->refund[$x]['amount'],
                                     'size="8"') . '<span class="alert">' . TEXT_NO_MINUS . '</span>'; ?></td>
                         </tr>
                         <tr>
-                            <td class="main" align="right"><?php echo TEXT_REFUND_TYPE; ?></td>
-                            <td class="main"><?php echo zen_draw_pull_down_menu('refund_type', $cim->payment_key,
+                            <td class="main" align="right"><?= TEXT_REFUND_TYPE; ?></td>
+                            <td class="main"><?= zen_draw_pull_down_menu('refund_type', $cim->payment_key,
                                   $cim->refund[$x]['type'], ''); ?></td>
                         </tr>
                         <?php
@@ -547,12 +558,12 @@
                 }  // END switch ($payment_mode)
                 ?>
                 <tr>
-                    <td colspan="2" align="center"><?php echo zen_draw_separator('pixel_trans.gif', '1', '15'); ?></td>
+                    <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1', '15'); ?></td>
                 </tr>
                 <tr>
                     <td class="main" colspan="2" align="center">
-                        <input type="button" value="<?php echo BUTTON_CANCEL; ?>" onclick="returnParent()">
-                        <input type="submit" value="<?php echo BUTTON_SUBMIT; ?>"
+                        <input type="button" value="<?= BUTTON_CANCEL; ?>" onclick="returnParent()">
+                        <input type="submit" value="<?= BUTTON_SUBMIT; ?>"
                                onclick="document.update.submit();this.disabled=true">
                     </td>
                 </tr>
@@ -583,23 +594,23 @@
                         }
                         ?>
                         <tr>
-                            <td colspan="2" align="center" class="pageHeading"><?php echo HEADER_DELETE_PAYMENT; ?></td>
+                            <td colspan="2" align="center" class="pageHeading"><?= HEADER_DELETE_PAYMENT; ?></td>
                         </tr>
                         <tr>
                             <td colspan="2" align="center" class="main">
-                                <strong><?php echo HEADER_ORDER_ID . $cim->oID . '<br />' . HEADER_PAYMENT_UID . $index; ?></strong>
+                                <strong><?= HEADER_ORDER_ID . $cim->oID . '<br />' . HEADER_PAYMENT_UID . $index; ?></strong>
                             </td>
                         </tr>
                         <tr>
-                            <td colspan="2" align="center" class="main"><?php echo DELETE_PAYMENT_NOTE; ?></td>
+                            <td colspan="2" align="center" class="main"><?= DELETE_PAYMENT_NOTE; ?></td>
                         </tr>
                         <tr>
-                            <td colspan="2" align="center"><?php echo zen_draw_separator('pixel_trans.gif', '1',
+                            <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1',
                                   '10'); ?></td>
                         </tr>
                         <tr>
-                            <td class="main" align="right"><?php echo TEXT_REFUND_AMOUNT; ?></td>
-                            <td class="main"><?php echo zen_draw_input_field('refund_amount',
+                            <td class="main" align="right"><?= TEXT_REFUND_AMOUNT; ?></td>
+                            <td class="main"><?= zen_draw_input_field('refund_amount',
                                     $cim->refund[$x]['amount'],
                                     'size="8"') . '<span class="alert">' . TEXT_NO_MINUS . '</span>'; ?></td>
                         </tr>
@@ -610,34 +621,34 @@
                             ?>
                             <tr class="dataTableHeadingRow">
                                 <td colspan="2" align="left"
-                                    class="dataTableHeadingContent"><?php echo sprintf(TEXT_REFUND_ACTION,
+                                    class="dataTableHeadingContent"><?= sprintf(TEXT_REFUND_ACTION,
                                       $refund_count); ?></td>
                             </tr>
                             <tr>
                                 <td colspan="2" align="left"
-                                    class="main"><?php echo zen_draw_radio_field('refund_action', 'keep',
+                                    class="main"><?= zen_draw_radio_field('refund_action', 'keep',
                                         false) . REFUND_ACTION_KEEP; ?></td>
                             </tr>
                             <tr>
                                 <td colspan="2" align="left"
-                                    class="main"><?php echo zen_draw_radio_field('refund_action', 'move',
+                                    class="main"><?= zen_draw_radio_field('refund_action', 'move',
                                         false) . REFUND_ACTION_MOVE . zen_draw_pull_down_menu('new_payment_id',
                                         $payment_array, '', ''); ?></td>
                             </tr>
                             <tr>
                                 <td colspan="2" align="left"
-                                    class="main"><?php echo zen_draw_radio_field('refund_action', 'drop',
+                                    class="main"><?= zen_draw_radio_field('refund_action', 'drop',
                                         false) . REFUND_ACTION_DROP; ?></td>
                             </tr>
                             <?php
                         }
                         ?>
                         <tr>
-                            <td colspan="2" align="center"><?php echo zen_draw_separator('pixel_trans.gif', '1',
+                            <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1',
                                   '10'); ?></td>
                         </tr>
                         <tr class="warningBox">
-                        <td colspan="2" align="center" class="warningText"><?php echo WARN_DELETE_PAYMENT; ?>
+                        <td colspan="2" align="center" class="warningText"><?= WARN_DELETE_PAYMENT; ?>
                         <?php
                         break;
                     case 'purchase_order':
@@ -653,15 +664,15 @@
                         }
                         ?>
                         <tr>
-                            <td colspan="2" align="center" class="pageHeading"><?php echo HEADER_DELETE_PO; ?></td>
+                            <td colspan="2" align="center" class="pageHeading"><?= HEADER_DELETE_PO; ?></td>
                         </tr>
                         <tr>
                             <td align="center" colspan="2" class="main">
-                                <strong><?php echo HEADER_ORDER_ID . $cim->oID . '<br />' . HEADER_PO_UID . $index; ?></strong>
+                                <strong><?= HEADER_ORDER_ID . $cim->oID . '<br />' . HEADER_PO_UID . $index; ?></strong>
                             </td>
                         </tr>
                         <tr>
-                            <td colspan="2" align="center"><?php echo zen_draw_separator('pixel_trans.gif', '1',
+                            <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1',
                                   '10'); ?></td>
                         </tr>
                         <?php
@@ -670,60 +681,60 @@
                             ?>
                             <tr class="dataTableHeadingRow">
                                 <td colspan="2" align="left"
-                                    class="dataTableHeadingContent"><?php echo sprintf(TEXT_PAYMENT_ACTION,
+                                    class="dataTableHeadingContent"><?= sprintf(TEXT_PAYMENT_ACTION,
                                       $payment_count); ?></td>
                             </tr>
                             <tr>
                                 <td colspan="2" align="left"
-                                    class="main"><?php echo zen_draw_radio_field('payment_action', 'keep',
+                                    class="main"><?= zen_draw_radio_field('payment_action', 'keep',
                                         false) . PAYMENT_ACTION_KEEP; ?></td>
                             </tr>
                             <tr>
                                 <td colspan="2" align="left"
-                                    class="main"><?php echo zen_draw_radio_field('payment_action', 'move',
+                                    class="main"><?= zen_draw_radio_field('payment_action', 'move',
                                         false) . PAYMENT_ACTION_MOVE . zen_draw_pull_down_menu('new_po_id', $po_array,
                                         '', ''); ?></td>
                             </tr>
                             <tr>
                                 <td colspan="2" align="left"
-                                    class="main"><?php echo zen_draw_radio_field('payment_action', 'drop',
+                                    class="main"><?= zen_draw_radio_field('payment_action', 'drop',
                                         false) . PAYMENT_ACTION_DROP; ?></td>
                             </tr>
                             <tr>
-                                <td colspan="2" align="center"><?php echo zen_draw_separator('pixel_trans.gif', '1',
+                                <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1',
                                       '10'); ?></td>
                             </tr>
                             <?php
                         }
                         ?>
                         <tr class="warningBox">
-                        <td colspan="2" align="center" class="warningText"><?php echo WARN_DELETE_PO; ?>
+                        <td colspan="2" align="center" class="warningText"><?= WARN_DELETE_PO; ?>
                         <?php
                         break;
                     case 'refund':
                         echo zen_draw_hidden_field('refund_id', $index);
                         ?>
                         <tr>
-                            <td colspan="2" align="center" class="pageHeading"><?php echo HEADER_DELETE_REFUND; ?></td>
+                            <td colspan="2" align="center" class="pageHeading"><?= HEADER_DELETE_REFUND; ?></td>
                         </tr>
                         <tr>
                             <td align="center" colspan="2" class="main">
-                                <strong><?php echo HEADER_ORDER_ID . $cim->oID . '<br />' . HEADER_REFUND_UID . $index; ?></strong>
+                                <strong><?= HEADER_ORDER_ID . $cim->oID . '<br />' . HEADER_REFUND_UID . $index; ?></strong>
                             </td>
                         </tr>
                         <tr>
-                            <td colspan="2" align="center"><?php echo zen_draw_separator('pixel_trans.gif', '1',
+                            <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1',
                                   '10'); ?></td>
                         </tr>
                         <tr class="warningBox">
-                        <td colspan="2" align="center" class="warningText"><?php echo WARN_DELETE_REFUND; ?>
+                        <td colspan="2" align="center" class="warningText"><?= WARN_DELETE_REFUND; ?>
                         <?php
                         break;
                 }  // END switch ($payment_mode)
                 ?>
-                <p><input type="button" class="btn btn-info" value="<?php echo BUTTON_CANCEL; ?>"
+                <p><input type="button" class="btn btn-info" value="<?= BUTTON_CANCEL; ?>"
                           onclick="returnParent()">
-                    <input type="submit" class="btn btn-warning" value="<?php echo BUTTON_SUBMIT; ?>"
+                    <input type="submit" class="btn btn-warning" value="<?= BUTTON_SUBMIT; ?>"
                            onclick="document.delete.submit();this.disabled=true"></td>
                 </tr>
                 </form>
@@ -732,23 +743,29 @@
                 break;  // END case 'delete':
             case 'delete_confirm':
                 $affected_rows = $_GET['affected_rows'];
+                if (!$_SESSION['refund_status']) {
+                    $page_header = HEADER_DELETE_FAIL;
+                    $affected_rows = 0;
+                } else {
+                    $page_header = HEADER_DELETE_CONFIRM;
+                }
                 ?>
                 <tr>
-                    <td colspan="2" align="center" class="pageHeading"><?php echo HEADER_DELETE_CONFIRM; ?></td>
+                    <td colspan="2" align="center" class="pageHeading"><?= $page_header; ?></td>
                 </tr>
                 <tr>
-                    <td colspan="2" align="center"><?php echo zen_draw_separator('pixel_trans.gif', '1', '15'); ?></td>
+                    <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1', '15'); ?></td>
                 </tr>
                 <tr>
-                    <td colspan="2" align="center" class="main"><?php echo sprintf(TEXT_DELETE_CONFIRM,
+                    <td colspan="2" align="center" class="main"><?= sprintf(TEXT_DELETE_CONFIRM,
                           $affected_rows); ?></td>
                 </tr>
                 <tr>
-                    <td colspan="2" align="center"><?php echo zen_draw_separator('pixel_trans.gif', '1', '15'); ?></td>
+                    <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1', '15'); ?></td>
                 </tr>
                 <tr>
                     <td class="main" colspan="2" align="center"><input type="button" class="btn btn-success"
-                                                                       value="<?php echo BUTTON_DELETE_CONFIRM; ?>"
+                                                                       value="<?= BUTTON_DELETE_CONFIRM; ?>"
                                                                        onclick="returnParent()"></td>
                 </tr>
                 <?php
@@ -765,43 +782,43 @@
                         ?>
                         <tr>
                             <td colspan="2" align="center"
-                                class="pageHeading"><?php echo HEADER_CONFIRM_PAYMENT; ?></td>
+                                class="pageHeading"><?= HEADER_CONFIRM_PAYMENT; ?></td>
                         </tr>
                         <tr>
-                            <td align="left" class="main"><strong><?php echo HEADER_ORDER_ID . $cim->oID; ?></strong>
+                            <td align="left" class="main"><strong><?= HEADER_ORDER_ID . $cim->oID; ?></strong>
                             </td>
-                            <td align="right" class="main"><strong><?php echo HEADER_PAYMENT_UID . $index; ?></strong>
+                            <td align="right" class="main"><strong><?= HEADER_PAYMENT_UID . $index; ?></strong>
                             </td>
                         </tr>
                         <tr>
-                            <td colspan="2" align="center"><?php echo zen_draw_separator('pixel_trans.gif', '1',
+                            <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1',
                                   '10'); ?></td>
                         </tr>
                         <tr>
-                            <td class="main" width="50%" align="right"><?php echo TEXT_PAYMENT_NUMBER; ?></td>
+                            <td class="main" width="50%" align="right"><?= TEXT_PAYMENT_NUMBER; ?></td>
                             <td class="main" width="50%" align="left">
-                                <strong><?php echo $payment_info->fields['payment_number']; ?></strong></td>
+                                <strong><?= $payment_info->fields['payment_number']; ?></strong></td>
                         </tr>
                         <tr>
-                            <td class="main" width="50%" align="right"><?php echo TEXT_PAYMENT_NAME; ?></td>
+                            <td class="main" width="50%" align="right"><?= TEXT_PAYMENT_NAME; ?></td>
                             <td class="main" width="50%" align="left">
-                                <strong><?php echo $payment_info->fields['payment_name']; ?></strong></td>
+                                <strong><?= $payment_info->fields['payment_name']; ?></strong></td>
                         </tr>
                         <tr>
-                            <td class="main" width="50%" align="right"><?php echo TEXT_PAYMENT_AMOUNT; ?></td>
+                            <td class="main" width="50%" align="right"><?= TEXT_PAYMENT_AMOUNT; ?></td>
                             <td class="main" width="50%" align="left">
-                                <strong><?php echo $payment_info->fields['payment_amount']; ?></strong></td>
+                                <strong><?= $payment_info->fields['payment_amount']; ?></strong></td>
                         </tr>
                         <tr>
-                            <td class="main" width="50%" align="right"><?php echo TEXT_PAYMENT_TYPE; ?></td>
+                            <td class="main" width="50%" align="right"><?= TEXT_PAYMENT_TYPE; ?></td>
                             <td class="main" width="50%" align="left">
-                                <strong><?php echo $cim->full_type($payment_info->fields['payment_type']); ?></strong>
+                                <strong><?= $cim->full_type($payment_info->fields['payment_type']); ?></strong>
                             </td>
                         </tr>
                         <tr>
-                            <td class="main" width="50%" align="right"><?php echo TEXT_ATTACHED_PO; ?></td>
+                            <td class="main" width="50%" align="right"><?= TEXT_ATTACHED_PO; ?></td>
                             <td class="main" width="50%" align="left">
-                                <strong><?php echo($payment_info->fields['purchase_order_id'] == 0 ? TEXT_NONE : $payment_info->fields['po_number']); ?></strong>
+                                <strong><?=($payment_info->fields['purchase_order_id'] == 0 ? TEXT_NONE : $payment_info->fields['po_number']); ?></strong>
                             </td>
                         </tr>
                         <?php
@@ -813,60 +830,60 @@
                                     where refund_id = '" . $index . "' limit 1");
                         ?>
                         <tr>
-                            <td colspan="2" align="center" class="pageHeading"><?php echo HEADER_CONFIRM_REFUND; ?></td>
+                            <td colspan="2" align="center" class="pageHeading"><?= HEADER_CONFIRM_REFUND; ?></td>
                         </tr>
                         <tr>
-                            <td align="left" class="main"><strong><?php echo HEADER_ORDER_ID . $cim->oID; ?></strong>
+                            <td align="left" class="main"><strong><?= HEADER_ORDER_ID . $cim->oID; ?></strong>
                             </td>
-                            <td align="right" class="main"><strong><?php echo HEADER_REFUND_UID . $index; ?></strong>
+                            <td align="right" class="main"><strong><?= HEADER_REFUND_UID . $index; ?></strong>
                             </td>
                         </tr>
                         <tr>
-                            <td colspan="2" align="center"><?php echo zen_draw_separator('pixel_trans.gif', '1',
+                            <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1',
                                   '10'); ?></td>
                         </tr>
                         <tr>
-                            <td class="main" width="50%" align="right"><?php echo TEXT_ATTACHED_PAYMENT; ?></td>
+                            <td class="main" width="50%" align="right"><?= TEXT_ATTACHED_PAYMENT; ?></td>
                             <td class="main" width="50%">
-                                <strong><?php echo $refund->fields['payment_number']; ?></strong></td>
+                                <strong><?= $refund->fields['payment_number']; ?></strong></td>
                         </tr>
                         <tr>
-                            <td class="main" width="50%" align="right"><?php echo TEXT_REFUND_NUMBER; ?></td>
+                            <td class="main" width="50%" align="right"><?= TEXT_REFUND_NUMBER; ?></td>
                             <td class="main" width="50%">
-                                <strong><?php echo $refund->fields['transaction_id']; ?></strong></td>
+                                <strong><?= $refund->fields['transaction_id']; ?></strong></td>
                         </tr>
                         <tr>
-                            <td class="main" width="50%" align="right"><?php echo TEXT_REFUND_NAME; ?></td>
-                            <td class="main" width="50%"><strong><?php echo $refund->fields['refund_name']; ?></strong>
+                            <td class="main" width="50%" align="right"><?= TEXT_REFUND_NAME; ?></td>
+                            <td class="main" width="50%"><strong><?= $refund->fields['refund_name']; ?></strong>
                             </td>
                         </tr>
                         <tr>
-                            <td class="main" width="50%" align="right"><?php echo TEXT_REFUND_AMOUNT; ?></td>
+                            <td class="main" width="50%" align="right"><?= TEXT_REFUND_AMOUNT; ?></td>
                             <td class="main" width="50%">
-                                <strong><?php echo $refund->fields['refund_amount']; ?></strong></td>
+                                <strong><?= $refund->fields['refund_amount']; ?></strong></td>
                         </tr>
                         <tr>
-                            <td class="main" width="50%" align="right"><?php echo TEXT_REFUND_TYPE; ?></td>
+                            <td class="main" width="50%" align="right"><?= TEXT_REFUND_TYPE; ?></td>
                             <td class="main" width="50%">
-                                <strong><?php echo $cim->full_type($refund->fields['refund_type']); ?></strong></td>
+                                <strong><?= $cim->full_type($refund->fields['refund_type']); ?></strong></td>
                         </tr>
                         <?php
                         break;
                 }  // END switch ($payment_mode)
                 ?>
                 <tr>
-                    <td colspan="2" align="center"><?php echo zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
+                    <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
                 </tr>
                 <tr>
                 <td colspan="2">
                     <table border="0" cellspacing="2" cellpadding="2">
                         <tr>
-                            <td class="main"><input type="button" value="<?php echo BUTTON_SAVE_CLOSE; ?>"
+                            <td class="main"><input type="button" value="<?= BUTTON_SAVE_CLOSE; ?>"
                                                     onclick="this.disabled=true; returnParent();"></td>
-                            <td class="main"><?php echo '<input type="button" value="' . BUTTON_MODIFY . '" onclick="this.disabled=true; window.location.href=\'' . zen_href_link(FILENAME_CIM_PAYMENTS,
+                            <td class="main"><?= '<input type="button" value="' . BUTTON_MODIFY . '" onclick="this.disabled=true; window.location.href=\'' . zen_href_link(FILENAME_CIM_PAYMENTS,
                                     'oID=' . $cim->oID . '&payment_mode=' . $payment_mode . '&index=' . $index . '&action=my_update',
                                     'SSL') . '\'">'; ?></td>
-                            <td class="main"><?php echo '<input type="button" value="' . BUTTON_ADD_NEW . '" onclick="this.disabled=true; window.location.href=\'' . zen_href_link(FILENAME_CIM_PAYMENTS,
+                            <td class="main"><?= '<input type="button" value="' . BUTTON_ADD_NEW . '" onclick="this.disabled=true; window.location.href=\'' . zen_href_link(FILENAME_CIM_PAYMENTS,
                                     'oID=' . $cim->oID . '&payment_mode=' . $payment_mode . '&action=add',
                                     'SSL') . '\'">'; ?></td>
                         </tr>
