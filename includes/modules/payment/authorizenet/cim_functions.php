@@ -293,14 +293,15 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
         $db->Execute($sql);
     }
     
-    function insert_refund($paymentID, $ordersID, $transID, $name, $payment_trans_id, $amount)
+    function insert_refund($paymentID, $ordersID, $transID, $name, $payment_trans_id, $amount, $type)
     {
         global $db;
-        $sql = "insert into " . TABLE_CIM_REFUNDS . " (payment_id, orders_id, transaction_id, refund_name, refund_amount, refund_type, payment_trans_id, date_posted, last_modified) values (:paymentID, :orderID, :transID, :payment_name, :amount, 'REF', :payment_trans_id, now(), now() )";
+        $sql = "insert into " . TABLE_CIM_REFUNDS . " (payment_id, orders_id, transaction_id, refund_name, refund_amount, refund_type, payment_trans_id, date_posted, last_modified) values (:paymentID, :orderID, :transID, :payment_name, :amount, :type, :payment_trans_id, now(), now() )";
         $sql = $db->bindVars($sql, ':paymentID', $paymentID, 'integer');
         $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
         $sql = $db->bindVars($sql, ':transID', $transID, 'string');
         $sql = $db->bindVars($sql, ':payment_name', $name, 'string');
+        $sql = $db->bindVars($sql, ':type', $type, 'string');
         $sql = $db->bindVars($sql, ':payment_trans_id', trim($payment_trans_id), 'string');
         $sql = $db->bindVars($sql, ':amount', $amount, 'noquotestring');
         $db->Execute($sql);

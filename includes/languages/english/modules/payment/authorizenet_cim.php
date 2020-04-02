@@ -1,4 +1,5 @@
 <?php
+    die(__FILE__ . ':' . __LINE__);
 define('MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_ADMIN_TITLE',
     'Authorize.net (CIM)'); // Payment option title as displayed in the admin
     

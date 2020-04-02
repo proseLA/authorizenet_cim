@@ -3,7 +3,7 @@
      * authorize.net CIM payment method class
      *
      */
-    include_once((IS_ADMIN_FLAG === true ? DIR_FS_CATALOG_MODULES : DIR_WS_MODULES) . 'payment/authorizenet/cim_functions.php');
+    include_once (IS_ADMIN_FLAG === true ? DIR_FS_CATALOG_MODULES : DIR_WS_MODULES) . 'payment/authorizenet/cim_functions.php';
     
     class authorizenet_cim extends base
     {
@@ -586,6 +586,7 @@
             if (!(isset($refund_amount)) || ($refund_amount == 0) || ($refund_amount > $max_refund)) {
                 $refund_amount = $max_refund;
             }
+            $type = 'REF';
         
             $data = customer_refund_transaction($refund->fields['customers_customerProfileId'],
               $refund->fields['payment_profile_id'], trim($refund->fields['transaction_id']),
@@ -612,6 +613,7 @@
                 $this->logError(DEBUG_CIM);
                 $data = customer_void_transaction($ordersID, trim($refund->fields['transaction_id']));
                 $this->xml = request_xml('createCustomerProfileTransactionRequest', $data);
+                $type = 'VOID';
                 
                 //voids do not get amounts, so the amount is the total initially authorized
                 $refund_amount = $refund->fields['order_total'];
@@ -627,7 +629,9 @@
     
     
             if ($this->isSuccessful()) {
-                $this->log = 'do CIM Refund order: ' . $ordersID . '; Error: ' . $this->cim_code . ' ' . $this->text;
+                $messageStack->reset();
+                trigger_error('did the message stack get reset?');
+                $this->log = $type . ' CIM Refund order: ' . $ordersID . '; Error: ' . $this->cim_code . ' ' . $this->text;
                 $this->die_message = 'Success - CIM Refund order:';
                 if (DEBUG_CIM) {
                     $this->logError(DEBUG_CIM);
@@ -640,7 +644,7 @@
                     updateOrderInfo($ordersID);
                 }
                 
-                insert_refund($refund->fields['payment_id'], $ordersID, $this->transID, $refund->fields['payment_name'], $refund->fields['transaction_id'], $refund_amount);
+                insert_refund($refund->fields['payment_id'], $ordersID, $this->transID, $refund->fields['payment_name'], $refund->fields['transaction_id'], $refund_amount, $type);
                 
                 update_payment($ordersID, $refund->fields['transaction_id'], $refund_amount);
                 
@@ -775,7 +779,7 @@
             $allowed_errors = array('E00039');
             
             if ($this->resultCode == 'Error' and (!in_array($this->cim_code, $allowed_errors))) {
-                array_push($this->error_messages, $this->cim_code . ': ' . $this->text);
+                //array_push($this->error_messages, $this->cim_code . ': ' . $this->text);
             }
 
 //            $this->directResponse = $this->substring_between($this->response, '<directResponse>', '</directResponse>');
@@ -807,7 +811,9 @@
             $error_log = DIR_FS_LOGS . '/cim_error.log';
             $error_sent = DIR_FS_LOGS . '/cim_xml_sent.log';
             
-            $messageStack->add_session('CIM: ' . $this->error_messages[0] . '; ->' . $this->log, 'error');
+            if (isset($this->log) and !(empty($this->log)) or (isset($this->error_messages[0]) and !(empty($this->error_messages[0])))) {
+                $messageStack->add_session('CIM: ' . $this->error_messages[0] . '; ->' . $this->log, 'error');
+            }
     
             if (!empty($this->log) || !empty($this->error_messages[0])) {
                 error_log(date(DATE_RFC2822) . ': ' . print_r($this->error_messages) . '; ->' . $this->log . "\n", 3,
@@ -1695,95 +1701,6 @@
             );
         }
         
-        // The transaction description (optional)
-
-        /**
-         * Calculate validity of response
-         */
-        function calc_md5_response($trans_id = '', $amount = '')
-        {
-            if ($amount == '' || $amount == '0') {
-                $amount = '0.00';
-            }
-            $validating = md5(MODULE_PAYMENT_AUTHORIZENET_CIM_MD5HASH . MODULE_PAYMENT_AUTHORIZENET_CIM_LOGIN . $trans_id . $amount);
-            return strtoupper($validating);
-        }
-        
-        // The merchant assigned purchase order number (optional)
-
-        /**
-         * Used to submit a refund for a given transaction.
-         */
-        function _doRefund($oID, $amount = 0)
-        {
-            global $db, $messageStack;
-            $new_order_status = (int)MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID;
-            if ($new_order_status == 0) {
-                $new_order_status = 1;
-            }
-            $proceedToRefund = true;
-            $refundNote = strip_tags(zen_db_input($_POST['refnote']));
-            if (isset($_POST['refconfirm']) && $_POST['refconfirm'] != 'on') {
-                $messageStack->add_session(MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_REFUND_CONFIRM_ERROR, 'error');
-                $proceedToRefund = false;
-            }
-            if (isset($_POST['buttonrefund']) && $_POST['buttonrefund'] == MODULE_PAYMENT_AUTHORIZENET_CIM_ENTRY_REFUND_BUTTON_TEXT) {
-                $refundAmt = (float)$_POST['refamt'];
-                $new_order_status = (int)MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID;
-                if ($refundAmt == 0) {
-                    $messageStack->add_session(MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_INVALID_REFUND_AMOUNT, 'error');
-                    $proceedToRefund = false;
-                }
-            }
-            if (isset($_POST['cc_number']) && trim($_POST['cc_number']) == '') {
-                $messageStack->add_session(MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CC_NUM_REQUIRED_ERROR, 'error');
-            }
-            if (isset($_POST['trans_id']) && trim($_POST['trans_id']) == '') {
-                $messageStack->add_session(MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_TRANS_ID_REQUIRED_ERROR, 'error');
-                $proceedToRefund = false;
-            }
-            
-            /**
-             * Submit refund request to gateway
-             */
-            if ($proceedToRefund) {
-                $submit_data = array(
-                  'x_type' => 'CREDIT',
-                  'x_card_num' => trim($_POST['cc_number']),
-                  'x_amount' => number_format($refundAmt, 2),
-                  'x_trans_id' => trim($_POST['trans_id'])
-                );
-                unset($response);
-                $response = $this->_sendRequest($submit_data);
-                $response_code = $response[0];
-                $response_text = $response[3];
-                $response_alert = $response_text . ($this->commError == '' ? '' : ' Communications Error - Please notify webmaster.');
-                $this->reportable_submit_data['Note'] = $refundNote;
-                $this->_debugActions($response);
-                
-                if ($response_code != '1') {
-                    $messageStack->add_session($response_alert, 'error');
-                } else {
-                    // Success, so save the results
-                    $sql_data_array = array(
-                      'orders_id' => $oID,
-                      'orders_status_id' => (int)$new_order_status,
-                      'date_added' => 'now()',
-                      'comments' => 'REFUND INITIATED. Trans ID:' . $response[6] . ' ' . $response[4] . "\n" . ' Gross Refund Amt: ' . $response[9] . "\n" . $refundNote,
-                      'customer_notified' => 0
-                    );
-                    zen_db_perform(TABLE_ORDERS_STATUS_HISTORY, $sql_data_array);
-                    $db->Execute("update " . TABLE_ORDERS . "
-                      set orders_status = '" . (int)$new_order_status . "'
-                      where orders_id = '" . (int)$oID . "'");
-                    $messageStack->add_session(sprintf(MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_REFUND_INITIATED,
-                      $response[9], $response[6]), 'success');
-                    return true;
-                }
-            }
-            return false;
-        }
-        
         /**
          * Used to do any debug logging / tracking / storage as required.
          */
@@ -1856,39 +1773,6 @@
                 $sql = $db->bindVars($sql, ':orderTime', $order_time, 'string');
                 $sql = $db->bindVars($sql, ':sessID', $sessID, 'string');
                 $db->Execute($sql);
-            }
-        }
-        
-        
-        function transaction_amount()
-        {
-            global $order;
-            if (isset($this->params['transaction_amount'])) {
-                if (preg_match('/(^[0-9]+\.[0-9]{1,4}$)/', $this->params['transaction_amount'])) {
-                    return "<amount>" . $this->params['transaction_amount'] . "</amount>";
-                } else {
-                    $this->error_messages[] .= 'setParameter(): transaction_amount is required and must be up to 4 digits with a decimal (no dollar symbol) current value is: ' . $this->params['transaction_amount'];
-                }
-            } else {
-                if ($order->info['total'] > 0) {
-                    return "<amount>" . $order->info['total'] . "</amount>";
-                } else {
-                    $this->error_messages[] .= 'setParameter(): transaction_amount required (NOT ZERO!); must be up to 4 digits with a decimal (no dollar symbol) current value is: ' . $order->info['total'];
-                }
-                //$this->error_messages[] .= 'setParameter(): transaction_amount is required and must be up to 4 digits with a decimal';
-            }
-        }
-        
-        // The phone number associated with the customer's address (optional)
-
-        function transactionId()
-        {
-            if (isset($this->params['transactionId'])) {
-                if (preg_match('/^\d+$/', $this->params['transactionId'])) {
-                    return "<transId>" . $this->params['transactionId'] . "</transId>";
-                } else {
-                    $this->error_messages[] .= 'setParameter(): you have no idea transId is wrong - should be numeric';
-                }
             }
         }
         
@@ -2369,10 +2253,11 @@
                 }
             }
         }
-        
+
+        /*
         function cardData()
         {
-            /* v. 0.7 card update */
+            /* v. 0.7 card update *-/
             $this->cardNumber = $this->substring_between($this->response, '<cardNumber>', '</cardNumber>');
             $this->expirationDate = $this->substring_between($this->response, '<expirationDate>', '</expirationDate>');
             $this->state = $this->substring_between($this->response, '<state>', '</state>');
@@ -2383,17 +2268,7 @@
             $this->zip = $this->substring_between($this->response, '<zip>', '</zip>');
             $this->country = $this->substring_between($this->response, '<country>', '</country>');
         }
-        
-        function shipping_amount()
-        {
-            if (isset($this->params['shipping_amount'])) {
-                if (preg_match('/(^[0-9]+\.[0-9]{1,4}$)/', $this->params['shipping_amount'])) {
-                    return "<amount>" . $this->params['shipping_amount'] . "</amount>";
-                } else {
-                    $this->error_messages[] .= 'setParameter(): shipping_amount must be up to 4 digits with a decimal point. (no dollar symbol)';
-                }
-            }
-        }
+        */
         
         
         // This element is required in some functions
@@ -2411,114 +2286,7 @@
             }
         }
         
-        // This element is required in some functions, otherwise optional
-        // Payment gateway assigned ID associated with the customer shipping address
-        // Note: If the customer AddressId is not passed, shipping information will not be included with the transaction.
-
-        function shipping_description()
-        {
-            if (isset($this->params['shipping_description'])) {
-                if ((strlen($this->params['shipping_description']) > 0)
-                  && (strlen($this->params['shipping_description']) <= 255)) {
-                    return "<description>" . $this->params['shipping_description'] . "</description>";
-                } else {
-                    $this->error_messages[] .= 'setParameter(): shipping_description must be up to 255 characters';
-                }
-            }
-        }
-        
-        // In validateCustomerPaymentProfileRequest(), customerShippingAddressId() is used in place of customerAddressId().
-        // The Authorize.net manual is still incorrect on this.
-        // Payment gateway assigned ID associated with the customer shipping address
-        // Note: If the customer Shipping AddressId is not passed, shipping information will not be included with the transaction.
-
-        function transactionDuty()
-        {
-            if ((isset($this->params['duty_amount']))
-              || (isset($this->params['duty_name']))
-              || (isset($this->params['duty_description']))) {
-                return "
-			<duty>
-				" . $this->duty_amount() . "
-				" . $this->duty_name() . "
-				" . $this->duty_description() . "
-			</duty>";
-            }
-        }
-        
-        // This element is optional
-
-        function duty_amount()
-        {
-            if (isset($this->params['duty_amount'])) {
-                if (preg_match('/(^[0-9]+\.[0-9]{1,4}$)/', $this->params['duty_amount'])) {
-                    return "<amount>" . $this->params['duty_amount'] . "</amount>";
-                } else {
-                    $this->error_messages[] .= 'setParameter(): duty_amount must be up to 4 digits with a decimal point. (no dollar symbol)';
-                }
-            }
-        }
-        
-        // This element is optional
-
-        function duty_name()
-        {
-            if (isset($this->params['duty_name'])) {
-                if ((strlen($this->params['duty_name']) > 0)
-                  && (strlen($this->params['duty_name']) <= 31)) {
-                    return "<name>" . $this->params['duty_name'] . "</name>";
-                } else {
-                    $this->error_messages[] .= 'setParameter(): duty_name must be up to 31 characters';
-                }
-            }
-        }
-
-        function duty_description()
-        {
-            if (isset($this->params['duty_description'])) {
-                if ((strlen($this->params['duty_description']) > 0)
-                  && (strlen($this->params['duty_description']) <= 255)) {
-                    return "<description>" . $this->params['duty_description'] . "</description>";
-                } else {
-                    $this->error_messages[] .= 'setParameter(): duty_description must be up to 255 characters';
-                }
-            }
-        }
-
-        function transactionTaxExempt()
-        {
-            if (isset($this->params['transactionTaxExempt'])) {
-                if (preg_match('/^(true|false)$/i', $this->params['transactionTaxExempt'])) {
-                    return "<taxExempt>" . $this->params['transactionTaxExempt'] . "</taxExempt>";
-                } else {
-                    $this->error_messages[] .= 'setParameter(): transactionTaxExempt is required and must be (true or false)';
-                }
-            }
-        }
-        
-        function transactionRecurringBilling()
-        {
-            if (isset($this->params['transactionRecurringBilling'])) {
-                if (preg_match('/^(true|false)$/i', $this->params['transactionRecurringBilling'])) {
-                    return "<recurringBilling>" . $this->params['transactionRecurringBilling'] . "</recurringBilling>";
-                } else {
-                    $this->error_messages[] .= 'setParameter(): transactionRecurringBilling must be (true or false)';
-                }
-            }
-        }
-        
-        function transactionApprovalCode()
-        {
-            if (isset($this->params['transactionApprovalCode'])) {
-                if (($this->transactionType() == "profileTransCaptureOnly")
-                  && (strlen($this->params['transactionApprovalCode']) == 6)) {
-                    return "<approvalCode>" . $this->params['transactionApprovalCode'] . "</approvalCode>";
-                } else {
-                    $this->error_messages[] .= 'setParameter(): transactionApprovalCode must be 6 characters and transactionType value must be (profileTransCaptureOnly)';
-                }
-            }
-        }
-        
+     
         function transactionType()
         {
             if (isset($this->params['transactionType'])) {

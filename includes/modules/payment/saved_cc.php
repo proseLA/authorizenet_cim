@@ -4,7 +4,7 @@
      *  saved_cc payment module
      *  prose_la
      */
-    require_once((IS_ADMIN_FLAG === true ? DIR_FS_CATALOG_MODULES : DIR_WS_MODULES) . 'payment/authorizenet_cim.php');
+    require_once (IS_ADMIN_FLAG === true ? DIR_FS_CATALOG_MODULES : DIR_WS_MODULES) . 'payment/authorizenet_cim.php';
     
     class saved_cc extends authorizenet_cim
     {
@@ -15,7 +15,7 @@
         {
             global $order;
             
-            include_once((IS_ADMIN_FLAG === true ? DIR_FS_CATALOG_LANGUAGES : DIR_WS_LANGUAGES). $_SESSION['language'] . '/modules/payment/authorizenet_cim.php');
+            include_once((IS_ADMIN_FLAG === true ? DIR_FS_CATALOG_LANGUAGES : DIR_WS_LANGUAGES) . $_SESSION['language'] . '/modules/payment/authorizenet_cim.php');
             
             parent::__construct();
             
@@ -39,8 +39,6 @@
         
         function selection()
         {
-            global $order;
-            global $reorder_var;
             global $db;
             
             for ($i = 1; $i < 13; $i++) {
@@ -58,7 +56,7 @@
                 );
             }
             
-            $onFocus = ' onfocus="methodSelect(\'pmt-' . $this->code . '\')"';
+            //$onFocus = ' onfocus="methodSelect(\'pmt-' . $this->code . '\')"';
             $cc_test = $today['year'] . '-' . str_pad($today['mon'], 2, 0, STR_PAD_LEFT);
             $enabled = " and enabled = 'Y' ";
             if (($_SESSION['emp_admin_login'] == true)) {
@@ -120,9 +118,8 @@
         
         function before_process()
         {
-            global $response, $db, $order, $messageStack, $customerID;
+            global $messageStack, $customerID;
             
-            // echo '--------> ' . . ' <----------';
             $cc_index = $_SESSION['saved_cc'];
             $customerID = $_SESSION['customer_id'];
             
@@ -161,12 +158,10 @@
         function remove()
         {
             global $db;
-            //  $db->Execute("delete from " . TABLE_CONFIGURATION . " where configuration_key in ('" . implode("', '", $this->keys()) . "')");
         }
         
         function keys()
         {
-            //  return array('MODULE_PAYMENT_MONEYORDER_STATUS', 'MODULE_PAYMENT_MONEYORDER_ZONE', 'MODULE_PAYMENT_MONEYORDER_ORDER_STATUS_ID', 'MODULE_PAYMENT_MONEYORDER_SORT_ORDER', 'MODULE_PAYMENT_MONEYORDER_PAYTO');
             return array();
         }
     }
