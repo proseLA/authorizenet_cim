@@ -1,9 +1,7 @@
 <?php
     
-    $zco_notifier->notify('NOTIFY_HEADER_START_CARD_UPDATE');
-    
     // if the customer is not logged on, redirect them to the login page
-    if (!zen_is_logged_in() and !zen_in_guest_checkout()) {
+    if (!zen_is_logged_in() || zen_in_guest_checkout()) {
         $_SESSION['navigation']->set_snapshot();
         zen_redirect(zen_href_link(FILENAME_LOGIN, '', 'SSL'));
     } else {
@@ -13,16 +11,16 @@
             zen_redirect(zen_href_link(FILENAME_LOGIN, '', 'SSL'));
         }
     }
+    $customer_id = $_SESSION['customer_id'];
     
     require DIR_WS_MODULES . 'require_languages.php';
     require DIR_WS_MODULES . 'payment/authorizenet_cim.php';
     
-    require DIR_WS_LANGUAGES . $_SESSION['language'] . '/modules/payment/cim_tables.php';
+     $cim = new authorizenet_cim();
     
-    $csql = "select * from " . TABLE_CUSTOMERS . "
-        WHERE customers_id = :custID ";
-    $csql = $db->bindVars($csql, ':custID', $_SESSION['customer_id'], 'integer');
-    $user = $db->Execute($csql);
+    //require DIR_WS_LANGUAGES . $_SESSION['language'] . '/modules/payment/cim_tables.php';
+    
+    $user = $cim->getCustomerProfile($customer_id);
     
     //$messageStack->reset();
     
@@ -67,15 +65,16 @@
     
     $breadcrumb->add(NAVBAR_TITLE);
     
+   
+    
     if ($_SESSION['emp_admin_login'] == true) {
-        $sql = "select * from " . TABLE_CUSTOMERS_CC . "
-        WHERE customers_id = :custID";
+        $cards_saved = $cim->get_customer_cards($customer_id, true);
     } else {
-        $sql = "select * from " . TABLE_CUSTOMERS_CC . "
-        WHERE customers_id = :custID  and enabled = 'Y' ";
+        $cards_saved = $cim->get_customer_cards($customer_id);
     }
-    $sql = $db->bindVars($sql, ':custID', $_SESSION['customer_id'], 'integer');
-    $cards_saved = $db->Execute($sql);
+    
+    
+    
     
     $addresses_query = "SELECT address_book_id, entry_firstname as firstname, entry_lastname as lastname,
        entry_company as company, entry_street_address as street_address, entry_suburb as suburb, entry_city as city,
@@ -85,7 +84,7 @@
                     WHERE  customers_id = :customersID
                     ORDER BY firstname, lastname";
     
-    $addresses_query = $db->bindVars($addresses_query, ':customersID', $_SESSION['customer_id'], 'integer');
+    $addresses_query = $db->bindVars($addresses_query, ':customersID', $customer_id, 'integer');
     $addresses = $db->Execute($addresses_query);
     
     while (!$addresses->EOF) {
@@ -102,13 +101,13 @@
     
     $today = getdate();
     
-    $cim = new authorizenet_cim();
+    
     
     include_once(DIR_WS_CLASSES . 'cc_validation.php');
     
     $cim->setParameter('customerProfileId', $user->fields['customers_customerProfileId']); // Numeric (required)
     
-    $cim->setParameter('refId', $_SESSION['customer_id']); // Up to 20 characters (optional)
+    $cim->setParameter('refId', $customer_id); // Up to 20 characters (optional)
     $cim->setParameter('validationMode', $cim->validationMode);
     
     $card_date = "20" . zen_db_prepare_input($_POST['authorizenet_cim_cc_expires_year']);
@@ -126,7 +125,7 @@
     
     $cc_sql = "select * from " . TABLE_CUSTOMERS_CC . "
       WHERE customers_id = :custID and payment_profile_id = :cppID";
-    $cc_sql = $db->bindVars($cc_sql, ':custID', $_SESSION['customer_id'], 'integer');
+    $cc_sql = $db->bindVars($cc_sql, ':custID', $customer_id, 'integer');
     $cc_sql = $db->bindVars($cc_sql, ':cppID', zen_db_prepare_input($_POST['use_cc']), 'integer');
     $cc = $db->Execute($cc_sql);
     
@@ -154,7 +153,7 @@
         
         $sql = "select * from " . TABLE_CUSTOMERS_CC . "
           WHERE customers_id = :custID and index_id = :iid";
-        $sql = $db->bindVars($sql, ':custID', $_SESSION['customer_id'], 'integer');
+        $sql = $db->bindVars($sql, ':custID', $customer_id, 'integer');
         $sql = $db->bindVars($sql, ':iid', $ccID, 'integer');
         return $db->Execute($sql);
         
@@ -165,7 +164,7 @@
         global $db;
         $sql = "update " . TABLE_CUSTOMERS . " set customers_default_address_id = :cdaID
           WHERE customers_id = :custID";
-        $sql = $db->bindVars($sql, ':custID', $_SESSION['customer_id'], 'integer');
+        $sql = $db->bindVars($sql, ':custID', $customer_id, 'integer');
         $sql = $db->bindVars($sql, ':cdaID', $_POST['address_selection'], 'integer');
         $db->Execute($sql);
         return;
@@ -178,7 +177,7 @@
         $valid_cid = validate_ccid($ccID);
         $cim = new authorizenet_cim();
         $cim->setParameter('customerPaymentProfileId', zen_db_prepare_input($valid_cid->fields['payment_profile_id']));
-        $cim->setParameter('refId', $_SESSION['customer_id']); // Up to 20 characters (optional)
+        $cim->setParameter('refId', $customer_id); // Up to 20 characters (optional)
         $cim->setParameter('customerProfileId', $user->fields['customers_customerProfileId']);
         $cim->setParameter('action', 'card_delete');
         
@@ -258,7 +257,7 @@
         $cim = new authorizenet_cim();
         $cim->setParameter('customerProfileId', $user->fields['customers_customerProfileId']); // Numeric (required)
         
-        $cim->setParameter('refId', $_SESSION['customer_id']); // Up to 20 characters (optional)
+        $cim->setParameter('refId', $customer_id); // Up to 20 characters (optional)
         $cim->setParameter('validationMode', $cim->validationMode);
         
         $card_date = "20" . zen_db_prepare_input($_POST['cc_year']);
@@ -267,13 +266,13 @@
         
         $cim->setParameter('paymentType', 'creditCard');
         $cim->setParameter('cardNumber', zen_db_prepare_input($_POST['cc_number']));
-        $cim->setParameter('merchantCustomerId', $_SESSION['customer_id']);
+        $cim->setParameter('merchantCustomerId', $customer_id);
         
         if (isset($_POST['update_cid'])) {
             $valid_cid = validate_ccid($_POST['update_cid']);
             $cim->setParameter('customerPaymentProfileId',
               zen_db_prepare_input($valid_cid->fields['payment_profile_id']));
-            $cim->setParameter('refId', $_SESSION['customer_id']); // Up to 20 characters (optional)
+            $cim->setParameter('refId', $customer_id); // Up to 20 characters (optional)
             $cim->setParameter('billTo_firstName',
               $user->fields['customers_firstname']); // Up to 50 characters (no symbols)
             $cim->setParameter('billTo_lastName', $user->fields['customers_lastname']);
@@ -309,7 +308,7 @@
         } else {
             $addresses_query = "SELECT * FROM   " . TABLE_ADDRESS_BOOK . "
                     WHERE  customers_id = :customersID and address_book_id = :ad_book_id";
-            $addresses_query = $db->bindVars($addresses_query, ':customersID', $_SESSION['customer_id'], 'integer');
+            $addresses_query = $db->bindVars($addresses_query, ':customersID', $customer_id, 'integer');
             $addresses_query = $db->bindVars($addresses_query, ':ad_book_id', $_POST['address_selection'], 'integer');
             $addresses = $db->Execute($addresses_query);
             $cim->setParameter('billTo_address',
