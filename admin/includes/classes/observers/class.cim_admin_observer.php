@@ -10,6 +10,7 @@
         {
             $this->attach($this, array(
               'NOTIFY_ADMIN_ORDERS_PAYMENTDATA_COLUMN2',
+              'NOTIFY_ADMIN_CUSTOMERS_MENU_BUTTONS',
             ));
             
         }
@@ -36,9 +37,7 @@
                         <table class="table table-hover">
                             <tr>
                                 <td class="main"><strong><?= TEXT_CIM_DATA ?></strong></td>
-                                <!--td align="right" colspan="7"><?php $cim->button_add('payment');
-                                    $cim->button_add('purchase_order');
-                                    $cim->button_add('refund'); ?></td-->
+                                
                             </tr>
                             <tr class="dataTableHeadingRow">
                                 <th class="dataTableHeadingContent" align="left"
@@ -57,7 +56,6 @@
                                     width="10%"><?= CIM_ACTION; ?></th>
                             </tr>
                             <?php
-                                $original_grand_total_paid = 0;
                                 if ($cim->payment) {
                                     for ($a = 0; $a < sizeof($cim->payment); $a++) {
                                         if ($a != 0) {
@@ -67,11 +65,7 @@
                                             </tr>
                                             <?php
                                         }
-                                        $original_grand_total_paid = $original_grand_total_paid + $cim->payment[$a]['amount'];
-                                        /* ?>
-                                        <!-- VINO_MOD out...tr class="paymentRow" onMouseOver="rowOverEffect(this)" onMouseOut="rowOutEffect(this)" <?= 'onclick="couponpopupWindow(\'' . zen_href_link(FILENAME_CIM_PAYMENTS,
-                                            'oID=' . $cim->oID . '&payment_mode=payment&index=' . $cim->payment[$a]['index'] . '&action=my_update',
-                                            'SSL') . '\', \'scrollbars=yes,resizable=yes,width=400,height=300,screenX=150,screenY=100,top=100,left=150\')"'; */ ?>
+                                        ?>
                                         <tr class="paymentRow bg-success">
                                             <td class="paymentContent"
                                                 align="left"><?= $cim->payment[$a]['number']; ?></td>
@@ -96,10 +90,7 @@
                                         if ($cim->refund) {
                                             for ($b = 0; $b < sizeof($cim->refund); $b++) {
                                                 if ($cim->refund[$b]['payment'] == $cim->payment[$a]['index']) {
-                                                    /* ?>
-                                                    <!-- vino_mod tr class="refundRow" onMouseOver="rowOverEffect(this)" onMouseOut="rowOutEffect(this)" <?= 'onclick="couponpopupWindow(\'' . zen_href_link(FILENAME_CIM_PAYMENTS,
-                                                        'oID=' . $cim->oID . '&payment_mode=refund&index=' . $cim->refund[$b]['index'] . '&action=my_update',
-                                                        'SSL') . '\', \'scrollbars=yes,resizable=yes,width=400,height=300,screenX=150,screenY=100,top=100,left=150\')"'; */ ?>
+                                                    ?>
                                                     <tr class="refundRow bg-danger" onMouseOver="rowOverEffect(this)"
                                                         onMouseOut="rowOutEffect(this)">
                                                         <td class="refundContent"
@@ -124,176 +115,11 @@
                                         }  // END if ($cim->refund)
                                     }  // END for($a = 0; $a < sizeof($payment); $a++)
                                 }  // END if ($cim->payment)
-                                if ($cim->purchase_order) {
-                                    for ($c = 0; $c < sizeof($cim->purchase_order); $c++) {
-                                        if ($c < 1 && $cim->payment) {
-                                            ?>
-                                            <tr>
-                                                <td><?= zen_draw_separator('pixel_trans.gif', '1', '5'); ?></td>
-                                            </tr>
-                                            <tr>
-                                                <td colspan="7"><?= zen_black_line(); ?></td>
-                                            </tr>
-                                            <tr>
-                                                <td><?= zen_draw_separator('pixel_trans.gif', '1', '5'); ?></td>
-                                            </tr>
-                                            <?php
-                                        } elseif ($c > 1) {
-                                            ?>
-                                            <tr>
-                                                <td><?= zen_draw_separator('pixel_trans.gif', '1', '5'); ?></td>
-                                            </tr>
-                                            <?php
-                                        }
-                                        ?>
-                                        <!-- vino_mod tr class="purchaseOrderRow" onMouseOver="rowOverEffect(this)" onMouseOut="rowOutEffect(this)" <?= 'onclick="couponpopupWindow(\'' . zen_href_link(FILENAME_CIM_PAYMENTS,
-                                            'oID=' . $cim->oID . '&payment_mode=purchase_order&index=' . $cim->purchase_order[$c]['index'] . '&action=my_update',
-                                            'SSL') . '\', \'scrollbars=yes,resizable=yes,width=400,height=300,screenX=150,screenY=100,top=100,left=150\')"'; ?>-->
-                                        <tr class="purchaseOrderRow" onMouseOver="rowOverEffect(this)"
-                                            onMouseOut="rowOutEffect(this)">
-                                            <td class="purchaseOrderContent" colspan="4"
-                                                align="left"><?= $cim->purchase_order[$c]['number']; ?></td>
-                                            <td class="purchaseOrderContent"
-                                                align="left"><?= zen_datetime_short($cim->purchase_order[$c]['posted']); ?></td>
-                                            <td class="purchaseOrderContent"
-                                                align="left"><?= zen_datetime_short($cim->purchase_order[$c]['modified']); ?></td>
-                                            <td class="purchaseOrderContent"
-                                                align="right"><?php /*$cim->button_update('purchase_order', $cim->purchase_order[$c]['index']); */
-                                                    $cim->button_delete('purchase_order',
-                                                      $cim->purchase_order[$c]['index']); ?></td>
-                                        </tr>
-                                        <?php
-                                        if ($cim->po_payment) {
-                                            for ($d = 0; $d < sizeof($cim->po_payment); $d++) {
-                                                if ($cim->po_payment[$d]['assigned_po'] == $cim->purchase_order[$c]['index']) {
-                                                    if ($d != 0) {
-                                                        ?>
-                                                        <tr>
-                                                            <td><?= zen_draw_separator('pixel_trans.gif', '1',
-                                                                  '5'); ?></td>
-                                                        </tr>
-                                                        <?php
-                                                    }
-                                                    ?>
-                                                    <!-- vino_mod tr class="paymentRow" onMouseOver="rowOverEffect(this)" onMouseOut="rowOutEffect(this)" <?= 'onclick="couponpopupWindow(\'' . zen_href_link(FILENAME_CIM_PAYMENTS,
-                                                        'oID=' . $cim->oID . '&payment_mode=payment&index=' . $cim->po_payment[$d]['index'] . '&action=my_update',
-                                                        'SSL') . '\', \'scrollbars=yes,resizable=yes,width=400,height=300,screenX=150,screenY=100,top=100,left=150\')"'; ?>-->
-                                                    <tr class="paymentRow" onMouseOver="rowOverEffect(this)"
-                                                        onMouseOut="rowOutEffect(this)">
-                                                        <td class="paymentContent"
-                                                            align="left"><?= $cim->po_payment[$d]['number']; ?></td>
-                                                        <td class="paymentContent"
-                                                            align="left"><?= $cim->po_payment[$d]['name']; ?></td>
-                                                        <td class="paymentContent" align="right">
-                                                            <strong><?= $currencies->format($cim->po_payment[$d]['amount']); ?></strong>
-                                                        </td>
-                                                        <td class="paymentContent"
-                                                            align="center"><?= $cim->full_type($cim->po_payment[$d]['type']); ?></td>
-                                                        <td class="paymentContent"
-                                                            align="left"><?= zen_datetime_short($cim->po_payment[$d]['posted']); ?></td>
-                                                        <td class="paymentContent"
-                                                            align="left"><?= zen_datetime_short($cim->po_payment[$d]['modified']); ?></td>
-                                                        <td class="paymentContent"
-                                                            align="right"><?php /*$cim->button_update('payment', $cim->po_payment[$d]['index']); */
-                                                                $cim->button_delete('payment',
-                                                                  $cim->po_payment[$d]['index']); ?></td>
-                                                    </tr>
-                                                    <?php
-                                                    if ($cim->refund) {
-                                                        for ($e = 0; $e < sizeof($cim->refund); $e++) {
-                                                            if ($cim->refund[$e]['payment'] == $cim->po_payment[$d]['index']) {
-                                                                ?>
-                                                                <!-- vino_mod tr class="refundRow" onMouseOver="rowOverEffect(this)" onMouseOut="rowOutEffect(this)" <?= 'onclick="couponpopupWindow(\'' . zen_href_link(FILENAME_CIM_PAYMENTS,
-                                                                    'oID=' . $cim->oID . '&payment_mode=refund&index=' . $cim->refund[$e]['index'] . '&action=my_update',
-                                                                    'SSL') . '\', \'scrollbars=yes,resizable=yes,width=400,height=300,screenX=150,screenY=100,top=100,left=150\')"'; ?>-->
-                                                                <tr class="refundRow" onMouseOver="rowOverEffect(this)"
-                                                                    onMouseOut="rowOutEffect(this)">
-                                                                    <td class="refundContent"
-                                                                        align="left"><?= $cim->refund[$e]['number']; ?></td>
-                                                                    <td class="refundContent"
-                                                                        align="left"><?= $cim->refund[$e]['name']; ?></td>
-                                                                    <td class="refundContent" align="right">
-                                                                        <strong><?= '-' . $currencies->format($cim->refund[$e]['amount']); ?></strong>
-                                                                    </td>
-                                                                    <td class="refundContent"
-                                                                        align="center"><?= $cim->full_type($cim->refund[$e]['type']); ?></td>
-                                                                    <td class="refundContent"
-                                                                        align="left"><?= zen_datetime_short($cim->refund[$e]['posted']); ?></td>
-                                                                    <td class="refundContent"
-                                                                        align="left"><?= zen_datetime_short($cim->refund[$e]['modified']); ?></td>
-                                                                    <td class="refundContent"
-                                                                        align="right"><?php /* $cim->button_update('refund', $cim->refund[$e]['index']); */
-                                                                            $cim->button_delete('refund',
-                                                                              $cim->refund[$e]['index']); ?></td>
-                                                                </tr>
-                                                                <?php
-                                                            }  // END if ($cim->refund[$e]['payment'] == $cim->po_payment[$d]['index'])
-                                                        }  // END for($e = 0; $e < sizeof($cim->refund); $e++)
-                                                    }  // END if ($cim->refund)
-                                                }  // END if ($cim->po_payment[$d]['assigned_po'] == $cim->purchase_order[$c]['index'])
-                                            }  // END for($d = 0; $d < sizeof($cim->po_payment); $d++)
-                                        }  // END if ($cim->po_payment)
-                                    }  // END for($c = 0; $c < sizeof($cim->purchase_order); $c++)
-                                }  // END if ($cim->purchase_order)
-                                // display any refunds not tied directly to a payment
-                                if ($cim->refund) {
-                                    for ($f = 0; $f < sizeof($cim->refund); $f++) {
-                                        if ($cim->refund[$f]['payment'] == 0) {
-                                            if ($f < 1) {
-                                                ?>
-                                                <tr>
-                                                    <td><?= zen_draw_separator('pixel_trans.gif', '1',
-                                                          '5'); ?></td>
-                                                </tr>
-                                                <tr>
-                                                    <td colspan="7"><?= zen_black_line(); ?></td>
-                                                </tr>
-                                                <tr>
-                                                    <td><?= zen_draw_separator('pixel_trans.gif', '1',
-                                                          '5'); ?></td>
-                                                </tr>
-                                                <?php
-                                            } else {
-                                                ?>
-                                                <tr>
-                                                    <td><?= zen_draw_separator('pixel_trans.gif', '1',
-                                                          '5'); ?></td>
-                                                </tr>
-                                                <?php
-                                            }
-                                            ?>
-                                            <!-- vino_mod tr class="refundRow" onMouseOver="rowOverEffect(this)" onMouseOut="rowOutEffect(this)" <?= 'onclick="couponpopupWindow(\'' . zen_href_link(FILENAME_CIM_PAYMENTS,
-                                                'oID=' . $cim->oID . '&payment_mode=refund&index=' . $cim->refund[$f]['index'] . '&action=my_update',
-                                                'SSL') . '\', \'scrollbars=yes,resizable=yes,width=400,height=300,screenX=150,screenY=100,top=100,left=150\')"'; ?>-->
-                                            <tr class="refundRow" onMouseOver="rowOverEffect(this)"
-                                                onMouseOut="rowOutEffect(this)">
-                                                <td class="refundContent"
-                                                    align="left"><?= $cim->refund[$f]['number']; ?></td>
-                                                <td class="refundContent"
-                                                    align="left"><?= $cim->refund[$f]['name']; ?></td>
-                                                <td class="refundContent" align="right">
-                                                    <strong><?= '-' . $currencies->format($cim->refund[$f]['amount']); ?></strong>
-                                                </td>
-                                                <td class="refundContent"
-                                                    align="center"><?= $cim->full_type($cim->refund[$f]['type']); ?></td>
-                                                <td class="refundContent"
-                                                    align="left"><?= zen_datetime_short($cim->refund[$f]['posted']); ?></td>
-                                                <td class="refundContent"
-                                                    align="left"><?= zen_datetime_short($cim->refund[$f]['modified']); ?></td>
-                                                <td class="refundContent"
-                                                    align="right"><?php /* $cim->button_update('refund', $cim->refund[$f]['index']); */
-                                                        $cim->button_delete('refund',
-                                                          $cim->refund[$f]['index']); ?></td>
-                                            </tr>
-                                            <?php
-                                        }
-                                    }
-                                }  // END if ($cim->refund)
                             ?>
                         </table>
                     </div>
                 <?php
-                //die(__FILE__ . ':' . __LINE__);
+                    break;
                 case 'NOTIFY_ADMIN_ORDERS_MENU_BUTTONS':
                     if (is_object($p1)) {
                         $index_to_update = count($p2) - 2;
@@ -355,14 +181,7 @@
                       'align' => 'text-center',
                       'text' => '<a href="' . zen_href_link('customer_list_by_item.php',
                           'cid=' . $p1->customers_id,
-                          'SSL') . '">' . '<input type="submit" name="submit" value="Products" id="products_btn" class="btn btn-info btn-margin">' . '</a>'
-                        . ' <br /><a href="' . zen_href_link('set_default_delivery_address.php',
-                          'cID=' . $p1->customers_id,
-                          'SSL') . '">' . '<input type="submit" name="submit" value="Set Delivery Address" id="delivery_btn" class="btn btn-info btn-margin">' . '</a><a href="' . zen_href_link('email_constant_cont_resignup.php',
-                          zen_get_all_get_params(array('cID', 'action')) . 'cID=' . $p1->customers_id,
-                          'SSL') . '">' . '<input type="submit" name="submit" value="Constant Contact" id="cc_btn" class="btn btn-info btn-margin">' . '</a><br /><a href="' . zen_href_link('cust_ship_pref',
-                          'cid=' . $p1->customers_id,
-                          'SSL') . '">' . '<input type="submit" name="submit" value="Set Ship Date" id="shipdate_btn" class="btn btn-warning btn-margin">' . '</a>'
+                          'SSL') . '">' . '<input type="submit" name="submit" value="Delete Credit Cards" id="cards_btn" class="btn btn-danger btn-margin">' . '</a>'
                     );
                     
                     break;

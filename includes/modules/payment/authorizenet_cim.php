@@ -660,7 +660,7 @@
             }
             
             if ($error || DEBUG_CIM) {
-                error_log(date(DATE_RFC2822) . ': ' . $logData . "\n", 3, $response_log);
+                error_log(date(DATE_RFC2822) . ":\n" . $logData . "\n", 3, $response_log);
             }
             
             if (DEBUG_CIM) {
@@ -696,9 +696,9 @@
         
         function doCimRefund($ordersID, $refund_amount)
         {
-            global $db, $messageStack;
+            global $db;
             
-            $sql = "select cust.customers_customerProfileId, cim.*, ord.order_total from " . TABLE_CIM_PAYMENTS . " cim
+            $sql = "SELECT cust.customers_customerProfileId, cim.*, ord.order_total FROM " . TABLE_CIM_PAYMENTS . " cim
             left join " . TABLE_CUSTOMERS . " cust on cim.customers_id = cust.customers_id
             left join " . TABLE_ORDERS . " ord on cim.orders_id = ord.orders_id
             where cim.orders_id = :orderID and ((cim.payment_amount - cim.refund_amount) > 0) order by cim.payment_id desc limit 1";
@@ -747,8 +747,8 @@
             $error = true;
             if (($response != null) && ($response->getMessages()->getResultCode() == "Ok")) {
                 $logData = "SUCCESS: Transaction Status:" . $response->getTransaction()->getTransactionStatus() . "\n";
-                $logData .= "                Auth Amount:" . $response->getTransaction()->getAuthAmount() . "\n";
-                $logData .= "                   Trans ID:" . $response->getTransaction()->getTransId() . "\n";
+                $logData .= "  Auth Amount:" . $response->getTransaction()->getAuthAmount() . "\n";
+                $logData .= "  Trans ID:" . $response->getTransaction()->getTransId() . "\n";
                 $error = false;
             } else {
                 $logData = "ERROR :  Invalid response\n";
@@ -759,7 +759,6 @@
             
             return $response;
         }
-    
     
         function refundTransaction($ordersID, $refund, $refund_amount)
         {
@@ -792,9 +791,18 @@
                     if ($tresponse != null && $tresponse->getMessages() != null) {
                         $error = false;
                         $logData = " Transaction Response code : " . $tresponse->getResponseCode() . "\n";
-                        $logData .= "Refund SUCCESS: " . $tresponse->getTransId() . "\n";
+                        $logData .= " Refund SUCCESS: " . $tresponse->getTransId() . "\n";
                         $logData .= " Code : " . $tresponse->getMessages()[0]->getCode() . "\n";
                         $logData .= " Description : " . $tresponse->getMessages()[0]->getDescription() . "\n";
+    
+                        $this->insert_refund($refund->fields['payment_id'], $ordersID,  $tresponse->getMessages()[0]->getCode(),
+                          $refund->fields['payment_name'], $refund->fields['transaction_id'], $refund_amount,'REF',$tresponse->getAuthCode());
+                        $this->update_payment($ordersID, $refund->fields['transaction_id'], $refund_amount);
+                        $update_status = $this->checkRefunds($ordersID);
+                        if ($update_status) {
+                            $this->updateOrderInfo($ordersID, MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID);
+                        }
+                        
                     } else {
                         $logData = "Transaction Failed \n";
                         if ($tresponse->getErrors() != null) {
@@ -819,6 +827,25 @@
             
             $this->logError($logData, $error);
             return $response;
+        }
+    
+        function checkRefunds($ordersID)
+        {
+            global $db;
+            $sql = "SELECT sum(payment_amount) as payment from " . TABLE_CIM_PAYMENTS . "
+                where orders_id = :orderID
+                group by orders_id";
+            $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
+            $payments = $db->Execute($sql);
+            
+            $sql = "select sum(refund_amount) as refunded from " . TABLE_CIM_REFUNDS . "  where orders_id = :orderID";
+            $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
+            $refunds = $db->Execute($sql);
+            
+            if (($payments->fields['payment'] - $refunds->fields['refunded']) == 0) {
+                return true;
+            }
+            return false;
         }
     
         function get_error()
@@ -855,9 +882,6 @@
             $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Enable Authorize.net (CIM) Module', 'MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS', 'True', 'Do you want to accept Authorize.net payments via the CIM Method?', '6', '1', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
             $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Login ID', 'MODULE_PAYMENT_AUTHORIZENET_CIM_LOGIN', 'testing', 'The API Login ID used for the Authorize.net service', '6', '2', now())");
             $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added, use_function) values ('Transaction Key', 'MODULE_PAYMENT_AUTHORIZENET_CIM_TXNKEY', 'Test', 'Transaction Key used for encrypting TP data<br />(See your Authorizenet Account->Security Settings->API Login ID and Transaction Key for details.)', '6', '3', now(), 'zen_cfg_password_display')");
-            $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added, use_function) values ('MD5 Hash', 'MODULE_PAYMENT_AUTHORIZENET_CIM_MD5HASH', '*Set A Hash Value at AuthNet Admin*', 'Encryption key used for validating received transaction data (MAX 20 CHARACTERS)', '6', '4', now(), 'zen_cfg_password_display')");
-            /* v. 0.7 */
-            $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added, use_function) values ('Reorder Authentication Passkey', 'MODULE_PAYMENT_AUTHORIZENET_CIM_PASSKEY', 'Authentication string', 'Simple passkey used for authenticating on reorder file  (MAX 20 CHARACTERS)', '6', '5', now(), 'zen_cfg_password_display')");
             $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Transaction Mode', 'MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE', 'Test', 'Transaction mode used for processing orders', '6', '6', 'zen_cfg_select_option(array(\'Test\', \'Production\'), ', now())");
             $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Authorization Type', 'MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE', 'Authorize', 'Do you want submitted credit card transactions to be authorized only, or authorized and captured?', '6', '7', 'zen_cfg_select_option(array(\'Authorize\', \'Authorize+Capture\'), ', now())");
             $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Enable Database Storage', 'MODULE_PAYMENT_AUTHORIZENET_CIM_STORE_DATA', 'True', 'Do you want to save the gateway communications data to the database?', '6', '8', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
@@ -895,8 +919,6 @@
               'MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS',
               'MODULE_PAYMENT_AUTHORIZENET_CIM_LOGIN',
               'MODULE_PAYMENT_AUTHORIZENET_CIM_TXNKEY',
-              'MODULE_PAYMENT_AUTHORIZENET_CIM_MD5HASH',
-              'MODULE_PAYMENT_AUTHORIZENET_CIM_PASSKEY',
               'MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE',
               'MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE',
               'MODULE_PAYMENT_AUTHORIZENET_CIM_STORE_DATA',
@@ -952,49 +974,6 @@
             
             return $customer_cards;
         }
-        
-        function customer_refund_transaction($customer_profile_id, $payment_profile_id, $transaction_id, $amount)
-        {
-            $dom = new DOMDocument();
-            $dom->formatOutput = true;
-            $data = $dom->createElement('data');
-            
-            $transaction = $dom->createElement('transaction');
-            $profileTransRefund = $dom->createElement('profileTransRefund');
-            $profileTransRefund->appendChild($dom->createElement('amount', $amount));
-            $profileTransRefund->appendChild($dom->createElement('customerProfileId', $customer_profile_id));
-            $profileTransRefund->appendChild($dom->createElement('customerPaymentProfileId', $payment_profile_id));
-            $profileTransRefund->appendChild($dom->createElement('transId', $transaction_id));
-            
-            $transaction->appendChild($profileTransRefund);
-            
-            $data->appendChild($transaction);
-            $dom->appendChild($data);
-            
-            $node = $dom->getElementsByTagName('data')->item(0);
-            return $node;
-        }
-        
-        function customer_refund_payment($customer_profile_id, $payment_profile_id, $amount)
-        {
-            $dom = new DOMDocument();
-            $dom->formatOutput = true;
-            $data = $dom->createElement('data');
-            
-            $transaction = $dom->createElement('transaction');
-            $profileTransRefund = $dom->createElement('profileTransRefund');
-            $profileTransRefund->appendChild($dom->createElement('amount', $amount));
-            $profileTransRefund->appendChild($dom->createElement('customerProfileId', $customer_profile_id));
-            $profileTransRefund->appendChild($dom->createElement('customerPaymentProfileId', $payment_profile_id));
-            
-            $transaction->appendChild($profileTransRefund);
-            
-            $data->appendChild($transaction);
-            $dom->appendChild($data);
-            
-            $node = $dom->getElementsByTagName('data')->item(0);
-            return $node;
-        }
     
         function voidTransaction($ordersID, $refund, $refund_amount)
         {
@@ -1020,6 +999,7 @@
                           $refund->fields['payment_name'],
                           $refund->fields['transaction_id'], $refund_amount, 'VOID', $tresponse->getAuthCode());
                         $this->update_payment($ordersID, $refund->fields['transaction_id'], $refund_amount);
+                        $this->updateOrderInfo($ordersID, MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID);
                         $error = false;
                         $logData = " Transaction Response code : " . $tresponse->getResponseCode() . "\n";
                         $logData .= " Void transaction SUCCESS AUTH CODE: " . $tresponse->getAuthCode() . "\n";
@@ -1128,19 +1108,15 @@
             $db->Execute($sql);
         }
         
-        function updateOrderInfo($ordersID)
+        function updateOrderInfo($ordersID, $status)
         {
             global $db;
             
-            $new_order_status = (int)MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID;
-            if ($new_order_status == 0) {
-                $new_order_status = 1;
-            }
-            $sql = "update " . TABLE_ORDERS . "
-        	set approval_code = ' ', transaction_id = ' ', cc_authorized = '0', cc_authorized_date = null, orders_status = :stat
+            $sql = "UPDATE " . TABLE_ORDERS . "
+        	SET orders_status = :stat
         	WHERE orders_id = :orderID ";
             $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
-            $sql = $db->bindVars($sql, ':stat', $new_order_status, 'integer');
+            $sql = $db->bindVars($sql, ':stat', $status, 'integer');
             $db->Execute($sql);
         }
         
@@ -1213,20 +1189,8 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
             $sql = $db->bindVars($sql, ':transID', $transID, 'string');
             $sql = $db->bindVars($sql, ':insertID', $insertID, 'integer');
             $db->Execute($sql);
-            new dBug($sql);
             
-            $sql = "update " . TABLE_ORDERS . "
-        	set approval_code = :approvalCode, transaction_id = :transID, cc_authorized = '1',
-        	payment_profile_id = :payProfileID, orders_status = :orderStatus,
-        	cc_authorized_date = now()
-        	WHERE orders_id = :insertID ";
-            $sql = $db->bindVars($sql, ':approvalCode', $approval, 'string');
-            $sql = $db->bindVars($sql, ':transID', $transID, 'string');
-            $sql = $db->bindVars($sql, ':insertID', $insertID, 'integer');
-            $sql = $db->bindVars($sql, ':orderStatus', $status, 'integer');
-            $sql = $db->bindVars($sql, ':payProfileID', $payment_profile_id, 'integer');
-            $db->Execute($sql);
-            new dBug($sql);
+            $this->updateOrderInfo($insertID, $status);
             
             $sql = "insert into " . TABLE_ORDERS_STATUS_HISTORY . " (comments, orders_id, orders_status_id, date_added) values (:orderComments, :orderID, :orderStatus, now() )";
             $sql = $db->bindVars($sql, ':orderComments',

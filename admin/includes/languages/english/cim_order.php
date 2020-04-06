@@ -16,7 +16,7 @@
     
     define('HEADER_DELETE_PAYMENT', 'Refund Payment');
     define('DELETE_PAYMENT_NOTE',
-      'Leave blank for Total Refund.<br>Payments not settled will void;<br>irrespective of amount entered.');
+      'Leave blank for Total Refund.<br><span class="font-weight-bold">Payments not settled will void;</span><br>Irrespective of amount entered.');
     define('HEADER_DELETE_PO', 'Delete Purchase Order');
     define('HEADER_DELETE_REFUND', 'Delete Refund');
     

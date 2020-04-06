@@ -3,7 +3,7 @@
     define('MODULE_PAYMENT_SAVED_CC_TEXT_DESCRIPTION', 'Use tokenized credit card.');
     define('MODULE_PAYMENT_SAVED_CC_TEXT_EMAIL_FOOTER', 'Footer');
     
-    define('DEBUG_CIM', false);
+    define('DEBUG_CIM', true);
     define('FILENAME_CARD_UPDATE', 'card_update');
     define('FILENAME_CIM_PAYMENTS', 'cim_payments');
     

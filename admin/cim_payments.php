@@ -157,55 +157,15 @@
                 $affected_rows = 0;
                 switch ($payment_mode) {
                     case 'payment':
-                        //new dBug($cim->oID);
-                        //new dBug($this);
-                        //die(__FILE__ . ':' . __LINE__);
-                        
-                        //die(__FILE__ . ':' . __LINE__);
-                        require_once(DIR_FS_CATALOG_MODULES . 'payment/' . 'authorizenet_cim.php');
-                        $cim = new authorizenet_cim();
+                        require_once DIR_FS_CATALOG_MODULES . 'payment/' . 'authorizenet_cim.php';
+                        $cim_module = new authorizenet_cim();
                         $cim->CimRefund = abs(round((float)($_GET['refund_amount']), 2));
                         
-                        $_SESSION['refund_status'] = $cim->doCimRefund($oID, $cim->CimRefund);
+                        $_SESSION['refund_status'] = $cim_module->doCimRefund($oID, $cim->CimRefund);
                         $affected_rows++;
                         
                         break;  // END case 'payment'
-                    
-                    
-                    case 'purchase_order':
-                        $cim->delete_purchase_order($_GET['purchase_order_id']);
-                        $affected_rows++;
-                        
-                        // handle the payments, if any
-                        if ($_GET['payment_action']) {
-                            for ($a = 0; $a < sizeof($cim->po_payment); $a++) {
-                                if ($cim->po_payment[$a]['assigned_po'] == $_GET['purchase_order_id']) {
-                                    switch ($_GET['payment_action']) {
-                                        case 'keep':
-                                            $cim->update_payment($cim->po_payment[$a]['index'], 0);
-                                            $affected_rows++;
-                                            break;
-                                        
-                                        case 'move':
-                                            $cim->update_payment($cim->po_payment[$a]['index'], $_GET['new_po_id']);
-                                            $affected_rows++;
-                                            break;
-                                        
-                                        case 'drop':
-                                            $cim->delete_payment($cim->po_payment[$a]['index']);
-                                            $affected_rows++;
-                                            break;
-                                    }
-                                }
-                            }
-                        }  // END if ($_GET['payment_action'])
-                        break;  // END case 'purchase_order'
-                    
-                    
-                    case 'refund':
-                        $cim->delete_refund($_GET['refund_id']);
-                        $affected_rows++;
-                        break;  // END case 'refund'
+
                 }  // END switch ($payment_mode)
                 
                 zen_redirect(zen_href_link(FILENAME_CIM_PAYMENTS,
@@ -224,7 +184,7 @@
         <html <?= HTML_PARAMS; ?>>
         <head>
             <meta http-equiv="Content-Type" content="text/html; charset=<?= CHARSET; ?>">
-            <title><?= TITLE; ?></title>
+            <title><?= 'Admin:  ' . ucwords(str_replace('_', ' ', basename($_SERVER["SCRIPT_FILENAME"], '.php'))); ?></title>
             <link rel="stylesheet" type="text/css" href="includes/super_stylesheet.css">
             <link rel="stylesheet" type="text/css" href="includes/stylesheet.css">
             <link rel="stylesheet" type="text/css" href="includes/cssjsmenuhover.css" media="all" id="hoverJS">
@@ -647,7 +607,7 @@
                             <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1',
                                   '10'); ?></td>
                         </tr>
-                        <tr class="warningBox">
+                        <tr class="alert alert-danger">
                         <td colspan="2" align="center" class="warningText"><?= WARN_DELETE_PAYMENT; ?>
                         <?php
                         break;
@@ -707,7 +667,7 @@
                             <?php
                         }
                         ?>
-                        <tr class="warningBox">
+                        <tr class="alert alert-danger">
                         <td colspan="2" align="center" class="warningText"><?= WARN_DELETE_PO; ?>
                         <?php
                         break;
@@ -726,7 +686,7 @@
                             <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1',
                                   '10'); ?></td>
                         </tr>
-                        <tr class="warningBox">
+                        <tr class="alert alert-danger">
                         <td colspan="2" align="center" class="warningText"><?= WARN_DELETE_REFUND; ?>
                         <?php
                         break;
