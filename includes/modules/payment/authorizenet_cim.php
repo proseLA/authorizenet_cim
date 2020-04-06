@@ -4,8 +4,6 @@
      *
      */
     
-    //    include_once (IS_ADMIN_FLAG === true ? DIR_FS_CATALOG_MODULES : DIR_WS_MODULES) . 'payment/authorizenet/cim_functions.php';
-    
     if (!file_exists($sdk_loader = DIR_FS_CATALOG . 'includes/modules/payment/authorizenet/authorizenet-sdk/autoload.php')) {
         return false;
     }
@@ -42,32 +40,16 @@
          */
         var $enabled;
         /**
-         * log file folder
-         *
-         * @var string
-         */
-        var $_logDir = '';
-        /**
          * communication vars
          */
         var $authorize = '';
-        var $commErrNo = 0;
-        var $commError = '';
-        /**
-         * debug content var
-         */
-        var $reportable_submit_data = array();
-        
-        /* cim variables */
         
         // cim
         
         var $version = '2.0'; // the code revision number for this class
         var $params = array();
-        var $LineItems = array();
         var $success = false;
         var $error = true;
-        var $error_messages = array();
         var $response;
         var $xml;
         var $update = false;
@@ -100,7 +82,7 @@
             global $order, $messageStack;
             $this->code = 'authorizenet_cim';
             $this->enabled = ((MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS == 'True') ? true : false); // Whether the module is installed or not
-            if (($this->enabled) and IS_ADMIN_FLAG === true) {
+            if (($this->enabled) && IS_ADMIN_FLAG === true) {
                 // Payment module title in Admin
                 $this->title = MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CATALOG_TITLE;
                 if (MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS == 'True' && (MODULE_PAYMENT_AUTHORIZENET_CIM_LOGIN == 'testing' || MODULE_PAYMENT_AUTHORIZENET_CIM_TXNKEY == 'Test')) {
@@ -116,20 +98,20 @@
             } else {
                 $this->title = MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CATALOG_TITLE;
             }
+            /*
             $this->test_mode = (MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE == 'Test' ? true : false);
             $subdomain = ($this->test_mode) ? 'apitest' : 'api2';
             $this->url = "https://" . $subdomain . ".authorize.net/xml/v1/request.api";
             $this->validationMode = MODULE_PAYMENT_AUTHORIZENET_CIM_VALIDATION; // none, testMode or liveMode
+            */
             $this->description = 'authorizenet_cim'; // Descriptive Info about module in Admin
             $this->sort_order = defined('MODULE_PAYMENT_AUTHORIZENET_CIM_SORT_ORDER') ? MODULE_PAYMENT_AUTHORIZENET_CIM_SORT_ORDER : null; // Sort Order of this payment option on the customer payment page
             $this->form_action_url = zen_href_link(FILENAME_CHECKOUT_PROCESS, '', 'SSL',
               false); // Page to go to upon submitting page info
             $this->order_status = (int)DEFAULT_ORDERS_STATUS_ID;
-            if (defined('MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID') and (int)MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID > 0) {
+            if (defined('MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID') && (int)MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID > 0) {
                 $this->order_status = (int)MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID;
             }
-            
-            $this->_logDir = DIR_FS_SQL_CACHE;
             
             if (is_object($order)) {
                 $this->update_status();
@@ -137,6 +119,16 @@
             
             if (!defined('DEBUG_CIM')) {
                 define('DEBUG_CIM', false);
+            }
+        }
+        
+        
+        function getControllerResponse($controller)
+        {
+            if (in_array(MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE, array('Test', 'Sandbox'))) {
+                return $controller->executeWithApiResponse(\net\authorize\api\constants\ANetEnvironment::SANDBOX);
+            } else {
+                return $controller->executeWithApiResponse(\net\authorize\api\constants\ANetEnvironment::PRODUCTION);
             }
         }
         
@@ -377,40 +369,11 @@
         {
             global $response, $db, $order, $messageStack, $customerID;
 
+            /*
             $this->test_mode = (MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE == 'Test' ? true : false);
             //$subdomain = ($this->test_mode) ? 'apitest' : 'api2';
             $this->url = "https://" . (($this->test_mode) ? 'apitest' : 'api2') . ".authorize.net/xml/v1/request.api";
             $this->validationMode = MODULE_PAYMENT_AUTHORIZENET_CIM_VALIDATION;
-            
-            /*
-            $this->setParameter('paymentType', 'creditCard');
-            $this->setParameter('cardNumber', $_POST['cc_number']);
-            $this->setParameter('cc_save', $_POST['cc_save']);
-            $this->setParameter('expirationDate', $_POST['cc_expires_date']); // (YYYY-MM)
-            $this->setParameter('billTo_firstName', $order->billing['firstname']); // Up to 50 characters (no symbols)
-            $this->setParameter('billTo_lastName', $order->billing['lastname']); // Up to 50 characters (no symbols)
-            // $this->setParameter('billTo_company', $order->billing['company']); // Up to 50 characters (no symbols) (optional)
-            $this->setParameter('billTo_address',
-              $order->billing['street_address']); // Up to 60 characters (no symbols)
-            $this->setParameter('billTo_city', $order->billing['city']); // Up to 40 characters (no symbols)
-            //	$this->setParameter('billTo_state', $order->billing['state']); // A valid two-character state code (US only) (optional)
-            $this->setParameter('billTo_zip', $order->billing['postcode']); // Up to 20 characters (no symbols)
-            $this->setParameter('billTo_country',
-              $order->billing['country']['title']); // Up to 60 characters (no symbols) (optional)
-            $this->setParameter('shipTo_firstName', $order->delivery['firstname']); // Up to 50 characters (no symbols)
-            $this->setParameter('shipTo_lastName', $order->delivery['lastname']); // Up to 50 characters (no symbols)
-            // $this->setParameter('shipTo_company', 'Acme, Inc.'); // Up to 50 characters (no symbols) (optional)
-            $this->setParameter('shipTo_address',
-              $order->delivery['street_address']); // Up to 60 characters (no symbols)
-            $this->setParameter('shipTo_city', $order->delivery['city']); // Up to 40 characters (no symbols)
-            //	$this->setParameter('shipTo_state', $order->delivery['state']); // A valid two-character state code (US only) (optional)
-            $this->setParameter('shipTo_zip', $order->delivery['postcode']); // Up to 20 characters (no symbols)
-            $this->setParameter('shipTo_country',
-              $order->delivery['country']['title']); // Up to 60 characters (no symbols) (optional)
-            // $this->setParameter('refId', $_SESSION['customer_id']); // Up to 20 characters (optional)
-            $this->setParameter('merchantCustomerId', $_SESSION['customer_id']); // Up to 20 characters (optional)
-            $this->setParameter('email', $order->customer['email_address']); // Up to 255 characters (optional)
-            $this->setParameter('customerType', 'individual'); // individual or business (optional)
             */
             
             $order->info['cc_number'] = str_pad(substr($_POST['cc_number'], -4), strlen($_POST['cc_number']), "X",
@@ -418,7 +381,6 @@
             $order->info['cc_expires'] = $_POST['cc_expires'];
             $order->info['cc_type'] = $_POST['cc_type'];
             $order->info['cc_owner'] = $_POST['cc_owner'];
-            $order->info['cc_cvv'] = ''; //$_POST['cc_cvv'];
             $order->info['cc_owner'] = $_POST['cc_owner'];
             
             $customerID = $_SESSION['customer_id'];
@@ -474,18 +436,21 @@
             $request->setProfile($customerProfile);
     
             $controller = new AnetController\CreateCustomerProfileController($request);
-            $response = $controller->executeWithApiResponse(\net\authorize\api\constants\ANetEnvironment::SANDBOX);
+            $response = $this->getControllerResponse($controller);
     
+            $error = true;
             if (($response != null) && ($response->getMessages()->getResultCode() == "Ok")) {
-                
-                updateCustomer($customerID, $response->getCustomerProfileId());
+                $error = false;
+                $this->updateCustomer($customerID, $response->getCustomerProfileId());
                 $this->setParameter('customerProfileId', $response->getCustomerProfileId());
+                $logData = "Succesfully created customer profile : " . $response->getCustomerProfileId() . "\n";
             } else {
-                $this->errorMessages = $response->getMessages()->getMessage();
-                $this->log = 'createCustomerProfile: ' . $customerID . '; Response: ' . $this->errorMessages[0]->getCode() . ' ' . $this->errorMessages[0]->getText();
-                $this->die_message = 'no success - customer profile request';
-                $this->logError();
+                $logData = "ERROR :  Invalid response\n";
+                $errorMessages = $response->getMessages()->getMessage();
+                $logData .= "Response : " . $errorMessages[0]->getCode() . "  " . $errorMessages[0]->getText() . "\n";
             }
+    
+            $this->logError($logData, $error);
             return $response;
         }
     
@@ -497,7 +462,6 @@
                 $customerProfileId = $this->getCustomerProfile($customerID);
                 if ($customerProfileId == false) {
                     $this->createCustomerProfileRequest();
-                    //$this->setParameter('customerProfileId', $this->customerProfileId);
                 } else {
                     $this->setParameter('customerProfileId', $customerProfileId);
                 }
@@ -505,11 +469,11 @@
         
             // here we are checking to see if the customer already has this card on file.
             // if we have it, return that profile TODO incorporate expiration date and update paymentProfile
-            $this->customerPaymentProfileId = $this->getCustomerPaymentProfile($customerID,
+            $existing_profile = $this->getCustomerPaymentProfile($customerID,
               substr(trim($_POST['cc_number']), -4));
         
-            if (!is_null($this->customerPaymentProfileId)) {
-                $this->setParameter('customerPaymentProfileId', $this->customerPaymentProfileId);
+            if (!is_null($existing_profile)) {
+                $this->setParameter('customerPaymentProfileId', $existing_profile);
                 return;
             }
         
@@ -550,41 +514,40 @@
             // Add an existing profile id to the request
             $paymentprofilerequest->setCustomerProfileId($this->params['customerProfileId']);
             $paymentprofilerequest->setPaymentProfile($paymentprofile);
-            $paymentprofilerequest->setValidationMode("liveMode");
+            $paymentprofilerequest->setValidationMode(MODULE_PAYMENT_AUTHORIZENET_CIM_VALIDATION);
         
             // Create the controller and get the response
             $controller = new AnetController\CreateCustomerPaymentProfileController($paymentprofilerequest);
-            $response = $controller->executeWithApiResponse(\net\authorize\api\constants\ANetEnvironment::SANDBOX);
-        
+            $response = $this->getControllerResponse($controller);
+            
+            $error = true;
             if (($response != null) && ($response->getMessages()->getResultCode() == "Ok")) {
-                //echo "Create Customer Payment Profile SUCCESS: " . $response->getCustomerPaymentProfileId() . "\n";
+                $error = false;
+                $logData =  "Create Customer Payment Profile SUCCESS: " . $response->getCustomerPaymentProfileId() . "\n";
                 $this->setParameter('customerPaymentProfileId', $response->getCustomerPaymentProfileId());
                 $save = 'N';
                 if ($_POST['cc_save'] == 'on') {
                     $save = 'Y';
                 }
             
-                save_cc_token($customerID, $this->customerPaymentProfileId, substr($_POST['cc_number'], -4),
+                $this->save_cc_token($customerID, $this->params['customerPaymentProfileId'], substr($_POST['cc_number'], -4),
                   $_POST['cc_expires'], $save);
-            
-                $order->info['payment_profile_id'] = $this->customerPaymentProfileId;
+                $order->info['payment_profile_id'] = $this->params['customerPaymentProfileId'];
             } else {
-                //echo "Create Customer Payment Profile: ERROR Invalid response\n";
-                $this->errorMessages = $response->getMessages()->getMessage();
-                //echo "Response : " . $this->errorMessages[0]->getCode() . "  " . $this->errorMessages[0]->getText() . "\n";
+                $logData = "Create Customer Payment Profile: ERROR Invalid response\n";
+                $errorMessages = $response->getMessages()->getMessage();
+                $logData .= "Customer: " . $customerID . "\n";
+                $logData .= "Response : " . $errorMessages[0]->getCode() . "  " . $errorMessages[0]->getText() . "\n";
             
-                $this->log = 'PaymentProfileRequest. Order: ' . $insert_id . '; Error: ' . $this->errorMessages[0]->getCode() . ' ' . $this->errorMessages[0]->getText();
-                $this->die_message = 'customerPaymentProfileRequest';
-                $this->logError();
                 if ($this->errorMessages[0]->getCode() == 'E00039') {
                     /* todo need to relook at this stuff..
                     $sql = "select * from " . TABLE_CUSTOMERS_CC . " where customers_id = :customerID and payment_profile_id = :ppid order by payment_profile_id desc limit 1";
-                    $sql = $db->bindVars($sql, ':ppid', $this->customerPaymentProfileId, 'integer');
+                    $sql = $db->bindVars($sql, ':ppid', $this->params['customerPaymentProfileId'], 'integer');
                     $sql = $db->bindVars($sql, ':customerID', $customerID, 'integer');
                     $dup_on_file = $db->Execute($sql);
                     if ($dup_on_file->RecordCount() == 0) {
                         $sql = "INSERT " . TABLE_CUSTOMERS_CC . " (customers_id, payment_profile_id, last_four, exp_date, enabled, card_last_modified)
-                  values ('" . $customerID . "',  '" . (int)$this->customerPaymentProfileId . "', '" . substr(strip_tags($this->cardNumber()),
+                  values ('" . $customerID . "',  '" . (int)$this->params['customerPaymentProfileId'] . "', '" . substr(strip_tags($this->cardNumber()),
                             -4) . "', '" . strip_tags($this->expirationDate()) . "', 'Y', now())";
                         $db->Execute($sql);
                         $this->log = $sql;
@@ -599,8 +562,8 @@
                     }
                     todo end of look at stuff */
                 }
-            
             }
+            $this->logError($logData, $error);
             return $response;
         }
     
@@ -638,21 +601,23 @@
             $request->setRefId($this->order_number($order->info));
             $request->setTransactionRequest($transactionRequestType);
             $controller = new AnetController\CreateTransactionController($request);
-            $response = $controller->executeWithApiResponse(\net\authorize\api\constants\ANetEnvironment::SANDBOX);
+            $response = $this->getControllerResponse($controller);
         
+            $error = true;
             if ($response != null) {
                 if ($response->getMessages()->getResultCode() == "Ok") {
                     $tresponse = $response->getTransactionResponse();
                 
                     if ($tresponse != null && $tresponse->getMessages() != null) {
-                        echo " Transaction Response code : " . $tresponse->getResponseCode() . "\n";
-                        echo "Charge Customer Profile APPROVED  :" . "\n";
-                        echo " Charge Customer Profile AUTH CODE : " . $tresponse->getAuthCode() . "\n";
+                        $error = false;
+                        $logData = "Transaction Response code : " . $tresponse->getResponseCode() . "\n";
+                        $logData .= " Charge Customer Profile APPROVED  :" . "\n";
+                        $logData .= " Charge Customer Profile AUTH CODE : " . $tresponse->getAuthCode() . "\n";
                         $this->approvalCode = $tresponse->getAuthCode();
-                        echo " Charge Customer Profile TRANS ID  : " . $tresponse->getTransId() . "\n";
+                        $logData .= " Charge Customer Profile TRANS ID  : " . $tresponse->getTransId() . "\n";
                         $this->transID =  $tresponse->getTransId();
-                        echo " Code : " . $tresponse->getMessages()[0]->getCode() . "\n";
-                        echo " Description : " . $tresponse->getMessages()[0]->getDescription() . "\n";
+                        $logData .= " Code : " . $tresponse->getMessages()[0]->getCode() . "\n";
+                        $logData .= " Description : " . $tresponse->getMessages()[0]->getDescription() . "\n";
                     
                         $this->insert_payment($tresponse->getTransId(),
                           $order->billing['firstname'] . ' ' . $order->billing['lastname'],
@@ -660,126 +625,58 @@
                           $tresponse->getAuthCode(),
                           (isset($order->customer['id']) ? $order->customer['id'] : $_SESSION['customer_id']));
                     } else {
-                        echo "Transaction Failed \n";
+                        $logData = "Transaction Failed \n";
                         if ($tresponse->getErrors() != null) {
-                            echo " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
-                            echo " Error message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
+                            $logData .= " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
+                            $logData .= " Error message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
                         }
                     }
                 } else {
-                    echo "Transaction Failed \n";
+                    $logData = "Transaction Failed \n";
                     $tresponse = $response->getTransactionResponse();
                     if ($tresponse != null && $tresponse->getErrors() != null) {
-                        echo " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
-                        echo " Error message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
+                        $logData .= " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
+                        $logData .= " Error message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
                         $log_message = $tresponse->getErrors()[0]->getErrorCode() . ' ' . $tresponse->getErrors()[0]->getErrorText();
                     } else {
-                        echo " Error code  : " . $response->getMessages()->getMessage()[0]->getCode() . "\n";
-                        echo " Error message : " . $response->getMessages()->getMessage()[0]->getText() . "\n";
+                        $logData .= " Error code  : " . $response->getMessages()->getMessage()[0]->getCode() . "\n";
+                        $logData .= " Error message : " . $response->getMessages()->getMessage()[0]->getText() . "\n";
                         $log_message = $response->getMessages()->getMessage()[0]->getCode() . ' ' . $response->getMessages()->getMessage()[0]->getText();
                     }
-                    $this->log = 'chargeCustomerProfile order: ' . $order->info['orders_id'] . '; Error: ' . $log_message;
-                    $this->die_message = 'no success - chargeCustomerProfile request';
-                    $this->logError(DEBUG_CIM);
                 }
             } else {
-                echo "No response returned \n";
+                $logData = "No response returned \n";
             }
+            $this->logError($logData, $error);
             return $response;
         }
     
-        function logError($log_xml = false)
+        function logError($logData, $error = false)
         {
-            global $messageStack, $order, $lookXML;
-            $lookXML = false;
-            //$log_xml = true;
+            $response_log = DIR_FS_LOGS . '/cim_response.log';
             
-            $error_log = DIR_FS_LOGS . '/cim_error.log';
-            $error_sent = DIR_FS_LOGS . '/cim_xml_sent.log';
-            
-            if (isset($this->log) and !(empty($this->log)) or (isset($this->error_messages[0]) and !(empty($this->error_messages[0])))) {
-                $messageStack->add_session('CIM: ' . $this->error_messages[0] . '; ->' . $this->log, 'error');
+            if ($error) {
+                $this->errorMessages[] = $logData;
             }
             
-            if (!empty($this->log) || !empty($this->error_messages[0])) {
-                error_log(date(DATE_RFC2822) . ': ' . print_r($this->error_messages) . '; ->' . $this->log . "\n", 3,
-                  $error_log);
-                if ($log_xml || $this->cim_code == 'E00003') {
-                    error_log(date(DATE_RFC2822) . ': ' . $this->xml . "\n", 3, $error_sent);
-                }
+            if ($error || DEBUG_CIM) {
+                error_log(date(DATE_RFC2822) . ': ' . $logData . "\n", 3, $response_log);
             }
-            if ($this->cim_code == 'E00027') {
-                //error_log(date(DATE_RFC822) . ': Response:' . $this->response . "\n", 3, $error_log);
+            
+            if (DEBUG_CIM) {
+                trigger_error($logData);
             }
-            trigger_error('hit the error log.');
-        }
-        
-        function isSuccessful()
-        {
-            return $this->success;
         }
         
         function checkErrors($type)
         {
             global $messageStack;
-            if (isset($this->error_messages) && (!empty($this->error_messages))) {
-                foreach ($this->error_messages as $error) {
-                    $messageStack->add_session('checkout_payment', 'CIM payment ' . $this->errorMessages[0]->getCode() . ' ' . $this->errorMessages[0]->getText(), 'error');
+            
+            if (isset($this->errorMessages) && (!empty($this->errorMessages))) {
+                foreach ($this->errorMessages as $error) {
+                    $messageStack->add_session('checkout_payment', $type . ': ' . $error, 'error');
                 }
                 zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
-            }
-        }
-        
-        
-        function setParamsAdmin()
-        {
-            global $order, $db, $insert_id;
-            
-            $this->setParameter('shipTo_firstName', $order->delivery['firstname']); // Up to 50 characters (no symbols)
-            $this->setParameter('shipTo_lastName', $order->delivery['lastname']); // Up to 50 characters (no symbols)
-            // $this->setParameter('shipTo_company', 'Acme, Inc.'); // Up to 50 characters (no symbols) (optional)
-            $this->setParameter('shipTo_address',
-              $order->delivery['street_address']); // Up to 60 characters (no symbols)
-            $this->setParameter('shipTo_city', $order->delivery['city']); // Up to 40 characters (no symbols)
-            //$this->setParameter('shipTo_state', $order->delivery['state']); // A valid two-character state code (US only) (optional)
-            $this->setParameter('shipTo_zip', $order->delivery['postcode']); // Up to 20 characters (no symbols)
-            $this->setParameter('shipTo_country',
-              $order->delivery['country']); // Up to 60 characters (no symbols) (optional)
-            $this->setParameter('customerProfileId',
-              $order->billing['customerProfileId']); // Up to 20 characters (optional)
-            $this->setParameter('paymentType', 'creditcard');
-            $this->setParameter('cardNumber', $order->info['cc_number']);
-            $this->setParameter('transactionCardCode', $order->info['cc_ccv']);
-            if (isset($this->params['customerPaymentProfileId'])) {
-                $this->setParameter('customerPaymentProfileId', strip_tags($this->params['customerPaymentProfileId']));
-            } else {
-                $this->setParameter('customerPaymentProfileId', strip_tags($order->info['payment_profile_id']));
-            }
-            $this->setParameter('expirationDate',
-              '20' . substr($order->info['cc_expires'], 2, 2) . '-' . substr($order->info['cc_expires'], 0, 2));
-            $this->setParameter('validationMode', $this->validationMode);
-            $this->setParameter('billTo_firstName', $order->billing['firstname']); // Up to 50 characters (no symbols)
-            $this->setParameter('billTo_lastName', $order->billing['lastname']); // Up to 50 characters (no symbols)
-            // $this->setParameter('billTo_company', $order->billing['company']); // Up to 50 characters (no symbols) (optional)
-            $this->setParameter('billTo_address',
-              $order->billing['street_address']); // Up to 60 characters (no symbols)
-            $this->setParameter('billTo_city', $order->billing['city']); // Up to 40 characters (no symbols)
-            //$this->setParameter('billTo_state', $order->billing['state']); // A valid two-character state code (US only) (optional)
-            $this->setParameter('billTo_zip', $order->billing['postcode']); // Up to 20 characters (no symbols)
-            $this->setParameter('billTo_country',
-              $order->billing['country']); // Up to 60 characters (no symbols) (optional)
-            
-            $this->setParameter('merchantCustomerId', $order->customer['id']); // Up to 20 characters (optional)
-            $this->setParameter('email', $order->customer['email_address']);
-            
-            $insert_id = $order->info['orders_id'];
-            
-            if (isset($this->params['delete_customer_id'])) {
-                $sql = "select customers_customerProfileId from " . TABLE_CUSTOMERS . "
-		where customers_id = :del_customer_id";
-                $sql = $db->bindVars($sql, ':del_customer_id', $this->params['delete_customer_id'], 'integer');
-                $delete_customer = $db->Execute($sql);
-                $this->setParameter('customerProfileId', $delete_customer->fields['customers_customerProfileId']);
             }
         }
     
@@ -804,7 +701,7 @@
             $sql = "select cust.customers_customerProfileId, cim.*, ord.order_total from " . TABLE_CIM_PAYMENTS . " cim
             left join " . TABLE_CUSTOMERS . " cust on cim.customers_id = cust.customers_id
             left join " . TABLE_ORDERS . " ord on cim.orders_id = ord.orders_id
-            where cim.orders_id = :orderID and cim.refund_amount = 0 order by cim.payment_id desc limit 1";
+            where cim.orders_id = :orderID and ((cim.payment_amount - cim.refund_amount) > 0) order by cim.payment_id desc limit 1";
             $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
             $refund = $db->Execute($sql);
             
@@ -822,158 +719,117 @@
             if (!(isset($refund_amount)) || ($refund_amount == 0) || ($refund_amount > $max_refund)) {
                 $refund_amount = $max_refund;
             }
-            $type = 'REF';
             
-            $data = customer_refund_transaction($refund->fields['customers_customerProfileId'],
-              $refund->fields['payment_profile_id'], havingtrim($refund->fields['transaction_id']),
-              number_format($refund_amount, 2, '.', ''));
-            $this->xml = request_xml('createCustomerProfileTransactionRequest', $data);
-            
-            $this->process();
-            
-            if (!$this->isSuccessful()) {
-                $this->log = 'CIM Refund transaction fail: ' . $ordersID . '; Error: ' . $this->cim_code . ' ' . $this->text;
-                $this->die_message = 'FAILED - CIM Refund transaction.';
-                $this->logError(DEBUG_CIM);
-                
-                $data = customer_refund_payment($refund->fields['customers_customerProfileId'],
-                  $refund->fields['payment_profile_id'], number_format($refund_amount, 2, '.', ''));
-                $this->xml = request_xml('createCustomerProfileTransactionRequest', $data);
-                
-                $this->process();
-            }
-            
-            if (!$this->isSuccessful()) {
-                $this->log = 'CIM Refund payment fail: ' . $ordersID . '; Error: ' . $this->cim_code . ' ' . $this->text;
-                $this->die_message = 'FAILED - CIM Refund payment.';
-                $this->logError(DEBUG_CIM);
-                $data = customer_void_transaction($ordersID, trim($refund->fields['transaction_id']));
-                $this->xml = request_xml('createCustomerProfileTransactionRequest', $data);
-                $type = 'VOID';
-                
-                //voids do not get amounts, so the amount is the total initially authorized
-                $refund_amount = $refund->fields['order_total'];
-                
-                $this->process();
-            }
-            
-            if (!$this->isSuccessful()) {
-                $this->log = 'CIM Void Transaction fail: ' . $ordersID . '; Error: ' . $this->cim_code . ' ' . $this->text;
-                $this->die_message = 'FAILED - CIM Void Transaction.';
-                $this->logError(DEBUG_CIM);
-            }
-            
-            
-            if ($this->isSuccessful()) {
-                $messageStack->reset();
-                trigger_error('did the message stack get reset?');
-                $this->log = $type . ' CIM Refund order: ' . $ordersID . '; Error: ' . $this->cim_code . ' ' . $this->text;
-                $this->die_message = 'Success - CIM Refund order:';
-                if (DEBUG_CIM) {
-                    $this->logError(DEBUG_CIM);
-                } else {
-                    if (IS_ADMIN_FLAG) {
-                        $messageStack->add_session('CIM refund success: ' . $this->error_messages[0] . '; ->' . $this->log,
-                          'warning');
-                    }
-                }
-                if ($refund_amount == $refund->fields['order_total']) {
-                    updateOrderInfo($ordersID);
-                }
-                
-                insert_refund($refund->fields['payment_id'], $ordersID, $this->transID, $refund->fields['payment_name'],
-                  $refund->fields['transaction_id'], $refund_amount, $type);
-                
-                update_payment($ordersID, $refund->fields['transaction_id'], $refund_amount);
-                
-                $return = true;
-            } else {
-                $return = false;
-            }
-            return $return;
-        }
+            $details = $this->getTransactionDetails($refund->fields['transaction_id']);
 
-        function createCustomerShippingAddressRequest()
-        {
-            global $db, $order, $lookXML, $insert_id;
-            $this->xml = "<?xml version='1.0' encoding='utf-8'?>
-	    <createCustomerShippingAddressRequest xmlns='AnetApi/xml/v1/schema/AnetApiSchema.xsd'>
-	    <merchantAuthentication>
-		<name>" . $this->login . "</name>
-		<transactionKey>" . $this->transkey . "</transactionKey>
-	    </merchantAuthentication>
-	    " . $this->refId() . "
-	    " . $this->customerProfileId() . "
-	    <address>
-		" . $this->shipTo_firstName() . "
-		" . $this->shipTo_lastName() . "
-		" . $this->shipTo_company() . "
-		" . $this->shipTo_address() . "
-		" . $this->shipTo_city() . "
-		" . $this->shipTo_state() . "
-		" . $this->shipTo_zip() . "
-		" . $this->shipTo_country() . "
-		" . $this->shipTo_phoneNumber() . "
-		" . $this->shipTo_faxNumber() . "
-	    </address>
-	    </createCustomerShippingAddressRequest>";
-            
-            $this->process();
-            
-            if ($this->isSuccessful()) {
-                $sql = "UPDATE " . TABLE_ORDERS . "
-	        SET CIM_address_id = '" . (int)$this->customerAddressId . "'
-	        WHERE orders_id = :orderID ";
-                $sql = $db->bindVars($sql, ':orderID', $insert_id, 'integer');
-                $db->Execute($sql);
-                
-                $sql = "UPDATE address_book
-			SET CIM_address_id = '" . (int)$this->customerAddressId . "'
-	        WHERE address_book_id = '" . (int)$order->delivery['delivery_address_id'] . "'";
-                $db->Execute($sql);
+            if (strpos($details->getTransaction()->getTransactionStatus(), 'Pending') !== false) {
+                // if the transaction is pending, a void will void all of the amount
+                $response = $this->voidTransaction($ordersID, $refund, $max_refund);
             } else {
-                $this->log = 'createCustomerShippingAddressReq: ' . $insert_id . '; Add Id:' . $order->delivery['delivery_address_id'] . '; Error: ' . $this->cim_code . ' ' . $this->text;
-                $this->die_message = 'createCustomerShippingAddressReq';
-                //$this->logError();
-                if ($this->cim_code == 'E00039') {
-                    $lookXML = true;
-                    $sql = "Select CIM_address_id from address_book
-		      WHERE entry_street_address = '" . $this->params['shipTo_address'] . "'
-			  AND entry_postcode = '" . $this->params['shipTo_zip'] . "'
-		      AND customers_id = '" . $this->params['merchantCustomerId'] . "' ";
-                    $add_id = $db->Execute($sql);
-                    if ($add_id->fields['CIM_address_id'] != 0 && isset($add_id->fields['CIM_address_id'])) {
-                        $sql = "UPDATE " . TABLE_ORDERS . "
-		          SET CIM_address_id = '" . (int)$add_id->fields['CIM_address_id'] . "'
-		          WHERE orders_id = :orderID ";
-                        $sql = $db->bindVars($sql, ':orderID', $insert_id, 'integer');
-                        $db->Execute($sql);
-                        // new 2_2014
-                        $sql = "UPDATE address_book
-					SET CIM_address_id = '" . (int)$add_id->fields['CIM_address_id'] . "'
-					WHERE address_book_id = '" . (int)$order->delivery['delivery_address_id'] . "'";
-                        $db->Execute($sql);
-                    }
-                }
-                $this->logError();
+                $response = $this->refundTransaction($ordersID, $refund, $refund_amount);
+            }
+            if ($response->getMessages()->getResultCode() == "Ok") {
+                return true;
+            } else {
+                return false;
             }
         }
-        
-        /**
-         * Build admin-page components
-         *
-         * @param int $zf_order_id
-         * @return string
-         */
-        function RENAME_admin_notification($zf_order_id)
+    
+        function getTransactionDetails($transactionId)
         {
-            global $db;
-            $output = '';
-            $cimdata->fields = array();
-            require(DIR_FS_CATALOG . DIR_WS_MODULES . 'payment/authorizenet/authorizenet_admin_notification.php');
-            return $output;
+            $request = new AnetAPI\GetTransactionDetailsRequest();
+            $request->setMerchantAuthentication($this->merchantCredentials());
+            $request->setTransId($transactionId);
+            
+            $controller = new AnetController\GetTransactionDetailsController($request);
+            $response = $this->getControllerResponse($controller);
+            
+            $error = true;
+            if (($response != null) && ($response->getMessages()->getResultCode() == "Ok")) {
+                $logData = "SUCCESS: Transaction Status:" . $response->getTransaction()->getTransactionStatus() . "\n";
+                $logData .= "                Auth Amount:" . $response->getTransaction()->getAuthAmount() . "\n";
+                $logData .= "                   Trans ID:" . $response->getTransaction()->getTransId() . "\n";
+                $error = false;
+            } else {
+                $logData = "ERROR :  Invalid response\n";
+                $errorMessages = $response->getMessages()->getMessage();
+                $logData .= "Response : " . $errorMessages[0]->getCode() . "  " . $errorMessages[0]->getText() . "\n";
+            }
+            $this->logError($logData, $error);
+            
+            return $response;
         }
+    
+    
+        function refundTransaction($ordersID, $refund, $refund_amount)
+        {
+            $profileToCharge = new AnetAPI\CustomerProfilePaymentType();
+            $profileToCharge->setCustomerProfileId($refund->fields['customers_customerProfileId']);
+            $paymentProfile = new AnetAPI\PaymentProfileType();
+            $paymentProfile->setPaymentProfileId($refund->fields['payment_profile_id']);
+            $profileToCharge->setPaymentProfile($paymentProfile);
         
+            //create a transaction
+            $transactionRequest = new AnetAPI\TransactionRequestType();
+            $transactionRequest->setTransactionType("refundTransaction");
+            $transactionRequest->setAmount($refund_amount);
+            $transactionRequest->setProfile($profileToCharge);
+            $transactionRequest->setRefTransId($refund->fields['transaction_id']);
+        
+        
+            $request = new AnetAPI\CreateTransactionRequest();
+            $request->setMerchantAuthentication($this->merchantCredentials());
+            $request->setRefId($ordersID);
+            $request->setTransactionRequest($transactionRequest);
+            $controller = new AnetController\CreateTransactionController($request);
+            $response = $this->getControllerResponse($controller);
+        
+            $error = true;
+            if ($response != null) {
+                if ($response->getMessages()->getResultCode() == "Ok") {
+                    $tresponse = $response->getTransactionResponse();
+                
+                    if ($tresponse != null && $tresponse->getMessages() != null) {
+                        $error = false;
+                        $logData = " Transaction Response code : " . $tresponse->getResponseCode() . "\n";
+                        $logData .= "Refund SUCCESS: " . $tresponse->getTransId() . "\n";
+                        $logData .= " Code : " . $tresponse->getMessages()[0]->getCode() . "\n";
+                        $logData .= " Description : " . $tresponse->getMessages()[0]->getDescription() . "\n";
+                    } else {
+                        $logData = "Transaction Failed \n";
+                        if ($tresponse->getErrors() != null) {
+                            $logData .= " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
+                            $logData .= " Error message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
+                        }
+                    }
+                } else {
+                    $logData = "Transaction Failed \n";
+                    $tresponse = $response->getTransactionResponse();
+                    if ($tresponse != null && $tresponse->getErrors() != null) {
+                        $logData .= " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
+                        $logData .= " Error message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
+                    } else {
+                        $logData .= " Error code  : " . $response->getMessages()->getMessage()[0]->getCode() . "\n";
+                        $logData .= " Error message : " . $response->getMessages()->getMessage()[0]->getText() . "\n";
+                    }
+                }
+            } else {
+                $logData = "No response returned \n";
+            }
+            
+            $this->logError($logData, $error);
+            return $response;
+        }
+    
+        function get_error()
+        {
+            $error = array(
+              'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_ERROR,
+              'error' => stripslashes(urldecode($_GET['error']))
+            );
+            return $error;
+        }
+    
         /**
          * Check to see whether module is installed
          *
@@ -1028,10 +884,6 @@
             $db->Execute("delete from " . TABLE_CONFIGURATION . " where configuration_key like 'MODULE\_PAYMENT\_AUTHORIZENET_CIM\_%'");
         }
         
-        // Contains line item details about the order (optional)
-        // Up to 30 distinct instances of this element may be included per transaction to describe items included in the order.
-        // USAGE: see the example code for createCustomerProfileTransactionRequest() in the examples provided.
-        
         /**
          * Internal list of configuration keys used for configuration of the module
          *
@@ -1058,113 +910,6 @@
               'MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID',
               'MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING'
             );
-        }
-        
-        // Contains duty information for the transaction (optional)
-        
-        /**
-         * Used to do any debug logging / tracking / storage as required.
-         */
-        function _debugActions($response, $order_time = '', $sessID = '')
-        {
-            global $db, $messageStack;
-            if ($order_time == '') {
-                $order_time = date("F j, Y, g:i a");
-            }
-            // convert output to 1-based array for easier understanding:
-            $resp_output = array_reverse($response);
-            $resp_output[] = 'Response from gateway';
-            $resp_output = array_reverse($resp_output);
-            
-            // DEBUG LOGGING
-            $errorMessage = date('M-d-Y h:i:s') .
-              "\n=================================\n\n" .
-              ($this->commError != '' ? 'Comm results: ' . $this->commErrNo . ' ' . $this->commError . "\n\n" : '') .
-              'Response Code: ' . $response[0] . ".\nResponse Text: " . $response[3] . "\n\n" .
-              'Sending to Authorizenet: ' . print_r($this->reportable_submit_data, true) . "\n\n" .
-              'Results Received back from Authorizenet: ' . print_r($resp_output, true) . "\n\n" .
-              'CURL communication info: ' . print_r($this->commInfo, true) . "\n";
-            if (CURL_PROXY_REQUIRED == 'True') {
-                $errorMessage .= 'Using CURL Proxy: [' . CURL_PROXY_SERVER_DETAILS . ']  with Proxy Tunnel: ' . ($this->proxy_tunnel_flag ? 'On' : 'Off') . "\n";
-            }
-            $errorMessage .= "\nRAW data received: \n" . $this->authorize . "\n\n";
-            
-            //    if (strstr(MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING, 'All')) {
-            if (strstr(MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING,
-                'Log') || strstr(MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING,
-                'All') || (defined('AUTHORIZENET_DEVELOPER_MODE') && in_array(AUTHORIZENET_DEVELOPER_MODE,
-                  array('on', 'certify'))) || true) {
-                $key = $response[6] . '_' . time() . '_' . zen_create_random_value(4);
-                $file = $this->_logDir . '/' . 'CIM_Debug_' . $key . '.log';
-                if ($fp = @fopen($file, 'a')) {
-                    fwrite($fp, $errorMessage);
-                    fclose($fp);
-                }
-            }
-            if (($response[0] != '1' && stristr(MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING,
-                  'Alerts')) || strstr(MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING, 'Email')) {
-                zen_mail(STORE_NAME, STORE_OWNER_EMAIL_ADDRESS,
-                  'AuthorizenetCIM Alert ' . $response[7] . ' ' . date('M-d-Y h:i:s') . ' ' . $response[6],
-                  $errorMessage, STORE_OWNER, STORE_OWNER_EMAIL_ADDRESS,
-                  array('EMAIL_MESSAGE_HTML' => nl2br($errorMessage)), 'debug');
-            }
-            //    }
-            
-            // DATABASE SECTION
-            // Insert the send and receive response data into the database.
-            // This can be used for testing or for implementation in other applications
-            // This can be turned on and off if the Admin Section
-            if (MODULE_PAYMENT_AUTHORIZENET_CIM_STORE_DATA == 'True') {
-                $db_response_text = $response[3] . ($this->commError != '' ? ' - Comm results: ' . $this->commErrNo . ' ' . $this->commError : '');
-                $db_response_text .= ($response[0] == 2 && $response[2] == 4) ? ' NOTICE: Card should be picked up - possibly stolen ' : '';
-                $db_response_text .= ($response[0] == 3 && $response[2] == 11) ? ' DUPLICATE TRANSACTION ATTEMPT ' : '';
-                
-                // Insert the data into the database
-                $sql = "insert into " . TABLE_AUTHORIZENET . "  (id, customer_id, order_id, response_code, response_text, authorization_type, transaction_id, sent, received, time, session_id) values (NULL, :custID, :orderID, :respCode, :respText, :authType, :transID, :sentData, :recvData, :orderTime, :sessID )";
-                $sql = $db->bindVars($sql, ':custID', $_SESSION['customer_id'], 'integer');
-                $orderidarr = explode("-", $response[7]);
-                $orderid = $orderidarr[0];
-                $sql = $db->bindVars($sql, ':orderID', preg_replace('/[^0-9]/', '', $orderid), 'integer');
-                $sql = $db->bindVars($sql, ':respCode', $response[0], 'integer');
-                $sql = $db->bindVars($sql, ':respText', $db_response_text, 'string');
-                $sql = $db->bindVars($sql, ':authType', $response[11], 'string');
-                $sql = $db->bindVars($sql, ':transID', $this->transaction_id, 'string');
-                $sql = $db->bindVars($sql, ':sentData', print_r($this->reportable_submit_data, true), 'string');
-                $sql = $db->bindVars($sql, ':recvData', print_r($response, true), 'string');
-                $sql = $db->bindVars($sql, ':orderTime', $order_time, 'string');
-                $sql = $db->bindVars($sql, ':sessID', $sessID, 'string');
-                $db->Execute($sql);
-            }
-        }
-        
-        // The merchant assigned invoice number for the transaction (optional)
-        
-        function deleteCustomerProfileRequest()
-        {
-            global $order, $db;
-            if (isset($this->params['delete_customer_id'])) {
-                $this->setParamsAdmin();
-            }
-            $this->xml = "<?xml version='1.0' encoding='utf-8'?>
-            <deleteCustomerProfileRequest xmlns='AnetApi/xml/v1/schema/AnetApiSchema.xsd'>
-            <merchantAuthentication>
-        	<name>" . $this->login . "</name>
-        	<transactionKey>" . $this->transkey . "</transactionKey>
-        </merchantAuthentication>
-        " . $this->refId() . "
-        " . $this->customerProfileId() . "
-        </deleteCustomerProfileRequest>";
-            $this->process();
-            if ($this->isSuccessful()) {
-                $this->deleteStoredData();
-            } else {
-                $this->log = 'deleteCustomerProfileRequest Customer: ' . $this->params['delete_customer_id'] . '; Error: ' . $this->cim_code . ' ' . $this->text;
-                $this->die_message = 'no success - deleteCustomerProfileRequest';
-                $this->logError();
-                if ($this->cim_code == 'E00040') {
-                    $this->deleteStoredData();
-                }
-            }
         }
         
         function deleteStoredData()
@@ -1195,53 +940,6 @@
             $db->Execute($sql);
         }
         
-        function deleteCustomerPaymentProfileRequest()
-        {
-            global $order, $db;
-            $this->xml = "<?xml version='1.0' encoding='utf-8'?>
-	<deleteCustomerPaymentProfileRequest xmlns='AnetApi/xml/v1/schema/AnetApiSchema.xsd'>
-	<merchantAuthentication>
-		<name>" . $this->login . "</name>
-		<transactionKey>" . $this->transkey . "</transactionKey>
-	</merchantAuthentication>
-	" . $this->refId() . "
-	" . $this->customerProfileId() . "
-	" . $this->customerPaymentProfileId() . "
-	</deleteCustomerPaymentProfileRequest>";
-            $this->process();
-            
-            if (($this->isSuccessful()) || ($this->cim_code == 'E00040')) {
-                $sql = "delete from " . TABLE_CUSTOMERS_CC . "
-		WHERE customers_id = :custID  and payment_profile_id = :paymtProfId";
-                $sql = $db->bindVars($sql, ':custID', $this->params['refId'], 'integer');
-                //$sql = $db->bindVars($sql, ':custID', $order->customer['id'], 'integer');
-                $sql = $db->bindVars($sql, ':paymtProfId', $this->params['customerPaymentProfileId'], 'integer');
-                $this->log = $sql;
-                $this->logError();
-                $db->Execute($sql);
-            } else {
-                $this->log = 'deleteCustomerPaymentProfileRequest customer: ' . $this->params['refId'] . '; paymentProfile: ' . $this->params['customerPaymentProfileId'] . '; Error: ' . $this->cim_code . ' ' . $this->text;
-                $this->die_message = 'no success - deleteCustomerPaymentProfileRequest';
-                $this->logError();
-            }
-            return ($this);
-        }
-        
-        
-        function transactionType()
-        {
-            if (isset($this->params['transactionType'])) {
-                if (preg_match('/^(profileTransCaptureOnly|profileTransAuthCapture|profileTransAuthOnly)$/',
-                  $this->params['transactionType'])) {
-                    return $this->params['transactionType'];
-                } else {
-                    $this->error_messages[] .= 'setParameter(): transactionType must be (profileTransCaptureOnly, profileTransAuthCapture or profileTransAuthOnly)';
-                }
-            } else {
-                $this->error_messages[] .= 'setParameter(): transactionType must be (profileTransCaptureOnly, profileTransAuthCapture or profileTransAuthOnly)';
-            }
-        }
-        
         function get_customer_cards($customerID, $emp = false)
         {
             global $db;
@@ -1253,132 +951,6 @@
             $customer_cards = $db->Execute($sql);
             
             return $customer_cards;
-        }
-        
-        function request_xml($request_type, $data)
-        {
-            $dom = new DOMDocument('1.0', 'utf-8');
-            $dom->formatOutput = true;
-            
-            $request = $dom->createElementNS('AnetApi/xml/v1/schema/AnetApiSchema.xsd', $request_type);
-            
-            $merchant = $dom->createElement('merchantAuthentication');
-            $merchant->appendChild($dom->createElement('name', trim(MODULE_PAYMENT_AUTHORIZENET_CIM_LOGIN)));
-            $merchant->appendChild($dom->createElement('transactionKey', trim(MODULE_PAYMENT_AUTHORIZENET_CIM_TXNKEY)));
-            $request->appendChild($merchant);
-            
-            foreach ($data->childNodes as $node) {
-                $append_node = $dom->importNode($node, true);
-                $request->appendChild($append_node);
-            }
-            
-            $dom->appendChild($request);
-            
-            $full_request = $dom->saveXML();
-            
-            return ($full_request);
-        }
-        
-        function customer_profile($customer_id, $email)
-        {
-            $dom = new DOMDocument();
-            $dom->formatOutput = true;
-            $data = $dom->createElement('data');
-            
-            $profile = $dom->createElement('profile');
-            $profile->appendChild($dom->createElement('merchantCustomerId', $customer_id));
-            $profile->appendChild($dom->createElement('email', $email));
-            $data->appendChild($profile);
-            
-            $dom->appendChild($data);
-            
-            $node = $dom->getElementsByTagName('data')->item(0);
-            return ($node);
-        }
-        
-        function customer_payment_profile($customer_profile_id, $order, $validation_mode)
-        {
-            $dom = new DOMDocument();
-            $dom->formatOutput = true;
-            $data = $dom->createElement('data');
-            
-            $element = $dom->createElement('customerProfileId', $customer_profile_id);
-            $data->appendChild($element);
-            
-            $paymentProfile = $dom->createElement('paymentProfile');
-            $billTo = $dom->createElement('billTo');
-            $billTo->appendChild($dom->createElement('firstName', $order->billing['firstname']));
-            $billTo->appendChild($dom->createElement('lastName', $order->billing['lastname']));
-            $billTo->appendChild($dom->createElement('company', $order->billing['company']));
-            $billTo->appendChild($dom->createElement('address', $order->billing['street_address']));
-            $billTo->appendChild($dom->createElement('city', $order->billing['city']));
-            $billTo->appendChild($dom->createElement('zip', $order->billing['postcode']));
-            $billTo->appendChild($dom->createElement('country', $order->billing['country']['title']));
-            
-            $paymentProfile->appendChild($billTo);
-            
-            $payment = $dom->createElement('payment');
-            
-            $creditCard = $dom->createElement('creditCard');
-            
-            $creditCard->appendChild($dom->createElement('cardNumber', $_POST['cc_number']));
-            $creditCard->appendChild($dom->createElement('expirationDate', $_POST['cc_expires']));
-            $creditCard->appendChild($dom->createElement('cardCode', $_POST['cc_cvv']));
-            
-            $payment->appendChild($creditCard);
-            $paymentProfile->appendChild($payment);
-            $data->appendChild($paymentProfile);
-            $data->appendChild($dom->createElement('validationMode', $validation_mode));
-            
-            $dom->appendChild($data);
-            
-            $node = $dom->getElementsByTagName('data')->item(0);
-            return $node;
-        }
-        
-        function customer_payment_transaction($customer_profile_id, $payment_id, $order)
-        {
-            $dom = new DOMDocument();
-            $dom->formatOutput = true;
-            $data = $dom->createElement('data');
-            
-            $transaction = $dom->createElement('transaction');
-            $profileTransAuthCapture = $dom->createElement('profileTransAuthCapture');
-            $profileTransAuthCapture->appendChild($dom->createElement('amount', $order->info['total']));
-            
-            if (count($order->products) > 0) {
-                foreach (array_slice($order->products, 0, 30) as $items) {
-                    $line_items = $dom->createElement('lineItems');
-                    $line_items->appendChild($dom->createElement('itemId', zen_get_prid($items['id'])));
-                    $line_items->appendChild($dom->createElement('name', substr(preg_replace('/[^a-z0-9_ ]/i', '',
-                      preg_replace('/&nbsp;/', ' ', $items['name'])), 0, 30)));
-                    $line_items->appendChild($dom->createElement('quantity', $items['qty']));
-                    $line_items->appendChild($dom->createElement('unitPrice', $items['final_price']));
-                    $line_items->appendChild($dom->createElement('taxable',
-                      ($order->info['tax'] == 0 ? 'false' : 'true')));
-                    $profileTransAuthCapture->appendChild($line_items);
-                }
-            }
-            
-            $profileTransAuthCapture->appendChild($dom->createElement('customerProfileId', $customer_profile_id));
-            $profileTransAuthCapture->appendChild($dom->createElement('customerPaymentProfileId', $payment_id));
-            
-            $order = $dom->createElement('order');
-            $order->appendChild($dom->createElement('invoiceNumber', order_number($order->info)));
-            $profileTransAuthCapture->appendChild($order);
-            $transaction->appendChild($profileTransAuthCapture);
-            
-            $data->appendChild($transaction);
-            $dom->appendChild($data);
-            
-            /*
-            $html = $dom->saveHTML();
-            print_r($html);
-            die(__FILE__ . ':' . __LINE__);
-            */
-            
-            $node = $dom->getElementsByTagName('data')->item(0);
-            return $node;
         }
         
         function customer_refund_transaction($customer_profile_id, $payment_profile_id, $transaction_id, $amount)
@@ -1423,25 +995,65 @@
             $node = $dom->getElementsByTagName('data')->item(0);
             return $node;
         }
-        
-        function customer_void_transaction($orderID, $transaction_id)
+    
+        function voidTransaction($ordersID, $refund, $refund_amount)
         {
-            $dom = new DOMDocument();
-            $dom->formatOutput = true;
-            $data = $dom->createElement('data');
-            
-            $data->appendChild($dom->createElement('refId', $orderID));
-            $transactionRequest = $dom->createElement('transactionRequest');
-            $transactionRequest->appendChild($dom->createElement('TransactionType', 'voidTransaction'));
-            $transactionRequest->appendChild($dom->createElement('reftransId', $transaction_id));
-            
-            $data->appendChild($transactionRequest);
-            $dom->appendChild($data);
-            
-            $node = $dom->getElementsByTagName('data')->item(0);
-            return $node;
-        }
+            $transactionRequestType = new AnetAPI\TransactionRequestType();
+            $transactionRequestType->setTransactionType("voidTransaction");
+            $transactionRequestType->setRefTransId(trim($refund->fields['transaction_id']));
         
+            $request = new AnetAPI\CreateTransactionRequest();
+            $request->setMerchantAuthentication($this->merchantCredentials());
+            $request->setRefId($ordersID);
+            $request->setTransactionRequest($transactionRequestType);
+            $controller = new AnetController\CreateTransactionController($request);
+            $response = $this->getControllerResponse($controller);
+    
+            $error = true;
+            if ($response != null) {
+                if ($response->getMessages()->getResultCode() == "Ok") {
+                    $tresponse = $response->getTransactionResponse();
+            
+                    if ($tresponse != null && $tresponse->getMessages() != null) {
+                
+                        $this->insert_refund($refund->fields['payment_id'], $ordersID, $tresponse->getTransId(),
+                          $refund->fields['payment_name'],
+                          $refund->fields['transaction_id'], $refund_amount, 'VOID', $tresponse->getAuthCode());
+                        $this->update_payment($ordersID, $refund->fields['transaction_id'], $refund_amount);
+                        $error = false;
+                        $logData = " Transaction Response code : " . $tresponse->getResponseCode() . "\n";
+                        $logData .= " Void transaction SUCCESS AUTH CODE: " . $tresponse->getAuthCode() . "\n";
+                        $logData .= " Void transaction SUCCESS TRANS ID  : " . $tresponse->getTransId() . "\n";
+                        $logData .= " Code : " . $tresponse->getMessages()[0]->getCode() . "\n";
+                        $logData .= " Description : " . $tresponse->getMessages()[0]->getDescription() . "\n";
+                    } else {
+                        $logData = "Transaction Failed \n";
+                        $logData .= "Order ID: " . $ordersID . "\n";
+                        if ($tresponse->getErrors() != null) {
+                            $logData .= " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
+                            $logData .= " Error message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
+                        }
+                    }
+                } else {
+                    $logData = "Transaction Failed \n";
+                    $logData .= "Order ID: " . $ordersID . "\n";
+                    $tresponse = $response->getTransactionResponse();
+                    if ($tresponse != null && $tresponse->getErrors() != null) {
+                        $logData .= " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
+                        $message = $tresponse->getErrors()[0]->getErrorText() . "\n";
+                    } else {
+                        $logData .= " Error code  : " . $response->getMessages()->getMessage()[0]->getCode() . "\n";
+                        $logData .= " Error message : " . $response->getMessages()->getMessage()[0]->getText() . "\n";
+                    }
+                }
+            } else {
+                $logData = "No response returned \n";
+                $logData .= "Order ID: " . $ordersID . "\n";
+            }
+            $this->logError($logData, $error);
+            return $response;
+        }
+    
         function order_number($order)
         {
             global $db;
@@ -1502,21 +1114,20 @@
         function save_cc_token($custId, $payment_profile, $lastfour, $exp_date, $save)
         {
             global $db;
-            
+
+            $insert_date = '20' . substr($exp_date,2,2) .'-'. substr($exp_date,0,2);
             $sql = "INSERT " . TABLE_CUSTOMERS_CC . "
 	        (customers_id, payment_profile_id, last_four, exp_date, enabled, card_last_modified)
 	        values (:custID,  :profID, :lastFour, :expDate, :save, now())";
             $sql = $db->bindVars($sql, ':custID', $custId, 'integer');
             $sql = $db->bindVars($sql, ':profID', $payment_profile, 'integer');
             $sql = $db->bindVars($sql, ':lastFour', $lastfour, 'string');
-            $sql = $db->bindVars($sql, ':expDate', $exp_date, 'string');
+            $sql = $db->bindVars($sql, ':expDate', $insert_date, 'string');
             $sql = $db->bindVars($sql, ':save', $save, 'string');
             
             $db->Execute($sql);
-            
         }
         
-        // function called only for full refund.
         function updateOrderInfo($ordersID)
         {
             global $db;
@@ -1549,15 +1160,16 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
             $db->Execute($sql);
         }
         
-        function insert_refund($paymentID, $ordersID, $transID, $name, $payment_trans_id, $amount, $type)
+        function insert_refund($paymentID, $ordersID, $transID, $name, $payment_trans_id, $amount, $type, $approval_code)
         {
             global $db;
-            $sql = "insert into " . TABLE_CIM_REFUNDS . " (payment_id, orders_id, transaction_id, refund_name, refund_amount, refund_type, payment_trans_id, date_posted, last_modified) values (:paymentID, :orderID, :transID, :payment_name, :amount, :type, :payment_trans_id, now(), now() )";
+            $sql = "insert into " . TABLE_CIM_REFUNDS . " (payment_id, orders_id, transaction_id, refund_name, refund_amount, refund_type, payment_trans_id, date_posted, approval_code) values (:paymentID, :orderID, :transID, :payment_name, :amount, :type, :payment_trans_id, now(), :apprCode )";
             $sql = $db->bindVars($sql, ':paymentID', $paymentID, 'integer');
             $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
             $sql = $db->bindVars($sql, ':transID', $transID, 'string');
             $sql = $db->bindVars($sql, ':payment_name', $name, 'string');
             $sql = $db->bindVars($sql, ':type', $type, 'string');
+            $sql = $db->bindVars($sql, ':apprCode', $approval_code, 'string');
             $sql = $db->bindVars($sql, ':payment_trans_id', trim($payment_trans_id), 'string');
             $sql = $db->bindVars($sql, ':amount', $amount, 'noquotestring');
             $db->Execute($sql);
@@ -1595,15 +1207,6 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
         {
             global $db;
     
-            echo '--------> ' .$status . ' <----------';
-            new dBug($customerID);
-            new dBug($transID);
-            new dBug($insertID);
-            new dBug($approval);
-            new dBug($payment_profile_id);
-            new dBug($this->response);
-            //die(__FILE__ . ':' . __LINE__);
-            
             $sql = "update  " . TABLE_CIM_PAYMENTS . " set orders_id = :insertID
             WHERE customers_id = :custId and transaction_id = :transID and orders_id = 0";
             $sql = $db->bindVars($sql, ':custId', $customerID, 'integer');
@@ -1632,8 +1235,5 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
             $sql = $db->bindVars($sql, ':orderID', $insertID, 'integer');
             $sql = $db->bindVars($sql, ':orderStatus', $status, 'integer');
             $db->Execute($sql);
-            new dBug($sql);
-            die(__FILE__ . ':' . __LINE__);
         }
     }
-

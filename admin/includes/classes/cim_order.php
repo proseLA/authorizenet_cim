@@ -74,7 +74,7 @@
                       'refund_amount' => $payments_query->fields['refund_amount'],
                       'type' => $payments_query->fields['payment_type'],
                       'posted' => $payments_query->fields['date_posted'],
-                      'modified' => $payments_query->fields['last_modified']
+                      'approval_code' => $payments_query->fields['approval_code']
                     );
                     $payments_query->MoveNext();
                 }
@@ -100,7 +100,7 @@
                           'type' => $refunds_query->fields['refund_type'],
                           'payment_number' => $refunds_query->fields['payment_trans_id'],
                           'posted' => $refunds_query->fields['date_posted'],
-                          'modified' => $refunds_query->fields['last_modified']
+                          'approval_code' => $refunds_query->fields['approval_code']
                         );
                         $refunds_query->MoveNext();
                     }

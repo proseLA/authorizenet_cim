@@ -41,20 +41,20 @@
                                     $cim->button_add('refund'); ?></td-->
                             </tr>
                             <tr class="dataTableHeadingRow">
-                                <td class="dataTableHeadingContent" align="left"
-                                    width="15%"><?= CIM_NUMBER; ?></td>
-                                <td class="dataTableHeadingContent" align="left"
-                                    width="15%"><?= CIM_NAME; ?></td>
-                                <td class="dataTableHeadingContent" align="right"
-                                    width="15%"><?= CIM_AMOUNT; ?></td>
-                                <td class="dataTableHeadingContent" align="center"
-                                    width="15%"><?= CIM_TYPE; ?></td>
-                                <td class="dataTableHeadingContent" align="left"
-                                    width="15%"><?= CIM_POSTED; ?></td>
-                                <td class="dataTableHeadingContent" align="left"
-                                    width="15%"><?= CIM_MODIFIED; ?></td>
-                                <td class="dataTableHeadingContent" align="right"
-                                    width="10%"><?= CIM_ACTION; ?></td>
+                                <th class="dataTableHeadingContent" align="left"
+                                    width="15%"><?= CIM_NUMBER; ?></th>
+                                <th class="dataTableHeadingContent" align="left"
+                                    width="15%"><?= CIM_NAME; ?></th>
+                                <th class="dataTableHeadingContent" align="right"
+                                    width="15%"><?= CIM_AMOUNT; ?></th>
+                                <th class="dataTableHeadingContent" align="center"
+                                    width="15%"><?= CIM_TYPE; ?></th>
+                                <th class="dataTableHeadingContent" align="left"
+                                    width="15%"><?= CIM_POSTED; ?></th>
+                                <th class="dataTableHeadingContent" align="left"
+                                    width="15%"><?= CIM_APPROVAL; ?></th>
+                                <th class="dataTableHeadingContent" align="right"
+                                    width="10%"><?= CIM_ACTION; ?></th>
                             </tr>
                             <?php
                                 $original_grand_total_paid = 0;
@@ -68,10 +68,10 @@
                                             <?php
                                         }
                                         $original_grand_total_paid = $original_grand_total_paid + $cim->payment[$a]['amount'];
-                                        ?>
+                                        /* ?>
                                         <!-- VINO_MOD out...tr class="paymentRow" onMouseOver="rowOverEffect(this)" onMouseOut="rowOutEffect(this)" <?= 'onclick="couponpopupWindow(\'' . zen_href_link(FILENAME_CIM_PAYMENTS,
                                             'oID=' . $cim->oID . '&payment_mode=payment&index=' . $cim->payment[$a]['index'] . '&action=my_update',
-                                            'SSL') . '\', \'scrollbars=yes,resizable=yes,width=400,height=300,screenX=150,screenY=100,top=100,left=150\')"'; ?>-->
+                                            'SSL') . '\', \'scrollbars=yes,resizable=yes,width=400,height=300,screenX=150,screenY=100,top=100,left=150\')"'; */ ?>
                                         <tr class="paymentRow bg-success">
                                             <td class="paymentContent"
                                                 align="left"><?= $cim->payment[$a]['number']; ?></td>
@@ -85,7 +85,7 @@
                                             <td class="paymentContent"
                                                 align="left"><?= zen_datetime_short($cim->payment[$a]['posted']); ?></td>
                                             <td class="paymentContent"
-                                                align="left"><?= zen_datetime_short($cim->payment[$a]['modified']); ?></td>
+                                                align="left"><?= $cim->payment[$a]['approval_code']; ?></td>
                                             <td class="paymentContent"
                                                 align="right"><?php /*$cim->button_update('payment', $cim->payment[$a]['index']); */
                                                     ($cim->payment[$a]['amount'] > $cim->payment[$a]['refund_amount'] ? $cim->button_delete('payment',
@@ -96,10 +96,10 @@
                                         if ($cim->refund) {
                                             for ($b = 0; $b < sizeof($cim->refund); $b++) {
                                                 if ($cim->refund[$b]['payment'] == $cim->payment[$a]['index']) {
-                                                    ?>
+                                                    /* ?>
                                                     <!-- vino_mod tr class="refundRow" onMouseOver="rowOverEffect(this)" onMouseOut="rowOutEffect(this)" <?= 'onclick="couponpopupWindow(\'' . zen_href_link(FILENAME_CIM_PAYMENTS,
                                                         'oID=' . $cim->oID . '&payment_mode=refund&index=' . $cim->refund[$b]['index'] . '&action=my_update',
-                                                        'SSL') . '\', \'scrollbars=yes,resizable=yes,width=400,height=300,screenX=150,screenY=100,top=100,left=150\')"'; ?>-->
+                                                        'SSL') . '\', \'scrollbars=yes,resizable=yes,width=400,height=300,screenX=150,screenY=100,top=100,left=150\')"'; */ ?>
                                                     <tr class="refundRow bg-danger" onMouseOver="rowOverEffect(this)"
                                                         onMouseOut="rowOutEffect(this)">
                                                         <td class="refundContent"
@@ -114,7 +114,7 @@
                                                         <td class="refundContent"
                                                             align="left"><?= zen_datetime_short($cim->refund[$b]['posted']); ?></td>
                                                         <td class="refundContent"
-                                                            align="left"><?= zen_datetime_short($cim->refund[$b]['modified']); ?></td>
+                                                            align="left"><?= $cim->refund[$b]['approval_code']; ?></td>
                                                         <td class="refundContent"
                                                             align="right"><?php /*$cim->button_update('refund', $cim->refund[$b]['index']); *-/ $cim->button_delete('refund', $cim->refund[$b]['index']);*/ ?> </td>
                                                     </tr>

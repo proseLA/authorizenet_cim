@@ -10,7 +10,6 @@
     {
         var $code, $title, $description, $enabled;
         
-        // class constructor
         function __construct()
         {
             global $order;
@@ -24,7 +23,6 @@
             // this module is entirely dependent on the authorizenet_cim module.  if that is not enabled.  neither is this.
             $this->enabled = ((MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS == 'True') ? true : false);
             if ($this->enabled == true) {
-                // $this->title = 'Saved Credit Card';
                 $this->description = MODULE_PAYMENT_SAVED_CC_TEXT_DESCRIPTION; // Descriptive Info about module in Admin
                 $this->sort_order = 1; // Sort Order of this payment option on the customer payment page
             } else {
@@ -56,7 +54,7 @@
                 );
             }
             
-            //$onFocus = ' onfocus="methodSelect(\'pmt-' . $this->code . '\')"';
+            $onFocus = ' onfocus="methodSelect(\'pmt-' . $this->code . '\')"';
             $cc_test = $today['year'] . '-' . str_pad($today['mon'], 2, 0, STR_PAD_LEFT);
             $enabled = " and enabled = 'Y' ";
             if (($_SESSION['emp_admin_login'] == true)) {
@@ -81,12 +79,10 @@
             $selection = array(
               'id' => $this->code,
               'module' => 'Stored Credit Card',
-                // 'index' => $card_on_file->fields['index_id'],
               'fields' => array(
                 array(
                   'title' => 'Saved Credit Card',
-                  'field' => zen_draw_pull_down_menu('saved_cc', $cards, ''),
-                    //.$this->code.'-saved-cc"' . $onFocus),
+                  'field' => zen_draw_pull_down_menu('saved_cc', $cards, '', $onFocus),
                   'tag' => 'card_index'
                 )
               )
@@ -123,7 +119,7 @@
             $cc_index = $_SESSION['saved_cc'];
             $customerID = $_SESSION['customer_id'];
             
-            $valid_payment_profile = check_customer_card($customerID, $cc_index);
+            $valid_payment_profile = $this->check_customer_card($customerID, $cc_index);
             
             if (!$valid_payment_profile) {
                 $messageStack->add_session('checkout_payment',
@@ -132,11 +128,13 @@
                 zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
             }
             
-            $customerProfileId = getCustomerProfile($customerID);
+            $customerProfileId = $this->getCustomerProfile($customerID);
             $this->setParameter('customerProfileId', $customerProfileId);
             $this->setParameter('customerPaymentProfileId', $valid_payment_profile);
-            
-            $this->createCustomerProfileTransactionRequest();
+    
+            $this->response = $this->chargeCustomerProfile($customerProfileId, $valid_payment_profile);
+    
+            $this->checkErrors('Customer Payment Transaction');
         }
         
         function get_error()
