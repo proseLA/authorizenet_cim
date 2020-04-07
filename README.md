@@ -8,11 +8,11 @@ to use this module, you must subscribe to the authorize.net CIM program.  the la
 
 currently, the module does NOT modify any ZC core files.
 
-only 1 refund is allowed per credit card transaction.  full refunds will allow for new authorizations.
+full refunds (or voids) may allow for new authorizations.
 
-refunds must be issued within 120 days of the transaction.  this is from authorize.net.
+refunds must be issued within 120 days of the transaction.  this is inherent in the system from authorize.net.
 
-the code was developed for ZC v156 running php 7.3.  there is no implication that it will run with earlier versions of ZC, and while anyone is free to do as they wish, no support will be provided for earlier versions of ZC.
+the code was developed for ZC v156 running php 7.3.  there is no implication that it will run with earlier versions of ZC, and while anyone is free to do as they wish, no support will be provided by me for earlier versions of ZC.
 
 # quick note on PCI-DSS
 PCI-DSS is legal document.  i am not a lawyer.  i offer no opinion on this module as to how it effects your PCI-DSS status.  
