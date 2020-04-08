@@ -119,7 +119,7 @@
             $cc_index = $_SESSION['saved_cc'];
             $customerID = $_SESSION['customer_id'];
             
-            $valid_payment_profile = $this->check_customer_card($customerID, $cc_index);
+            $valid_payment_profile = $this->checkValidProfile($customerID, $cc_index);
             
             if (!$valid_payment_profile) {
                 $messageStack->add_session('checkout_payment',

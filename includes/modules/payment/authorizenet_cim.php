@@ -530,7 +530,7 @@
                     $save = 'Y';
                 }
             
-                $this->save_cc_token($customerID, $this->params['customerPaymentProfileId'], substr($_POST['cc_number'], -4),
+                $this->saveCCToken($customerID, $this->params['customerPaymentProfileId'], substr($_POST['cc_number'], -4),
                   $_POST['cc_expires'], $save);
                 $order->info['payment_profile_id'] = $this->params['customerPaymentProfileId'];
             } else {
@@ -598,7 +598,7 @@
         
             $request = new AnetAPI\CreateTransactionRequest();
             $request->setMerchantAuthentication($this->merchantCredentials());
-            $request->setRefId($this->order_number($order->info));
+            $request->setRefId($this->nextOrderNumber($order->info));
             $request->setTransactionRequest($transactionRequestType);
             $controller = new AnetController\CreateTransactionController($request);
             $response = $this->getControllerResponse($controller);
@@ -619,7 +619,7 @@
                         $logData .= " Code : " . $tresponse->getMessages()[0]->getCode() . "\n";
                         $logData .= " Description : " . $tresponse->getMessages()[0]->getDescription() . "\n";
                     
-                        $this->insert_payment($tresponse->getTransId(),
+                        $this->insertPayment($tresponse->getTransId(),
                           $order->billing['firstname'] . ' ' . $order->billing['lastname'],
                           $order->info['total'], $this->code, $this->params['customerPaymentProfileId'],
                           $tresponse->getAuthCode(),
@@ -689,7 +689,7 @@
         {
             global $insert_id, $db, $customerID;
             
-            $this->after_process_common($customerID, $this->transID, $insert_id, $this->approvalCode,
+            $this->updateOrderAndPayment($customerID, $this->transID, $insert_id, $this->approvalCode,
               $this->params['customerPaymentProfileId'], $this->order_status);
             
         }
@@ -795,10 +795,10 @@
                         $logData .= " Code : " . $tresponse->getMessages()[0]->getCode() . "\n";
                         $logData .= " Description : " . $tresponse->getMessages()[0]->getDescription() . "\n";
     
-                        $this->insert_refund($refund->fields['payment_id'], $ordersID,  $tresponse->getMessages()[0]->getCode(),
+                        $this->insertRefund($refund->fields['payment_id'], $ordersID,  $tresponse->getMessages()[0]->getCode(),
                           $refund->fields['payment_name'], $refund->fields['transaction_id'], $refund_amount,'REF',$tresponse->getAuthCode());
                         $this->update_payment($ordersID, $refund->fields['transaction_id'], $refund_amount);
-                        $update_status = $this->checkRefunds($ordersID);
+                        $update_status = $this->checkZeroBalance($ordersID);
                         if ($update_status) {
                             $this->updateOrderInfo($ordersID, MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID);
                         }
@@ -829,7 +829,7 @@
             return $response;
         }
     
-        function checkRefunds($ordersID)
+        function checkZeroBalance($ordersID)
         {
             global $db;
             $sql = "SELECT sum(payment_amount) as payment from " . TABLE_CIM_PAYMENTS . "
@@ -934,39 +934,21 @@
             );
         }
         
-        function deleteStoredData()
+        function deleteStoredData($customer_id, $customerProfileID)
         {
-            global $db;
-            $sql = "update " . TABLE_CUSTOMERS . "
-		set customers_customerProfileId = 0
-		WHERE customers_id = :customerID ";
-            $sql = $db->bindVars($sql, ':customerID', $this->params['delete_customer_id'], 'integer');
-            $db->Execute($sql);
-            
-            $sql = "delete from " . TABLE_CUSTOMERS_CC . "
-		WHERE customers_id = :customerID ";
-            $sql = $db->bindVars($sql, ':customerID', $this->params['delete_customer_id'], 'integer');
-            $db->Execute($sql);
-            
-            $sql = "update address_book
-		set CIM_address_id = 0
-		WHERE customers_id = :customerID ";
-            $sql = $db->bindVars($sql, ':customerID', $this->params['delete_customer_id'], 'integer');
-            $db->Execute($sql);
-            
-            $sql = "update orders
-		set CIM_address_id = 0, payment_profile_id = 0
-		WHERE customers_id = :customerID
-		and cc_authorized ='0'";
-            $sql = $db->bindVars($sql, ':customerID', $this->params['delete_customer_id'], 'integer');
-            $db->Execute($sql);
+            $cards = $this->getCustomerCards($customer_id, true);
+            foreach ($cards as $card) {
+                $this->deleteCustomerPaymentProfile($customerProfileID, $card['payment_profile_id']);
+            }
+            // i think i best to keep the profile in case one needs to do a refund on an existing transaction.
+            //$this->deleteCustomerProfile($customerProfileID);
         }
         
-        function get_customer_cards($customerID, $emp = false)
+        function getCustomerCards($customerID, $all = false)
         {
             global $db;
-            $sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . " WHERE customers_id = :custID";
-            if (!$emp) {
+            $sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . " WHERE customers_id = :custID AND payment_profile_id <> 0";
+            if (!$all) {
                 $sql .= " and enabled = 'Y'";
             }
             $sql = $db->bindVars($sql, ':custID', $customerID, 'integer');
@@ -995,7 +977,7 @@
             
                     if ($tresponse != null && $tresponse->getMessages() != null) {
                 
-                        $this->insert_refund($refund->fields['payment_id'], $ordersID, $tresponse->getTransId(),
+                        $this->insertRefund($refund->fields['payment_id'], $ordersID, $tresponse->getTransId(),
                           $refund->fields['payment_name'],
                           $refund->fields['transaction_id'], $refund_amount, 'VOID', $tresponse->getAuthCode());
                         $this->update_payment($ordersID, $refund->fields['transaction_id'], $refund_amount);
@@ -1034,7 +1016,7 @@
             return $response;
         }
     
-        function order_number($order)
+        function nextOrderNumber($order)
         {
             global $db;
             if (isset($order['orders_id'])) {
@@ -1091,7 +1073,7 @@
             return $paymentProfileId;
         }
         
-        function save_cc_token($custId, $payment_profile, $lastfour, $exp_date, $save)
+        function saveCCToken($custId, $payment_profile, $lastfour, $exp_date, $save)
         {
             global $db;
 
@@ -1120,7 +1102,7 @@
             $db->Execute($sql);
         }
         
-        function insert_payment($transID, $name, $total, $type, $profileID, $approval, $custID)
+        function insertPayment($transID, $name, $total, $type, $profileID, $approval, $custID)
         {
             global $db;
             $sql = "insert into " . TABLE_CIM_PAYMENTS . " ( payment_name, payment_amount, payment_type, date_posted, last_modified,  transaction_id, payment_profile_id, approval_code, customers_id)
@@ -1136,7 +1118,7 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
             $db->Execute($sql);
         }
         
-        function insert_refund($paymentID, $ordersID, $transID, $name, $payment_trans_id, $amount, $type, $approval_code)
+        function insertRefund($paymentID, $ordersID, $transID, $name, $payment_trans_id, $amount, $type, $approval_code)
         {
             global $db;
             $sql = "insert into " . TABLE_CIM_REFUNDS . " (payment_id, orders_id, transaction_id, refund_name, refund_amount, refund_type, payment_trans_id, date_posted, approval_code) values (:paymentID, :orderID, :transID, :payment_name, :amount, :type, :payment_trans_id, now(), :apprCode )";
@@ -1162,7 +1144,7 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
         }
         
         // returns payment profile ID or false if the index is not found or it does not match the logged in customer.
-        function check_customer_card($customerID, $cc_index)
+        function checkValidProfile($customerID, $cc_index)
         {
             global $db;
             $sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . "
@@ -1179,7 +1161,7 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
             
         }
         
-        function after_process_common($customerID, $transID, $insertID, $approval, $payment_profile_id, $status)
+        function updateOrderAndPayment($customerID, $transID, $insertID, $approval, $payment_profile_id, $status)
         {
             global $db;
     
@@ -1199,5 +1181,65 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
             $sql = $db->bindVars($sql, ':orderID', $insertID, 'integer');
             $sql = $db->bindVars($sql, ':orderStatus', $status, 'integer');
             $db->Execute($sql);
+        }
+    
+        function deleteCustomerPaymentProfile($customerProfileId, $customerpaymentprofileid)
+        {
+            global $db;
+            
+            $request = new AnetAPI\DeleteCustomerPaymentProfileRequest();
+            $request->setMerchantAuthentication($this->merchantCredentials());
+            $request->setCustomerProfileId($customerProfileId);
+            $request->setCustomerPaymentProfileId($customerpaymentprofileid);
+            $controller = new AnetController\DeleteCustomerPaymentProfileController($request);
+            $response = $this->getControllerResponse($controller);
+        
+            $error = true;
+            if (($response != null) && ($response->getMessages()->getResultCode() == "Ok")) {
+                $error = false;
+                $logData = "SUCCESS: Delete Customer Payment Profile  SUCCESS  :" . "\n";
+            } else {
+                $logData = "ERROR :  Delete Customer Payment Profile: Invalid response\n";
+                $errorMessages = $response->getMessages()->getMessage();
+                $logData .= "Response : " . $errorMessages[0]->getCode() . "  " . $errorMessages[0]->getText() . "\n";
+            }
+            $this->logError($logData, $error);
+    
+            $sql = "delete from " . TABLE_CUSTOMERS_CC . "  WHERE payment_profile_id = :profileID ";
+            $sql = $db->bindVars($sql, ':profileID', $customerpaymentprofileid, 'integer');
+            $db->Execute($sql);
+            
+            return $response;
+        }
+    
+        function deleteCustomerProfile($customerProfileId)
+        {
+            global $db;
+        
+            $request = new AnetAPI\DeleteCustomerProfileRequest();
+            $request->setMerchantAuthentication($this->merchantCredentials());
+            $request->setCustomerProfileId($customerProfileId);
+        
+            $controller = new AnetController\DeleteCustomerProfileController($request);
+            $response = $this->getControllerResponse($controller);
+        
+            $error = true;
+            if (($response != null) && ($response->getMessages()->getResultCode() == "Ok")) {
+                $error = false;
+                $logData = "DeleteCustomerProfile SUCCESS : " . "\n";
+            } else {
+                $logData = "ERROR :  DeleteCustomerProfile: Invalid response\n";
+                $errorMessages = $response->getMessages()->getMessage();
+                $logData .= "Response : " . $errorMessages[0]->getCode() . "  " . $errorMessages[0]->getText() . "\n";
+            }
+    
+            $this->logError($logData, $error);
+    
+            $sql = "UPDATE " . TABLE_CUSTOMERS . " set customers_customerProfileId = 0
+		            WHERE customers_customerProfileId = :profileID ";
+            $sql = $db->bindVars($sql, ':profileID', $customerProfileId, 'integer');
+            $db->Execute($sql);
+        
+            return $response;
         }
     }

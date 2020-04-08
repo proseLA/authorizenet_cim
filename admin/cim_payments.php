@@ -31,7 +31,7 @@
     }
     global $db;
     
-    $oID = $_GET['oID'];
+    $oID = (int)$_GET['oID'];
     $payment_mode = $_GET['payment_mode'];
     $action = (isset($_GET['action']) ? $_GET['action'] : '');
     
@@ -165,12 +165,15 @@
                         $affected_rows++;
                         
                         break;  // END case 'payment'
-
                 }  // END switch ($payment_mode)
                 
                 zen_redirect(zen_href_link(FILENAME_CIM_PAYMENTS,
                   'oID=' . $cim->oID . '&affected_rows=' . $affected_rows . '&action=delete_confirm', 'SSL'));
                 break;  // END case 'delete'
+            case 'deleteCard':
+                require_once DIR_FS_CATALOG_MODULES . 'payment/' . 'authorizenet_cim.php';
+                $cim_module = new authorizenet_cim();
+                
             
         }  // END switch ($action)
         
@@ -178,7 +181,6 @@
     
     // the "else" handles displaying & gathering data to/from the user
     else {
-        //_TODO code to customize the TITLE goes here
         ?>
         <!doctype html public "-//W3C//DTD HTML 4.01 Transitional//EN">
         <html <?= HTML_PARAMS; ?>>
@@ -852,6 +854,35 @@
                 </td>
                 <?php
                 break;  // END case 'confirm'
+            case 'clearCards':
+                ?>
+                <div class="alert alert-danger">Are you sure you want to delete all the stored credit cards for:<br/>
+
+                <h2><?= zen_customers_name($_GET['cID']) . '?'; ?></h2>
+                <a href=<?= zen_href_link('cim_payments',
+              'cID=' . (int)$_GET['cID'] . '&action=clearCards_confirm',
+              'SSL') . ' class="btn btn-danger" role="button" id="cards_btn" class="btn btn-danger btn-margin">Delete Credit Cards</a></div>';
+                break;
+            case 'clearCards_confirm':
+                if (!defined('FILENAME_CIM_PAYMENTS')) {
+                    require_once DIR_FS_CATALOG . DIR_WS_LANGUAGES . $_SESSION['language'] . '/modules/payment/authorizenet_cim.php';
+                }
+                require_once DIR_FS_CATALOG_MODULES . 'payment/' . 'authorizenet_cim.php';
+                $cim_module = new authorizenet_cim();
+        
+                $profileId = $cim_module->getCustomerProfile((int)$_GET['cID']);
+                if (!$profileId) {
+                    $cim_module->deleteStoredData($_GET['cID'], $profileId);
+                }
+                ?>
+                <div class="alert alert-info">All cards were deleted for:<br/>
+
+                <h2><?= zen_customers_name($_GET['cID']); ?></h2>
+                 Any errors will have been logged!<br/>
+<button class="btn btn-info" onclick="javascript:window.close()">Discard</button>
+</div>
+<?php
+                break;
             
         }  // END switch ($action)
         

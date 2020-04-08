@@ -68,9 +68,9 @@
    
     
     if ($_SESSION['emp_admin_login'] == true) {
-        $cards_saved = $cim->get_customer_cards($customer_id, true);
+        $cards_saved = $cim->getCustomerCards($customer_id, true);
     } else {
-        $cards_saved = $cim->get_customer_cards($customer_id);
+        $cards_saved = $cim->getCustomerCards($customer_id);
     }
     
     

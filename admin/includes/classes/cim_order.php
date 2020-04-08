@@ -301,10 +301,10 @@
         // Valid $payment_mode entries are: 'payment', 'purchase_order', 'refund'
         function button_delete($payment_mode, $index)
         {
-            echo '&nbsp;<a href="javascript:couponpopupWindow(\'' .
+            echo '&nbsp;<a href="javascript:cimpopupWindow(\'' .
               zen_href_link(FILENAME_CIM_PAYMENTS,
                 'oID=' . $this->oID . '&payment_mode=' . $payment_mode . '&index=' . $index . '&action=delete',
-                'NONSSL') . '\', \'scrollbars=yes,resizable=yes,width=400,height=300,screenX=150,screenY=100,top=100,left=150\')"' .
+                'NONSSL') . '\', \'scrollbars=yes,resizable=yes,width=100,height=1000,screenX=150,screenY=100,top=100,left=150\')"' .
               'class="btn btn-danger" role="button" >Refund</a>';
             //    zen_image_button('btn_refund.gif', sprintf(ALT_TEXT_DELETE, str_replace('_', ' ', $payment_mode))) . '</a>';
         }

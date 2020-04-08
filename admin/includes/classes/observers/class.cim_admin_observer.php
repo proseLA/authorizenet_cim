@@ -11,6 +11,7 @@
             $this->attach($this, array(
               'NOTIFY_ADMIN_ORDERS_PAYMENTDATA_COLUMN2',
               'NOTIFY_ADMIN_CUSTOMERS_MENU_BUTTONS',
+              'NOTIFY_ADMIN_FOOTER_END',
             ));
             
         }
@@ -120,69 +121,39 @@
                     </div>
                 <?php
                     break;
-                case 'NOTIFY_ADMIN_ORDERS_MENU_BUTTONS':
-                    if (is_object($p1)) {
-                        $index_to_update = count($p2) - 2;
-                        $p2[$index_to_update]['text'] = $this->addEditOrderButton($p1->orders_id,
-                          $p2[$index_to_update]['text']);
-                    }
-                    break;
-                
-                // -----
-                // Issued during the orders-listing sidebar generation, after the lower-button-list has been created.
-                //
-                // $p1 ... Contains the current $oInfo object (could be empty), containing the orders-id.
-                // $p2 ... A reference to the current $contents array; the LAST element has been updated
-                //         with the built-in button list.
-                //
-                case 'NOTIFY_ADMIN_ORDERS_MENU_BUTTONS_END':
-                    if (is_object($p1)) {
-                        $index_to_update = count($p2) - 1;
-                        $p2[$index_to_update]['text'] = $this->addEditOrderButton($p1->orders_id,
-                          $p2[$index_to_update]['text']);
-                    }
-                    break;
-                
-                // -----
-                // Issued during an order's detailed display, allows the insertion of the "edit" button to link
-                // the order to the "Edit Orders" processing.
-                //
-                // $p1 ... The order's ID
-                // $p2 ... A reference to the order-class object.
-                // $p3 ... A reference to the $extra_buttons string, which is updated to include that edit button.
-                //
-                case 'NOTIFY_ADMIN_ORDERS_EDIT_BUTTONS':
-                    $p3 .= '&nbsp;' . $this->createEditOrdersLink($p1,
-                        zen_image_button(EO_IMAGE_BUTTON_EDIT, IMAGE_EDIT), IMAGE_EDIT);
-                    break;
-                
-                
-                // -----
-                // This notifier, issued by the Zen Cart v1.5.5 customers.php script, allows a plugin to add buttons
-                // to the Customers->Customers display.
-                //
-                // $p1 ... A read-only copy of the current customer's $cInfo object NOW UPDATEABLE DUE TO &
-                // $p2 ... An updateable copy of the current right-sidebar contents.
-                //
-                case 'NOTIFY_ADMIN_ORDER_PREDISPLAY_HOOK':
-                    break;
-                    require_once(DIR_WS_CLASSES . 'super_order.php');
-                    $p3 = new super_order($p1);
-                    break;
-                
+                case 'NOTIFY_ADMIN_FOOTER_END':
+                    ?>
+                    <script>
+                        function cimpopupWindow(url) {
+                            window.open(url, 'popupWindow', 'toolbar=no,location=no,directories=no,status=no,menu bar=no,scrollbars=yes,resizable=yes,copyhistory=no,width=450,height=280,screenX=150,screenY=150,top=150,left=150')
+                        }
+                    </script>
+                <?php
                 case 'NOTIFY_ADMIN_CUSTOMERS_MENU_BUTTONS':
                     if (empty($p1) || !is_object($p1) || empty($p2) || !is_array($p2)) {
                         trigger_error('Missing or invalid parameters for the NOTIFY_ADMIN_CUSTOMERS_MENU_BUTTONS notifier.',
                           E_USER_ERROR);
                         exit ();
                     }
+    
+                    if (!defined('FILENAME_CIM_PAYMENTS')) {
+                        require_once DIR_FS_CATALOG . DIR_WS_LANGUAGES . $_SESSION['language'] . '/modules/payment/authorizenet_cim.php';
+                    }
+                    require_once DIR_FS_CATALOG_MODULES . 'payment/' . 'authorizenet_cim.php';
+                    $cim_module = new authorizenet_cim();
                     
-                    $p2[] = array(
-                      'align' => 'text-center',
-                      'text' => '<a href="' . zen_href_link('customer_list_by_item.php',
-                          'cid=' . $p1->customers_id,
-                          'SSL') . '">' . '<input type="submit" name="submit" value="Delete Credit Cards" id="cards_btn" class="btn btn-danger btn-margin">' . '</a>'
-                    );
+                    $cards = $cim_module->getCustomerCards($p1->customers_id, true);
+    
+                    // only show button if customer has cards on file
+                    if (!empty($cards->count()) || $cards->count() > 0) {
+                        $p2[] = array(
+                          'align' => 'text-center',
+                          'text' => '<a href="javascript:cimpopupWindow(\'' . zen_href_link('cim_payments',
+                              'cID=' . $p1->customers_id . '&action=clearCards',
+                              'NONSSL') . '\', \'scrollbars=yes,resizable=yes,width=100,height=1000,screenX=150,screenY=100,top=100,left=150\')"' .
+                            'class="btn btn-danger" role="button" id="cards_btn" class="btn btn-danger btn-margin">Delete Credit Cards</a>'
+                        );
+                    }
                     
                     break;
                 
