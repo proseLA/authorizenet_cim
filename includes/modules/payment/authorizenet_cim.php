@@ -406,7 +406,7 @@
     
         function createCustomerPaymentProfileRequest()
         {
-            global $insert_id, $order, $customerID;
+            global $order, $customerID;
         
             if ($this->params['customerProfileId'] == 0 || (!isset($this->params['customerProfileId']))) {
                 $customerProfileId = $this->getCustomerProfile($customerID);
@@ -422,8 +422,11 @@
             $existing_profile = $this->getCustomerPaymentProfile($customerID,
               substr(trim($_POST['cc_number']), -4));
         
-            if (!is_null($existing_profile)) {
-                $this->setParameter('customerPaymentProfileId', $existing_profile);
+            if (!is_null($existing_profile['profile'])) {
+                if ($existing_profile['exp_date'] !== $_POST['cc_expires_date']) {
+                    $this->updateCustomerPaymentProfile($this->params['customerProfileId'], $existing_profile['profile']);
+                }
+                $this->setParameter('customerPaymentProfileId', $existing_profile['profile']);
                 return;
             }
         
@@ -1029,10 +1032,12 @@
             
             if ($check_customer_cc->fields['payment_profile_id'] !== 0) {
                 $paymentProfileId = $check_customer_cc->fields['payment_profile_id'];
+                $exp_date = $check_customer_cc->fields['exp_date'];
             } else {
                 $paymentProfileId = false;
+                $exp_date = false;
             }
-            return $paymentProfileId;
+            return array('profile' => $paymentProfileId, 'exp_date' => $exp_date);
         }
         
         function saveCCToken($custId, $payment_profile, $lastfour, $exp_date, $save)
@@ -1049,6 +1054,22 @@
             $sql = $db->bindVars($sql, ':expDate', $insert_date, 'string');
             $sql = $db->bindVars($sql, ':save', $save, 'string');
             
+            $db->Execute($sql);
+        }
+    
+        function updateCCToken($custId, $payment_profile, $exp_date, $save)
+        {
+            global $db;
+        
+            $sql = "UPDATE " . TABLE_CUSTOMERS_CC . " SET exp_date = :expDate, enabled = :save, card_last_modified = now()
+            where customers_id = :custID and payment_profile_id = :profID";
+	       // (customers_id, payment_profile_id, last_four, exp_date, enabled, card_last_modified)
+	       // values (:custID,  :profID, :lastFour, :expDate, :save, now())";
+            $sql = $db->bindVars($sql, ':custID', $custId, 'integer');
+            $sql = $db->bindVars($sql, ':profID', $payment_profile, 'integer');
+            $sql = $db->bindVars($sql, ':expDate', $exp_date, 'string');
+            $sql = $db->bindVars($sql, ':save', $save, 'string');
+        
             $db->Execute($sql);
         }
         
@@ -1202,6 +1223,88 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
             $sql = $db->bindVars($sql, ':profileID', $customerProfileId, 'integer');
             $db->Execute($sql);
         
+            return $response;
+        }
+    
+        function updateCustomerPaymentProfile($customerProfileId, $customerPaymentProfileId)
+        {
+            global $customer_id;
+            /*
+              $request = new AnetAPI\GetCustomerPaymentProfileRequest();
+              $request->setMerchantAuthentication($this->merchantCredentials());
+              $request->setCustomerProfileId($customerProfileId);
+              $request->setCustomerPaymentProfileId($customerPaymentProfileId);
+              
+              $controller = new AnetController\GetCustomerPaymentProfileController($request);
+              $response = $controller->executeWithApiResponse( \net\authorize\api\constants\ANetEnvironment::SANDBOX);
+              if (($response != null) && ($response->getMessages()->getResultCode() == "Ok"))
+              {*/
+            //$billto = new AnetAPI\CustomerAddressType();
+            //$billto = $response->getPaymentProfile()->getbillTo();
+        
+            $creditCard = new AnetAPI\CreditCardType();
+            $creditCard->setCardNumber($_POST['cc_number']);
+            $creditCard->setExpirationDate($_POST['cc_expires_date']);
+        
+            $paymentCreditCard = new AnetAPI\PaymentType();
+            $paymentCreditCard->setCreditCard($creditCard);
+            $paymentprofile = new AnetAPI\CustomerPaymentProfileExType();
+            //$paymentprofile->setBillTo($billto);
+            $paymentprofile->setCustomerPaymentProfileId($customerPaymentProfileId);
+            $paymentprofile->setPayment($paymentCreditCard);
+        
+            // We're updating the billing address but everything has to be passed in an update
+            // For card information you can pass exactly what comes back from an GetCustomerPaymentProfile
+            // if you don't need to update that info
+        
+            /* Update the Bill To info for new payment type
+            $billto->setFirstName("Mrs Mary");
+            $billto->setLastName("Doe");
+            $billto->setAddress("9 New St.");
+            $billto->setCity("Brand New City");
+            $billto->setState("WA");
+            $billto->setZip("98004");
+            $billto->setPhoneNumber("000-000-0000");
+            $billto->setfaxNumber("999-999-9999");
+            $billto->setCountry("USA");
+            
+            // Update the Customer Payment Profile object
+            $paymentprofile->setBillTo($billto);
+            */
+        
+            // Submit a UpdatePaymentProfileRequest
+            $request = new AnetAPI\UpdateCustomerPaymentProfileRequest();
+            $request->setMerchantAuthentication($this->merchantCredentials());
+            $request->setCustomerProfileId($customerProfileId);
+            $request->setPaymentProfile($paymentprofile);
+        
+            $controller = new AnetController\UpdateCustomerPaymentProfileController($request);
+            $response = $this->getControllerResponse($controller);
+            $error = true;
+            if (($response != null) && ($response->getMessages()->getResultCode() == "Ok")) {
+                $Message = $response->getMessages()->getMessage();
+                $error = false;
+                $logData =  "Update Customer Payment Profile SUCCESS: " . $Message[0]->getCode() . "  " . $Message[0]->getText() . "\n";
+                $save = 'N';
+                if ($_POST['cc_save'] == 'on') {
+                    $save = 'Y';
+                }
+                $this->updateCCToken($_SESSION['customer_id'], $customerPaymentProfileId, $_POST['cc_expires_date'], $save);
+            } else {
+                if ($response != null) {
+                    $errorMessages = $response->getMessages()->getMessage();
+                    $logData = "Failed to Update Customer Payment Profile :  " . $errorMessages[0]->getCode() . "  " . $errorMessages[0]->getText() . "\n";
+                }
+            }
+            $this->logError($logData, $error);
+        
+            /*	return $response;
+            }
+            else
+            {
+              echo "Failed to Get Customer Payment Profile :  " . $errorMessages[0]->getCode() . "  " .$errorMessages[0]->getText() . "\n";
+            }
+          */
             return $response;
         }
     
