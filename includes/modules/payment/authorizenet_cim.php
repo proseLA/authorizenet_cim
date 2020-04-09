@@ -81,7 +81,8 @@
         {
             global $order, $messageStack;
             $this->code = 'authorizenet_cim';
-            $this->enabled = ((MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS == 'True') ? true : false); // Whether the module is installed or not
+            $this->enabled = (defined('MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS') && MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS == 'True');
+            $this->sort_order = defined('MODULE_PAYMENT_AUTHORIZENET_CIM_SORT_ORDER') ? MODULE_PAYMENT_AUTHORIZENET_CIM_SORT_ORDER : null;
             if (($this->enabled) && IS_ADMIN_FLAG === true) {
                 // Payment module title in Admin
                 $this->title = MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CATALOG_TITLE;
@@ -98,31 +99,24 @@
             } else {
                 $this->title = MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CATALOG_TITLE;
             }
-            /*
-            $this->test_mode = (MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE == 'Test' ? true : false);
-            $subdomain = ($this->test_mode) ? 'apitest' : 'api2';
-            $this->url = "https://" . $subdomain . ".authorize.net/xml/v1/request.api";
-            $this->validationMode = MODULE_PAYMENT_AUTHORIZENET_CIM_VALIDATION; // none, testMode or liveMode
-            */
             $this->description = 'authorizenet_cim'; // Descriptive Info about module in Admin
-            $this->sort_order = defined('MODULE_PAYMENT_AUTHORIZENET_CIM_SORT_ORDER') ? MODULE_PAYMENT_AUTHORIZENET_CIM_SORT_ORDER : null; // Sort Order of this payment option on the customer payment page
-            $this->form_action_url = zen_href_link(FILENAME_CHECKOUT_PROCESS, '', 'SSL',
-              false); // Page to go to upon submitting page info
+            $this->form_action_url = zen_href_link(FILENAME_CHECKOUT_PROCESS, '', 'SSL', false);
             $this->order_status = (int)DEFAULT_ORDERS_STATUS_ID;
             if (defined('MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID') && (int)MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID > 0) {
                 $this->order_status = (int)MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID;
             }
-            
-            if (is_object($order)) {
+    
+            if ($this->enabled && is_object($order)) {
                 $this->update_status();
             }
-            
-            if (!defined('DEBUG_CIM')) {
-                define('DEBUG_CIM', false);
+    
+            if (!defined('DEBUG_CIM') && ($this->enabled)) {
+                define('DEBUG_CIM', MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING);
             }
+    
         }
-        
-        
+    
+    
         function getControllerResponse($controller)
         {
             if (in_array(MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE, array('Test', 'Sandbox'))) {
@@ -538,29 +532,17 @@
                 $errorMessages = $response->getMessages()->getMessage();
                 $logData .= "Customer: " . $customerID . "\n";
                 $logData .= "Response : " . $errorMessages[0]->getCode() . "  " . $errorMessages[0]->getText() . "\n";
-            
-                if ($this->errorMessages[0]->getCode() == 'E00039') {
-                    /* todo need to relook at this stuff..
-                    $sql = "select * from " . TABLE_CUSTOMERS_CC . " where customers_id = :customerID and payment_profile_id = :ppid order by payment_profile_id desc limit 1";
-                    $sql = $db->bindVars($sql, ':ppid', $this->params['customerPaymentProfileId'], 'integer');
-                    $sql = $db->bindVars($sql, ':customerID', $customerID, 'integer');
-                    $dup_on_file = $db->Execute($sql);
-                    if ($dup_on_file->RecordCount() == 0) {
-                        $sql = "INSERT " . TABLE_CUSTOMERS_CC . " (customers_id, payment_profile_id, last_four, exp_date, enabled, card_last_modified)
-                  values ('" . $customerID . "',  '" . (int)$this->params['customerPaymentProfileId'] . "', '" . substr(strip_tags($this->cardNumber()),
-                            -4) . "', '" . strip_tags($this->expirationDate()) . "', 'Y', now())";
-                        $db->Execute($sql);
-                        $this->log = $sql;
-                    } else {
-                        if ($dup_on_file->fields['exp_date'] != strip_tags($this->expirationDate())) {
-                            $this->log = 'trying to update CC expiration date off new CC number';
-                            $this->die_message = 'customerPaymentProfileRequest';
-                            $this->logError();
-                            $this->setParameter('customerPaymentProfileId', $dup_on_file->fields['payment_profile_id']);
-                            $this->updateCustomerPaymentProfileRequest();
-                        }
+                if ($errorMessages[0]->getCode() == 'E00039') {
+                    $error = false;
+                    $this->setParameter('customerPaymentProfileId', $response->getCustomerPaymentProfileId());
+                    $save = 'N';
+                    if ($_POST['cc_save'] == 'on') {
+                        $save = 'Y';
                     }
-                    todo end of look at stuff */
+                    $this->saveCCToken($customerID, $this->params['customerPaymentProfileId'],
+                      substr($_POST['cc_number'], -4),
+                      $_POST['cc_expires'], $save);
+                    $order->info['payment_profile_id'] = $this->params['customerPaymentProfileId'];
                 }
             }
             $this->logError($logData, $error);
@@ -653,7 +635,7 @@
     
         function logError($logData, $error = false)
         {
-            $response_log = DIR_FS_LOGS . '/cim_response.log';
+            $response_log = (defined('DIR_FS_LOGS') ? DIR_FS_LOGS : DIR_FS_SQL_CACHE) . '/cim_response.log';
             
             if ($error) {
                 $this->errorMessages[] = $logData;
@@ -869,6 +851,8 @@
                 $check_query = $db->Execute("select configuration_value from " . TABLE_CONFIGURATION . " where configuration_key = 'MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS'");
                 $this->_check = $check_query->RecordCount();
             }
+            if ($this->_check == 0) $this->install(); // install any missing keys
+            
             return $this->_check;
         }
         
@@ -879,23 +863,47 @@
         function install()
         {
             global $db;
-            $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Enable Authorize.net (CIM) Module', 'MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS', 'True', 'Do you want to accept Authorize.net payments via the CIM Method?', '6', '1', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
-            $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Login ID', 'MODULE_PAYMENT_AUTHORIZENET_CIM_LOGIN', 'testing', 'The API Login ID used for the Authorize.net service', '6', '2', now())");
-            $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added, use_function) values ('Transaction Key', 'MODULE_PAYMENT_AUTHORIZENET_CIM_TXNKEY', 'Test', 'Transaction Key used for encrypting TP data<br />(See your Authorizenet Account->Security Settings->API Login ID and Transaction Key for details.)', '6', '3', now(), 'zen_cfg_password_display')");
-            $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Transaction Mode', 'MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE', 'Test', 'Transaction mode used for processing orders', '6', '6', 'zen_cfg_select_option(array(\'Test\', \'Production\'), ', now())");
-            $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Authorization Type', 'MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE', 'Authorize', 'Do you want submitted credit card transactions to be authorized only, or authorized and captured?', '6', '7', 'zen_cfg_select_option(array(\'Authorize\', \'Authorize+Capture\'), ', now())");
-            $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Enable Database Storage', 'MODULE_PAYMENT_AUTHORIZENET_CIM_STORE_DATA', 'True', 'Do you want to save the gateway communications data to the database?', '6', '8', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
-            $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Customer Notifications', 'MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_CUSTOMER', 'False', 'Should Authorize.Net email a receipt to the customer?', '6', '9', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
-            $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Merchant Notifications', 'MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_MERCHANT', 'False', 'Should Authorize.Net email a receipt to the merchant?', '6', '10', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
-            $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Request CVV Number', 'MODULE_PAYMENT_AUTHORIZENET_CIM_USE_CVV', 'True', 'Do you want to ask the customer for the card\'s CVV number', '6', '11', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
-            $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Validation Mode', 'MODULE_PAYMENT_AUTHORIZENET_CIM_VALIDATION', 'testMode', 'Validation Mode', '6', '12', 'zen_cfg_select_option(array(\'none\', \'testMode\', \'liveMode\'), ', now())");
-            $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Sort order of display.', 'MODULE_PAYMENT_AUTHORIZENET_CIM_SORT_ORDER', '0', 'Sort order of display. Lowest is displayed first.', '6', '13', now())");
-            $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, use_function, set_function, date_added) values ('Payment Zone', 'MODULE_PAYMENT_AUTHORIZENET_CIM_ZONE', '0', 'If a zone is selected, only enable this payment method for that zone.', '6', '14', 'zen_get_zone_class_title', 'zen_cfg_pull_down_zone_classes(', now())");
-            $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Set Completed Order Status', 'MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID', '0', 'Set the status of orders made with this payment module to this value', '6', '15', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now())");
-            $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Set Refunded Order Status', 'MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID', '1', 'Set the status of refunded orders to this value', '6', '16', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now())");
-            $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Debug Mode', 'MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING', 'Off', 'Would you like to enable debug mode?  A complete detailed log of failed transactions may be emailed to the store owner.', '6', '17', 'zen_cfg_select_option(array(\'Off\', \'Log File\', \'Log and Email\'), ', now())");
-        }
+            if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS')) {
+                $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Enable Authorize.net (CIM) Module', 'MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS', 'True', 'Do you want to accept Authorize.net payments via the CIM Method?', '6', '1', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
+            }
+            if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_LOGIN')) {
+                $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Login ID', 'MODULE_PAYMENT_AUTHORIZENET_CIM_LOGIN', 'testing', 'The API Login ID used for the Authorize.net service', '6', '2', now())");
+            }
+            if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_TXNKEY')) {
+                $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added, use_function) values ('Transaction Key', 'MODULE_PAYMENT_AUTHORIZENET_CIM_TXNKEY', 'Test', 'Transaction Key used for encrypting TP data<br />(See your Authorizenet Account->Security Settings->API Login ID and Transaction Key for details.)', '6', '3', now(), 'zen_cfg_password_display')");
+            }
+            if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE')) {
+                $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Transaction Mode', 'MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE', 'Test', 'Transaction mode used for processing orders', '6', '6', 'zen_cfg_select_option(array(\'Test\', \'Production\'), ', now())");
+            }
+            //if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE')) $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Authorization Type', 'MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE', 'Authorize', 'Do you want submitted credit card transactions to be authorized only, or authorized and captured?', '6', '7', 'zen_cfg_select_option(array(\'Authorize\', \'Authorize+Capture\'), ', now())");
+            //if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_STORE_DATA')) $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Enable Database Storage', 'MODULE_PAYMENT_AUTHORIZENET_CIM_STORE_DATA', 'True', 'Do you want to save the gateway communications data to the database?', '6', '8', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
+            //if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_CUSTOMER')) $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Customer Notifications', 'MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_CUSTOMER', 'False', 'Should Authorize.Net email a receipt to the customer?', '6', '9', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
+            //if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_MERCHANT')) $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Merchant Notifications', 'MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_MERCHANT', 'False', 'Should Authorize.Net email a receipt to the merchant?', '6', '10', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
+            if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_USE_CVV')) {
+                $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Request CVV Number', 'MODULE_PAYMENT_AUTHORIZENET_CIM_USE_CVV', 'True', 'Do you want to ask the customer for the card\'s CVV number', '6', '11', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
+            }
+            if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_VALIDATION')) {
+                $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Validation Mode', 'MODULE_PAYMENT_AUTHORIZENET_CIM_VALIDATION', 'testMode', 'Validation Mode', '6', '12', 'zen_cfg_select_option(array(\'none\', \'testMode\', \'liveMode\'), ', now())");
+            }
+            if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_SORT_ORDER')) {
+                $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Sort order of display.', 'MODULE_PAYMENT_AUTHORIZENET_CIM_SORT_ORDER', '0', 'Sort order of display. Lowest is displayed first.', '6', '13', now())");
+            }
+            if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_ZONE')) {
+                $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, use_function, set_function, date_added) values ('Payment Zone', 'MODULE_PAYMENT_AUTHORIZENET_CIM_ZONE', '0', 'If a zone is selected, only enable this payment method for that zone.', '6', '14', 'zen_get_zone_class_title', 'zen_cfg_pull_down_zone_classes(', now())");
+            }
+            if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID')) {
+                $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Set Completed Order Status', 'MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID', '0', 'Set the status of orders made with this payment module to this value', '6', '15', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now())");
+            }
+            if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID')) {
+                $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Set Refunded Order Status', 'MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID', '1', 'Set the status of refunded orders to this value (refund amounts must be equal to payment total)', '6', '16', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now())");
+            }
+            if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING')) {
+                $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Debug Mode', 'MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING', 'Off', 'Would you like to enable debug mode?  Failed transactions will always be logged in the cim_response.log file in your ZC logs directory.', '6', '17', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
+            }
         
+            $this->tableCheckup();
+        }
+    
         // The duty description for the transaction (optional)
         
         /**
@@ -905,7 +913,7 @@
         function remove()
         {
             global $db;
-            $db->Execute("delete from " . TABLE_CONFIGURATION . " where configuration_key like 'MODULE\_PAYMENT\_AUTHORIZENET_CIM\_%'");
+            $db->Execute("delete from " . TABLE_CONFIGURATION . " where configuration_key like 'MODULE\_PAYMENT\_AUTHORIZENET\_CIM\_%'");
         }
         
         /**
@@ -920,17 +928,17 @@
               'MODULE_PAYMENT_AUTHORIZENET_CIM_LOGIN',
               'MODULE_PAYMENT_AUTHORIZENET_CIM_TXNKEY',
               'MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE',
-              'MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE',
-              'MODULE_PAYMENT_AUTHORIZENET_CIM_STORE_DATA',
-              'MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_CUSTOMER',
-              'MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_MERCHANT',
+              //'MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE',
+              //'MODULE_PAYMENT_AUTHORIZENET_CIM_STORE_DATA',
+              //'MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_CUSTOMER',
+              //'MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_MERCHANT',
               'MODULE_PAYMENT_AUTHORIZENET_CIM_USE_CVV',
               'MODULE_PAYMENT_AUTHORIZENET_CIM_VALIDATION',
               'MODULE_PAYMENT_AUTHORIZENET_CIM_SORT_ORDER',
               'MODULE_PAYMENT_AUTHORIZENET_CIM_ZONE',
               'MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID',
               'MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID',
-              'MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING'
+              'MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING',
             );
         }
         
@@ -1241,5 +1249,102 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
             $db->Execute($sql);
         
             return $response;
+        }
+    
+        protected function tableCheckup()
+        {
+            global $db, $sniffer;
+        
+            if (!$sniffer->table_exists(TABLE_CIM_PAYMENTS)) {
+                $sql = "
+                CREATE TABLE `" . TABLE_CIM_PAYMENTS . "` (
+                `payment_id` int(11) NOT NULL AUTO_INCREMENT,
+  `orders_id` int(11) NOT NULL DEFAULT 0,
+  `transaction_id` varchar(20) NOT NULL,
+  `payment_name` varchar(40) NOT NULL DEFAULT '',
+  `payment_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `refund_amount` decimal(14,2) unsigned NOT NULL DEFAULT 0.00,
+  `payment_profile_id` int(11) unsigned zerofill NOT NULL,
+  `approval_code` varchar(10) DEFAULT NULL,
+  `customers_id` int(11) NOT NULL,
+  `payment_type` varchar(20) NOT NULL DEFAULT '',
+  `date_posted` datetime DEFAULT NULL,
+  `last_modified` datetime DEFAULT NULL,
+  PRIMARY KEY (`payment_id`),
+  KEY `refund_index` (`orders_id`)
+)";
+                $db->Execute($sql);
+            }
+        
+            if (!$sniffer->table_exists(TABLE_CIM_PAYMENT_TYPES)) {
+                $sql = "
+                CREATE TABLE `" . TABLE_CIM_PAYMENT_TYPES . "` (
+  `payment_type_id` int(11) NOT NULL AUTO_INCREMENT,
+  `language_id` int(11) NOT NULL DEFAULT 1,
+  `payment_type_code` varchar(4) NOT NULL DEFAULT '',
+  `payment_type_full` varchar(20) NOT NULL DEFAULT '',
+  PRIMARY KEY (`payment_type_id`),
+  UNIQUE KEY `type_code` (`payment_type_code`),
+  KEY `type_code_2` (`payment_type_code`)
+)";
+                $db->Execute($sql);
+            
+                $sql = "INSERT INTO `" . TABLE_CIM_PAYMENT_TYPES . "` (`payment_type_id`, `language_id`, `payment_type_code`, `payment_type_full`) VALUES
+(1,	1,	'CA',	'Cash'),
+(2,	1,	'CK',	'Check'),
+(3,	1,	'MO',	'Money Order'),
+(4,	1,	'WU',	'Western Union'),
+(5,	1,	'ADJ',	'Adjustment'),
+(6,	1,	'REF',	'Refund'),
+(7,	1,	'CC',	'Credit Card'),
+(8,	1,	'MC',	'MasterCard'),
+(9,	1,	'VISA',	'Visa'),
+(10,	1,	'AMEX',	'American Express'),
+(11,	1,	'DISC',	'Discover'),
+(12,	1,	'DINE',	'Diners Club'),
+(13,	1,	'SOLO',	'Solo'),
+(14,	1,	'MAES',	'Maestro'),
+(15,	1,	'JCB',	'JCB'),
+(16,	1,	'VOID',	'Void')";
+                $db->Execute($sql);
+            }
+        
+            if (!$sniffer->table_exists(TABLE_CIM_REFUNDS)) {
+                $sql = "
+CREATE TABLE `" . TABLE_CIM_REFUNDS . "` (
+  `refund_id` int(11) NOT NULL AUTO_INCREMENT,
+  `payment_id` int(11) NOT NULL DEFAULT 0,
+  `orders_id` int(11) NOT NULL DEFAULT 0,
+  `transaction_id` varchar(20) NOT NULL DEFAULT '',
+  `refund_name` varchar(40) NOT NULL DEFAULT '',
+  `refund_amount` decimal(14,2) NOT NULL DEFAULT 0.00,
+  `refund_type` varchar(20) NOT NULL DEFAULT 'REF',
+  `approval_code` varchar(20) DEFAULT NULL,
+  `payment_trans_id` varchar(20) NOT NULL,
+  `date_posted` datetime DEFAULT NULL,
+  PRIMARY KEY (`refund_id`)
+)";
+                $db->Execute($sql);
+            }
+        
+            if (!$sniffer->table_exists(TABLE_CUSTOMERS_CC)) {
+                $sql = "
+CREATE TABLE `" . TABLE_CUSTOMERS_CC . "` (
+  `index_id` int(11) NOT NULL AUTO_INCREMENT,
+  `customers_id` int(11) NOT NULL,
+  `payment_profile_id` int(11) NOT NULL,
+  `last_four` char(4) NOT NULL,
+  `exp_date` char(7) NOT NULL,
+  `shipping_address_id` int(11) NOT NULL DEFAULT 0,
+  `enabled` enum('Y','N') NOT NULL DEFAULT 'N',
+  `card_last_modified` datetime NOT NULL,
+  PRIMARY KEY (`index_id`)
+)";
+                $db->Execute($sql);
+            }
+            $fieldOkay2 = ($sniffer->field_exists(TABLE_CUSTOMERS, 'customers_customerProfileId')) ? true : -1;
+            if ($fieldOkay2 !== true) {
+                $db->Execute("ALTER TABLE " . TABLE_CUSTOMERS . " ADD COLUMN `customers_customerProfileId`        int(11) NOT NULL DEFAULT 0 after `customers_paypal_ec`");
+            }
         }
     }
