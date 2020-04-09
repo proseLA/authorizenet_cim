@@ -577,6 +577,7 @@
                                     'size="8"') . '<span class="alert">' . TEXT_NO_MINUS . '</span>'; ?></td>
                         </tr>
                         <?php
+                        /*
                         if ($refund_exists) {
                             $payment_array = $cim->build_payment_array();
                             // zen_draw_radio_field($name, $value = '', $checked = false, $compare = '')
@@ -604,6 +605,7 @@
                             </tr>
                             <?php
                         }
+                        */
                         ?>
                         <tr>
                             <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1',

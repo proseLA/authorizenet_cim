@@ -342,15 +342,15 @@
                 $this->setParameter('customerProfileId', $customerProfileId);
             }
             
-            $this->checkErrors('Customer Profile');
+            $this->addErrorsMessageStack('Customer Profile');
             
             $this->createCustomerPaymentProfileRequest();
             
-            $this->checkErrors('Customer Payment Profile');
+            $this->addErrorsMessageStack('Customer Payment Profile');
             
             $this->response = $this->chargeCustomerProfile($this->params['customerProfileId'], $this->params['customerPaymentProfileId']);
             
-            $this->checkErrors('Customer Payment Transaction');
+            $this->addErrorsMessageStack('Customer Payment Transaction');
         }
         
         function setParameter($field = "", $value = null)
@@ -607,15 +607,21 @@
             }
         }
         
-        function checkErrors($type)
+        function addErrorsMessageStack($type)
         {
             global $messageStack;
             
             if (isset($this->errorMessages) && (!empty($this->errorMessages))) {
                 foreach ($this->errorMessages as $error) {
-                    $messageStack->add_session('checkout_payment', $type . ': ' . $error, 'error');
+                    if (!defined('IS_ADMIN_FLAG') || IS_ADMIN_FLAG !== true) {
+                        $messageStack->add_session(FILENAME_CHECKOUT_PAYMENT, $type . ': ' . $error, 'error');
+                    } else {
+                        $messageStack->add_session($type . ': ' . $error, 'error');
+                    }
                 }
-                zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
+                if (!defined('IS_ADMIN_FLAG') || IS_ADMIN_FLAG !== true) {
+                    zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
+                }
             }
         }
     
@@ -664,8 +670,10 @@
             if (strpos($details->getTransaction()->getTransactionStatus(), 'Pending') !== false) {
                 // if the transaction is pending, a void will void all of the amount
                 $response = $this->voidTransaction($ordersID, $refund, $max_refund);
+                $this->addErrorsMessageStack('Void');
             } else {
                 $response = $this->refundTransaction($ordersID, $refund, $refund_amount);
+                $this->addErrorsMessageStack('Refund');
             }
             if ($response->getMessages()->getResultCode() == "Ok") {
                 return true;

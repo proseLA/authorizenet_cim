@@ -134,7 +134,7 @@
     
             $this->response = $this->chargeCustomerProfile($customerProfileId, $valid_payment_profile);
     
-            $this->checkErrors('Customer Payment Transaction');
+            $this->addErrorsMessageStack('Customer Payment Transaction');
         }
         
         function get_error()
