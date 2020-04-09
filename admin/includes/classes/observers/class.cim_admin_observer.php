@@ -19,13 +19,6 @@
         public function update(&$class, $eventID, &$p1, &$p2, &$p3, &$p4)
         {
             switch ($eventID) {
-                // -----
-                // Issued during the orders-listing sidebar generation, after the upper button-list has been created.
-                //
-                // $p1 ... Contains the current $oInfo object, which contains the orders-id.
-                // $p2 ... A reference to the current $contents array; the NEXT-TO-LAST element has been updated
-                //         with the built-in button list.
-                //
                 
                 case 'NOTIFY_ADMIN_ORDERS_PAYMENTDATA_COLUMN2':
                     require_once(DIR_WS_CLASSES . 'cim_order.php');
@@ -82,8 +75,10 @@
                                             <td class="paymentContent"
                                                 align="left"><?= $cim->payment[$a]['approval_code']; ?></td>
                                             <td class="paymentContent"
-                                                align="right"><?php /*$cim->button_update('payment', $cim->payment[$a]['index']); */
-                                                    ($cim->payment[$a]['amount'] > $cim->payment[$a]['refund_amount'] ? $cim->button_delete('payment',
+                                                align="right"><?php
+                                                    $date = new DateTime($cim->payment[$a]['posted']);
+                                                    $now = new DateTime();
+                                                    ((($cim->payment[$a]['amount'] > $cim->payment[$a]['refund_amount']) &&  $date->diff($now)->format("%d") < 120) ? $cim->button_delete('payment',
                                                       $cim->payment[$a]['index']) : ""); ?></td>
 
                                         </tr>
@@ -158,45 +153,8 @@
                     
                     break;
                 
-                case 'NOTIFY_ADMIN_CUSTOMERS_LISTING_NEW_FIELDS':
-                    
-                    $p2 = ', c.customers_telephone, a.entry_company, a.entry_street_address, a.entry_city, a.entry_postcode, c.customers_authorization, c.customers_referral,  c.customers_customerProfileId ';
-                
                 default:
                     break;
             }
-        }
-        
-        protected function addEditOrderButton($orders_id, $button_list)
-        {
-            $updated_button_list = str_replace(
-              array(
-                EO_IMAGE_BUTTON_EDIT,
-                IMAGE_EDIT,
-              ),
-              array(
-                EO_IMAGE_BUTTON_DETAILS,
-                IMAGE_DETAILS
-              ),
-              $button_list
-            );
-            return $updated_button_list . '&nbsp;' . $this->createEditOrdersLink($orders_id,
-                zen_image_button(EO_IMAGE_BUTTON_EDIT, IMAGE_EDIT), IMAGE_EDIT);
-        }
-        
-        protected function createEditOrdersLink($orders_id, $link_button, $link_text, $include_zc156_parms = true)
-        {
-            $link_parms = '';
-            if ($this->isPre156ZenCart) {
-                $anchor_text = $link_button;
-            } else {
-                $anchor_text = $link_text;
-                if ($include_zc156_parms) {
-                    $link_parms = ' class="btn btn-primary" role="button"';
-                }
-            }
-            return '&nbsp;<a href="' . zen_href_link(FILENAME_EDIT_ORDERS,
-                zen_get_all_get_params(array('oID', 'action')) . "oID=$orders_id&action=edit",
-                'NONSSL') . "\"$link_parms>$anchor_text</a>";
         }
     }
