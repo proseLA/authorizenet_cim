@@ -8,8 +8,6 @@ to use this module, you must subscribe to the authorize.net CIM program.  the la
 
 currently, the module does NOT modify any ZC core files.
 
-full refunds (or voids) may allow for new authorizations.
-
 refunds must be issued within 120 days of the transaction.  this is inherent in the system from authorize.net.
 
 the code was developed for ZC v156 running php 7.3.  there is no implication that it will run with earlier versions of ZC, and while anyone is free to do as they wish, no support will be provided by me for earlier versions of ZC.
@@ -19,4 +17,7 @@ PCI-DSS is legal document.  i am not a lawyer.  i offer no opinion on this modul
 
 i have done everything that i think necessary to protect cardholder data.  if you think this module violates any tenet of PCI-DSS, feel free to open an issue on github.  this code is at:  https://github.com/proseLA/authorizenet_cim/  the code is there for anyone to see, and i take protection of cardholder data seriously.
 
+# debugging
+currently this module will log all FAILED transactions to cim_response.log in the logs directory.  to see all transactions in that log file, one can set the key MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING to true; OR create a new constant called DEBUG_CIM and set that to true.  both of these do the same thing.  they will log all transaction responses to the cim_response.log; as well as make use of the ZC logger to create a ZC type log.
 
+i am working on changing the prefix of those ZC logs to be cimDEBUG as opposed to myDEBUG but am currently having a little difficulty with that.
