@@ -24,15 +24,14 @@
     // $Id: super_batch_forms.php v 2010-10-24 $
     */
     
-    require('includes/application_top.php');
-    require_once(DIR_WS_CLASSES . 'cim_order.php');
+    require 'includes/application_top.php';
+    require_once DIR_WS_CLASSES . 'cim_order.php';
     if (!defined('FILENAME_CIM_PAYMENTS')) {
         require_once DIR_FS_CATALOG . DIR_WS_LANGUAGES . $_SESSION['language'] . '/modules/payment/authorizenet_cim.php';
     }
-    global $db;
     
-    if (!defined('DEBUG_CIM') && (DEBUG_CIM == true)) {
-    $log = ini_get('error_log');
+    if (defined('DEBUG_CIM') && (DEBUG_CIM == true)) {
+$log = ini_get('error_log');
     $start = strpos($log, 'cim');
     if ($start === false) {
         $end = strrpos(ini_get('error_log'), "/");
@@ -55,7 +54,7 @@
     // the following "if" clause actually inputs data into the DB
     if ($_GET['process'] == '1') {
         switch ($action) {
-            
+            /*
             // add a new payment entry
             case 'add':
                 $update_status = (isset($_GET['update_status']) ? $_GET['update_status'] : false);
@@ -87,28 +86,28 @@
                         break;
                 }  // END switch ($payment_mode)
                 
-                break;  // END case 'add'
-            case 'delete':
+                break;  // END case 'add' */
+            case 'refund':
                 $affected_rows = 0;
                 switch ($payment_mode) {
                     case 'payment':
                         require_once DIR_FS_CATALOG_MODULES . 'payment/' . 'authorizenet_cim.php';
                         $cim_module = new authorizenet_cim();
-                        $cim->CimRefund = abs(round((float)($_GET['refund_amount']), 2));
+                        $refund_amt = abs(round((float)($_GET['refund_amount']), 2));
                         
-                        $_SESSION['refund_status'] = $cim_module->doCimRefund($oID, $cim->CimRefund);
+                        $_SESSION['refund_status'] = $cim_module->doCimRefund($oID, $refund_amt);
                         $affected_rows++;
                         
                         break;  // END case 'payment'
                 }  // END switch ($payment_mode)
                 
                 zen_redirect(zen_href_link(FILENAME_CIM_PAYMENTS,
-                  'oID=' . $cim->oID . '&affected_rows=' . $affected_rows . '&action=delete_confirm', 'SSL'));
+                  'oID=' . $oID . '&affected_rows=' . $affected_rows . '&action=refund_done', 'SSL'));
                 break;  // END case 'delete'
-            case 'deleteCard':
+            /*case 'deleteCard':
                 require_once DIR_FS_CATALOG_MODULES . 'payment/' . 'authorizenet_cim.php';
                 $cim_module = new authorizenet_cim();
-                
+              */
             
         }  // END switch ($action)
         
@@ -135,7 +134,6 @@
                     self.close();
                 }
 
-
                 // Only script specific to this form goes here.
                 // General-purpose routines are in a separate file.
                 function validateOnSubmit() {
@@ -152,7 +150,7 @@
                     if (errs == 1) alert('There is a field which needs correction before sending');
 
                     return (errs == 0);
-                };
+                }
 
                 //-->
             </script>
@@ -175,6 +173,7 @@
         <table border="0" cellspacing="0" cellpadding="2">
         <?php
         switch ($action) {
+            /*
             case 'add':
                 echo zen_draw_form('add', FILENAME_CIM_PAYMENTS, '', 'get', '', true);
                 echo zen_draw_hidden_field('action', $action);
@@ -295,13 +294,14 @@
                 </table></td>
                 <?php
                 break;  // END case 'add'
-            case 'delete':
+                */
+            case 'refund':
                 $index = $_GET['index'];
                 echo zen_draw_form('delete', FILENAME_CIM_PAYMENTS, '', 'get', '', true);
                 echo zen_draw_hidden_field('action', $action);
                 echo zen_draw_hidden_field('process', 1);
                 echo zen_draw_hidden_field('payment_mode', $payment_mode);
-                echo zen_draw_hidden_field('oID', $cim->oID);
+                echo zen_draw_hidden_field('oID', $oID);
                 switch ($payment_mode) {
                     case 'payment':
                         echo zen_draw_hidden_field('payment_id', $index);
@@ -339,35 +339,7 @@
                                     'size="8"') . '<span class="alert">' . TEXT_NO_MINUS . '</span>'; ?></td>
                         </tr>
                         <?php
-                        /*
-                        if ($refund_exists) {
-                            $payment_array = $cim->build_payment_array();
-                            // zen_draw_radio_field($name, $value = '', $checked = false, $compare = '')
-                            ?>
-                            <tr class="dataTableHeadingRow">
-                                <td colspan="2" align="left"
-                                    class="dataTableHeadingContent"><?= sprintf(TEXT_REFUND_ACTION,
-                                      $refund_count); ?></td>
-                            </tr>
-                            <tr>
-                                <td colspan="2" align="left"
-                                    class="main"><?= zen_draw_radio_field('refund_action', 'keep',
-                                        false) . REFUND_ACTION_KEEP; ?></td>
-                            </tr>
-                            <tr>
-                                <td colspan="2" align="left"
-                                    class="main"><?= zen_draw_radio_field('refund_action', 'move',
-                                        false) . REFUND_ACTION_MOVE . zen_draw_pull_down_menu('new_payment_id',
-                                        $payment_array, '', ''); ?></td>
-                            </tr>
-                            <tr>
-                                <td colspan="2" align="left"
-                                    class="main"><?= zen_draw_radio_field('refund_action', 'drop',
-                                        false) . REFUND_ACTION_DROP; ?></td>
-                            </tr>
-                            <?php
-                        }
-                        */
+
                         ?>
                         <tr>
                             <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1',
@@ -375,66 +347,6 @@
                         </tr>
                         <tr class="alert alert-danger">
                         <td colspan="2" align="center" class="warningText"><?= WARN_DELETE_PAYMENT; ?>
-                        <?php
-                        break;
-                    case 'purchase_order':
-                        echo zen_draw_hidden_field('purchase_order_id', $index);
-                        // check for attached payments, if any
-                        $payment_exists = false;
-                        $payment_count = 0;
-                        for ($a = 0; $a < sizeof($cim->po_payment); $a++) {
-                            if ($cim->po_payment[$a]['assigned_po'] == $index) {
-                                $payment_exists = true;
-                                $payment_count++;
-                            }
-                        }
-                        ?>
-                        <tr>
-                            <td colspan="2" align="center" class="pageHeading"><?= HEADER_DELETE_PO; ?></td>
-                        </tr>
-                        <tr>
-                            <td align="center" colspan="2" class="main">
-                                <strong><?= HEADER_ORDER_ID . $cim->oID . '<br />' . HEADER_PO_UID . $index; ?></strong>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1',
-                                  '10'); ?></td>
-                        </tr>
-                        <?php
-                        if ($payment_exists) {
-                            $po_array = $cim->build_po_array();
-                            ?>
-                            <tr class="dataTableHeadingRow">
-                                <td colspan="2" align="left"
-                                    class="dataTableHeadingContent"><?= sprintf(TEXT_PAYMENT_ACTION,
-                                      $payment_count); ?></td>
-                            </tr>
-                            <tr>
-                                <td colspan="2" align="left"
-                                    class="main"><?= zen_draw_radio_field('payment_action', 'keep',
-                                        false) . PAYMENT_ACTION_KEEP; ?></td>
-                            </tr>
-                            <tr>
-                                <td colspan="2" align="left"
-                                    class="main"><?= zen_draw_radio_field('payment_action', 'move',
-                                        false) . PAYMENT_ACTION_MOVE . zen_draw_pull_down_menu('new_po_id', $po_array,
-                                        '', ''); ?></td>
-                            </tr>
-                            <tr>
-                                <td colspan="2" align="left"
-                                    class="main"><?= zen_draw_radio_field('payment_action', 'drop',
-                                        false) . PAYMENT_ACTION_DROP; ?></td>
-                            </tr>
-                            <tr>
-                                <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1',
-                                      '10'); ?></td>
-                            </tr>
-                            <?php
-                        }
-                        ?>
-                        <tr class="alert alert-danger">
-                        <td colspan="2" align="center" class="warningText"><?= WARN_DELETE_PO; ?>
                         <?php
                         break;
                     case 'refund':
@@ -445,7 +357,7 @@
                         </tr>
                         <tr>
                             <td align="center" colspan="2" class="main">
-                                <strong><?= HEADER_ORDER_ID . $cim->oID . '<br />' . HEADER_REFUND_UID . $index; ?></strong>
+                                <strong><?= HEADER_ORDER_ID . $oID . '<br />' . HEADER_REFUND_UID . $index; ?></strong>
                             </td>
                         </tr>
                         <tr>
@@ -466,14 +378,14 @@
                 </form>
                 </table></td>
                 <?php
-                break;  // END case 'delete':
-            case 'delete_confirm':
+                break;  // END case
+            case 'refund_done':
                 $affected_rows = $_GET['affected_rows'];
                 if (!$_SESSION['refund_status']) {
-                    $page_header = HEADER_DELETE_FAIL;
+                    $page_header = HEADER_REFUND_FAIL;
                     $affected_rows = 0;
                 } else {
-                    $page_header = HEADER_DELETE_CONFIRM;
+                    $page_header = HEADER_REFUND_DONE;
                 }
                 ?>
                 <tr>
@@ -495,7 +407,8 @@
                                                                        onclick="returnParent()"></td>
                 </tr>
                 <?php
-                break;  // END case 'delete_confirm'
+                break;  // END case
+                /*
             case 'confirm':
                 $index = $_GET['index'];
                 switch ($payment_mode) {
@@ -617,7 +530,8 @@
                     </table>
                 </td>
                 <?php
-                break;  // END case 'confirm'
+                break;  // END case
+                */
             case 'clearCards':
                 ?>
                 <div class="alert alert-danger">Are you sure you want to delete all the stored credit cards for:<br/>
@@ -643,7 +557,7 @@
 
                 <h2><?= zen_customers_name($_GET['cID']); ?></h2>
                  Any errors will have been logged!<br/>
-<button class="btn btn-info" onclick="javascript:window.close()">Discard</button>
+<button class="btn btn-info" onclick="window.close()">Discard</button>
 </div>
 <?php
                 break;
@@ -658,4 +572,4 @@
     <!-- body_eof //-->
 </body>
     </html>
-<?php require(DIR_WS_INCLUDES . 'application_bottom.php'); ?>
+<?php require(DIR_WS_INCLUDES . 'application_bottom.php');

@@ -90,10 +90,6 @@
             }
         }
         
-        /**
-         * calculate zone matches and flag settings to determine whether this module should display to customers or not
-         *
-         */
         function update_status()
         {
             global $order, $db;
@@ -117,12 +113,6 @@
             }
         }
         
-        /**
-         * JS validation which does error-checking of data-entry if this module is selected for use
-         * (Number, Owner, and CVV Lengths)
-         *
-         * @return string
-         */
         function javascript_validation()
         {
             $js = '  if (payment_value == "' . $this->code . '") {' . "\n" .
@@ -150,11 +140,6 @@
             return $js;
         }
         
-        /**
-         * Display Credit Card Information Submission Fields on the Checkout Payment Page
-         *
-         * @return array
-         */
         function selection()
         {
             global $order;

@@ -29,7 +29,7 @@
                 $this->title .= ' <span class="alert">(to enable; enable authorizenet CIM module)</span>';
             }
         }
-        
+    
         function javascript_validation()
         {
             return false;

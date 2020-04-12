@@ -146,6 +146,7 @@
         }
         
         // builds an array of all payments attached to an order, suitable for a dropdown menu
+        /*
         function build_payment_array($include_blank = false)
         {
             global $db;
@@ -171,20 +172,22 @@
             
             return $payment_array;
         }
+        */
         
         // Displays a button that will open a popup window to confirm deleting a payment entry
         // This code assumes you have the popupWindow() function defined in your header!
         // Valid $payment_mode entries are: 'payment', 'purchase_order', 'refund'
-        function button_delete($payment_mode, $index)
+        function button_refund($payment_mode, $index)
         {
             echo '&nbsp;<a href="javascript:cimpopupWindow(\'' .
               zen_href_link(FILENAME_CIM_PAYMENTS,
-                'oID=' . $this->oID . '&payment_mode=' . $payment_mode . '&index=' . $index . '&action=delete',
+                'oID=' . $this->oID . '&payment_mode=' . $payment_mode . '&index=' . $index . '&action=refund',
                 'NONSSL') . '\', \'scrollbars=yes,resizable=yes,width=100,height=1000,screenX=150,screenY=100,top=100,left=150\')"' .
               'class="btn btn-danger" role="button" >Refund</a>';
             //    zen_image_button('btn_refund.gif', sprintf(ALT_TEXT_DELETE, str_replace('_', ' ', $payment_mode))) . '</a>';
         }
         
+        /*
         
         function add_payment($payment_number, $payment_name, $payment_amount, $payment_type, $purchase_order_id = false)
         {
@@ -327,7 +330,7 @@
             // remove refund data
             $db->Execute("delete from " . TABLE_CIM_REFUNDS . " where orders_id = '" . $this->oID . "'");
         }
-        
+        */
         
         // translates payment type codes into full text
         function full_type($code)
@@ -339,7 +342,7 @@
             }
             return $full_text;
         }
-        
+        /*
         function find_refunds($payment_id)
         {
             $refund_array = array();
@@ -361,5 +364,6 @@
             
             return $refund_array;
         }
+        */
         
-    }  // END class super_order
+    }

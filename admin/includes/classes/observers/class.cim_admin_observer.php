@@ -78,7 +78,7 @@
                                                 align="right"><?php
                                                     $date = new DateTime($cim->payment[$a]['posted']);
                                                     $now = new DateTime();
-                                                    ((($cim->payment[$a]['amount'] > $cim->payment[$a]['refund_amount']) &&  $date->diff($now)->format("%d") < 120) ? $cim->button_delete('payment',
+                                                    ((($cim->payment[$a]['amount'] > $cim->payment[$a]['refund_amount']) &&  $date->diff($now)->format("%d") < 120) ? $cim->button_refund('payment',
                                                       $cim->payment[$a]['index']) : ""); ?></td>
 
                                         </tr>
