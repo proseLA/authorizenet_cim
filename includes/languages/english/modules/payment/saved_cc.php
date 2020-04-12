@@ -4,7 +4,7 @@
     define('MODULE_PAYMENT_SAVED_CC_TEXT_EMAIL_FOOTER', 'Footer');
     
     define('DEBUG_CIM', true);
-    define('FILENAME_CARD_UPDATE', 'card_update');
+//    define('FILENAME_CARD_UPDATE', 'card_update');
     define('FILENAME_CIM_PAYMENTS', 'cim_payments');
     
     define('TEXT_CIM_DATA', 'Authorizenet CIM Payments');

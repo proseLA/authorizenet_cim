@@ -103,7 +103,7 @@
                                                         <td class="refundContent"
                                                             align="left"><?= $cim->refund[$b]['approval_code']; ?></td>
                                                         <td class="refundContent"
-                                                            align="right"><?php /*$cim->button_update('refund', $cim->refund[$b]['index']); *-/ $cim->button_delete('refund', $cim->refund[$b]['index']);*/ ?> </td>
+                                                            align="right"> </td>
                                                     </tr>
                                                     <?php
                                                 }  // END if ($cim->refund[$b]['payment'] == $cim->payment[$a]['index'])

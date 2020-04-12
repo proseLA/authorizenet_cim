@@ -145,104 +145,6 @@
             //zen_db_perform(TABLE_ORDERS, $a, 'update', 'orders_id = ' . $this->oID);
         }
         
-        
-        // timestamp the date_completed field in orders table
-        // will also NULL out date_cancelled field if set (you can't have both at once!)
-        function mark_completed()
-        {
-            global $db;
-            if ($this->status == false || $this->status == "cancelled") {
-                $db->Execute("UPDATE " . TABLE_ORDERS . " SET date_completed = now() WHERE orders_id = '" . $this->oID . "'");
-                
-                if ($this->status == "cancelled") {
-                    $db->Execute("UPDATE " . TABLE_ORDERS . " SET date_cancelled = NULL WHERE orders_id = '" . $this->oID . "'");
-                }
-                if (STATUS_ORDER_COMPLETED != 0) {
-                    update_status($this->oID, STATUS_ORDER_COMPLETED);
-                }
-                $this->status = "completed";
-                $this->status_date = zen_datetime_short(date('Y-m-d H:i:s'));
-            }
-        }
-        
-        
-        // timestamp the date_cancelled field in orders table
-        // will also NULL out date_completed field if set (you can't have both at once!)
-        function mark_cancelled()
-        {
-            global $db;
-            if ($this->status == false || $this->status == "completed") {
-                $db->Execute("UPDATE " . TABLE_ORDERS . " SET date_cancelled = now() WHERE orders_id = '" . $this->oID . "'");
-                
-                if ($this->status == "completed") {
-                    $db->Execute("UPDATE " . TABLE_ORDERS . " SET date_completed = NULL WHERE orders_id = '" . $this->oID . "'");
-                }
-                if (STATUS_ORDER_CANCELLED != 0) {
-                    update_status($this->oID, STATUS_ORDER_CANCELLED);
-                }
-                $this->status = "cancelled";
-                $this->status_date = zen_datetime_short(date('Y-m-d H:i:s'));
-            }
-        }
-        
-        
-        // removes the cancelled/completed timestamp
-        function reopen()
-        {
-            global $db;
-            $db->Execute("update " . TABLE_ORDERS . " set
-                  date_completed = NULL, date_cancelled = NULL
-                  where orders_id = '" . $this->oID . "' limit 1");
-            
-            if (STATUS_ORDER_REOPEN != 0) {
-                update_status($this->oID, STATUS_ORDER_REOPEN);
-            }
-            $this->status = false;
-            $this->status_date = false;
-        }
-        
-        
-        // Begin - Recreate authoriznet_cim information stored in orders table as a line item in SO payment system
-        function cim_line_item()
-        {
-            global $db;
-            // first we look for credit card payments
-            $cc_data = $db->Execute("select customers_name, cc_type, cc_owner, cc_number, cc_expires, cc_cvv, date_purchased, order_total, payment_profile_id, transaction_id
-                             from " . TABLE_ORDERS . " where orders_id = '" . $this->oID . "' limit 1");
-            if ($cc_data->RecordCount()) {
-                // convert CC type to match shorthand type in SO payemnt system
-                // collect payment types from the DB
-                /*$payment_data = $db->Execute("select * from " . TABLE_CIM_PAYMENT_TYPES . "
-                                              where language_id = " . $_SESSION['languages_id']);
-                $cc_type_key = array();
-                while (!$payment_data->EOF) {
-                  $cc_type_key[$payment_data->fields['payment_type_full']] = $payment_data->fields['payment_type_code'];
-                  $payment_data->MoveNext();
-                }
-          */
-                if ($cc_data->fields['cc_owner'] == '') {
-                    $name = $cc_data->fields['customers_name'];
-                } else {
-                    $name = $cc_data->fields['cc_owner'];
-                }
-                // convert CC name to match shorthand type in SO payment system
-                // the name used at checkout must match name entered into Admin > Localization > Payment Types!
-                //$payment_type = $cc_type_key[$cc_data->fields['cc_type']];
-                $new_cc_payment = array(
-                  'orders_id' => $this->oID,
-                  'payment_number' => $cc_data->fields['transaction_id'],
-                  'payment_name' => $name,
-                  'payment_amount' => $cc_data->fields['order_total'],
-                  'payment_type' => 'authorizenet_cim',
-                  'date_posted' => 'now()',
-                  'last_modified' => 'now()'
-                );
-                
-                zen_db_perform(TABLE_CIM_PAYMENTS, $new_cc_payment);
-            }
-        }
-        
-        
         // builds an array of all payments attached to an order, suitable for a dropdown menu
         function build_payment_array($include_blank = false)
         {
@@ -268,32 +170,6 @@
             }
             
             return $payment_array;
-        }
-        
-        // Displays a button that will open a popup window to enter a new payment entry
-        // This code assumes you have the popupWindow() function defined in your header!
-        // Valid $payment_mode entries are: 'payment', 'purchase_order', 'refund'
-        function button_add($payment_mode)
-        {
-            echo '&nbsp;<a href="javascript:couponpopupWindow(\'' .
-              zen_href_link(FILENAME_CIM_PAYMENTS,
-                'oID=' . $this->oID . '&payment_mode=' . $payment_mode . '&action=add',
-                'NONSSL') . '\', \'scrollbars=yes,resizable=yes,width=400,height=300,screenX=150,screenY=100,top=100,left=150\')">' .
-              zen_image_button('btn_' . $payment_mode . '.gif',
-                sprintf(ALT_TEXT_ADD, str_replace('_', ' ', $payment_mode))) . '</a>';
-        }
-        
-        // Displays a button that will open a popup window to update an existing payment entry
-        // This code assumes you have the popupWindow() function defined in your header!
-        // Valid $payment_mode entries are: 'payment', 'purchase_order', 'refund'
-        function button_update($payment_mode, $index)
-        {
-            echo '&nbsp;<a href="javascript:couponpopupWindow(\'' .
-              zen_href_link(FILENAME_CIM_PAYMENTS,
-                'oID=' . $this->oID . '&payment_mode=' . $payment_mode . '&index=' . $index . '&action=my_update',
-                'NONSSL') . '\', \'scrollbars=yes,resizable=yes,width=400,height=300,screenX=150,screenY=100,top=100,left=150\')">' .
-              zen_image_button('btn_modify.gif',
-                sprintf(ALT_TEXT_UPDATE, str_replace('_', ' ', $payment_mode))) . '</a>';
         }
         
         // Displays a button that will open a popup window to confirm deleting a payment entry

@@ -31,6 +31,21 @@
     }
     global $db;
     
+    if (!defined('DEBUG_CIM') && (DEBUG_CIM == true)) {
+    $log = ini_get('error_log');
+    $start = strpos($log, 'cim');
+    if ($start === false) {
+        $end = strrpos(ini_get('error_log'), "/");
+        if ($end !== false) {
+            $log_prefix = (IS_ADMIN_FLAG) ? '/cimDEBUG-adm-' : '/cimDEBUG-';
+            $log_date = new DateTime();
+            $debug_logfile_path = substr($log, 0, $end) . $log_prefix . $log_date->format('Ymd-His-u') . '.log';
+            unset($log_prefix, $log_date);
+            ini_set('error_log', $debug_logfile_path);
+        }
+    }
+    }
+    
     $oID = (int)$_GET['oID'];
     $payment_mode = $_GET['payment_mode'];
     $action = (isset($_GET['action']) ? $_GET['action'] : '');
@@ -49,52 +64,7 @@
                 //update_status($oID, $new_status, $notified = 0, $comments = '')
                 
                 switch ($payment_mode) {
-                    case 'payment':
-                        // input new data
-                        $new_index = $cim->add_payment($_GET['payment_number'], $_GET['payment_name'],
-                          $_GET['payment_amount'], $_GET['payment_type'], $_GET['purchase_order_id']);
-                        
-                        // update order status
-                        if ($update_status) {
-                            if ($_GET['purchase_order_id']) {
-                                update_status($oID, AUTO_STATUS_PO_PAYMENT, $notify_customer,
-                                  sprintf(AUTO_COMMENTS_PO_PAYMENT, $_GET['payment_number']));
-                            } else {
-                                update_status($oID, AUTO_STATUS_PAYMENT, $notify_customer,
-                                  sprintf(AUTO_COMMENTS_PAYMENT, $_GET['payment_number']));
-                            }
-                        }
-                        
-                        // notify the customer
-                        if ($notify_customer) {
-                            $_POST['notify_comments'] = 'on';
-                            email_latest_status($oID);
-                        }
-                        
-                        // redirect to confirmation screen
-                        zen_redirect(zen_href_link(FILENAME_CIM_PAYMENTS,
-                          'oID=' . $cim->oID . '&payment_mode=' . $payment_mode . '&index=' . $new_index . '&action=confirm',
-                          'SSL'));
-                        break;
-                    
-                    case 'purchase_order':
-                        $new_index = $cim->add_purchase_order($_GET['po_number']);
-                        
-                        if ($update_status) {
-                            update_status($oID, AUTO_STATUS_PO, $notify_customer,
-                              sprintf(AUTO_COMMENTS_PO, $_GET['po_number']));
-                        }
-                        
-                        // notify the customer
-                        if ($notify_customer) {
-                            $_POST['notify_comments'] = 'on';
-                            email_latest_status($oID);
-                        }
-                        
-                        zen_redirect(zen_href_link(FILENAME_CIM_PAYMENTS,
-                          'oID=' . $cim->oID . '&payment_mode=' . $payment_mode . '&index=' . $new_index . '&action=confirm',
-                          'SSL'));
-                        break;
+
                     
                     case 'refund':
                         $new_index = $cim->add_refund($_GET['payment_id'], $_GET['refund_number'], $_GET['refund_name'],
@@ -118,41 +88,6 @@
                 }  // END switch ($payment_mode)
                 
                 break;  // END case 'add'
-            
-            
-            // update an existing payment entry
-            case 'my_update';
-                switch ($payment_mode) {
-                    case 'payment':
-                        $cim->update_payment($_GET['payment_id'], $_GET['purchase_order_id'], $_GET['payment_number'],
-                          $_GET['payment_name'], $_GET['payment_amount'], $_GET['payment_type']);
-                        
-                        zen_redirect(zen_href_link(FILENAME_CIM_PAYMENTS,
-                          'oID=' . $cim->oID . '&payment_mode=' . $payment_mode . '&index=' . $_GET['payment_id'] . '&action=confirm',
-                          'SSL'));
-                        break;
-                    
-                    case 'purchase_order':
-                        $cim->update_purchase_order($_GET['purchase_order_id'], $_GET['po_number']);
-                        
-                        zen_redirect(zen_href_link(FILENAME_CIM_PAYMENTS,
-                          'oID=' . $cim->oID . '&payment_mode=' . $payment_mode . '&index=' . $_GET['purchase_order_id'] . '&action=confirm',
-                          'SSL'));
-                        break;
-                    
-                    case 'refund':
-                        $cim->update_refund($_GET['refund_id'], $_GET['payment_id'], $_GET['refund_number'],
-                          $_GET['refund_name'], $_GET['refund_amount'], $_GET['refund_type'], false, false);
-                        
-                        zen_redirect(zen_href_link(FILENAME_CIM_PAYMENTS,
-                          'oID=' . $cim->oID . '&payment_mode=' . $payment_mode . '&index=' . $_GET['refund_id'] . '&action=confirm',
-                          'SSL'));
-                        break;
-                }  // END switch ($payment_mode)
-                break;  // END case 'update'
-            
-            
-            // removes requested payment data from the database (not recoverable!)
             case 'delete':
                 $affected_rows = 0;
                 switch ($payment_mode) {
@@ -287,26 +222,6 @@
                         <?php
                         break;
                     
-                    case 'purchase_order':
-                        ?>
-                        <tr>
-                            <td colspan="2" align="center" class="pageHeading"><?= HEADER_ENTER_PO; ?></td>
-                        </tr>
-                        <tr>
-                            <td colspan="2" align="center" class="main">
-                                <strong><?= HEADER_ORDER_ID . $cim->oID; ?></strong></td>
-                        </tr>
-                        <tr>
-                            <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1',
-                                  '10'); ?></td>
-                        </tr>
-                        <tr>
-                            <td class="main" align="right"><?= TEXT_PO_NUMBER; ?></td>
-                            <td class="main"><?= zen_draw_input_field('po_number', '', 'size="25"'); ?></td>
-                        </tr>
-                        <?php
-                        break;
-                    
                     case 'refund':
                         $payment_array = $cim->build_payment_array(TEXT_NONE);
                         ?>
@@ -380,159 +295,6 @@
                 </table></td>
                 <?php
                 break;  // END case 'add'
-            case 'my_update':
-                $index = $_GET['index'];
-                echo zen_draw_form('update', FILENAME_CIM_PAYMENTS, '', 'get', '', true);
-                echo zen_draw_hidden_field('action', $action);
-                echo zen_draw_hidden_field('process', 1);
-                echo zen_draw_hidden_field('payment_mode', $payment_mode);
-                echo zen_draw_hidden_field('oID', $cim->oID);
-                
-                switch ($payment_mode) {
-                    case 'payment':
-                        echo zen_draw_hidden_field('payment_id', $index);
-                        $payment = $db->Execute("select * from " . TABLE_CIM_PAYMENTS . " where payment_id = '" . $index . "'");
-                        $po_array = $cim->build_po_array(TEXT_NONE);
-                        ?>
-                        <tr>
-                            <td colspan="2" align="center"
-                                class="pageHeading"><?= HEADER_UPDATE_PAYMENT . '<br />' . $payment->fields['payment_number']; ?></td>
-                        </tr>
-                        <tr>
-                            <td colspan="2" class="main" align="center">
-                                <strong><?= HEADER_ORDER_ID . $cim->oID . '<br />' . HEADER_PAYMENT_UID . $index; ?></strong>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1',
-                                  '10'); ?></td>
-                        </tr>
-                        <tr>
-                            <td class="main" align="right"><?= TEXT_PAYMENT_NUMBER; ?></td>
-                            <td class="main"><?= zen_draw_input_field('payment_number',
-                                  $payment->fields['payment_number'], 'size="25"'); ?></td>
-                        </tr>
-                        <tr>
-                            <td class="main" align="right"><?= TEXT_PAYMENT_NAME; ?></td>
-                            <td class="main"><?= zen_draw_input_field('payment_name',
-                                  $payment->fields['payment_name'], 'size="25"'); ?></td>
-                        </tr>
-                        <tr>
-                            <td class="main" align="right"><?= TEXT_PAYMENT_AMOUNT; ?></td>
-                            <td class="main"><?= zen_draw_input_field('payment_amount',
-                                  $payment->fields['payment_amount'], 'size="8"'); ?></td>
-                        </tr>
-                        <tr>
-                            <td class="main" align="right"><?= TEXT_PAYMENT_TYPE; ?></td>
-                            <td class="main"><?= zen_draw_pull_down_menu('payment_type', $cim->payment_key,
-                                  $payment->fields['payment_type'], ''); ?></td>
-                        </tr>
-                        <tr>
-                            <td class="main" align="right"><?= TEXT_ATTACHED_PO; ?></td>
-                            <td class="main"><?= zen_draw_pull_down_menu('purchase_order_id', $po_array,
-                                  $payment->fields['purchase_order_id'], ''); ?></td>
-                        </tr>
-                        <?php
-                        break;
-                    
-                    case 'purchase_order':
-                        echo zen_draw_hidden_field('purchase_order_id', $index);
-                        for ($a = 0; $a < sizeof($cim->purchase_order); $a++) {
-                            if ($cim->purchase_order[$a]['index'] == $index) {
-                                $x = $a;
-                                break 1;
-                            }
-                        }
-                        ?>
-                        <tr>
-                            <td colspan="2" align="center"
-                                class="pageHeading"><?= HEADER_UPDATE_PO . '<br />' . $cim->purchase_order[$x]['number']; ?></td>
-                        </tr>
-                        <tr>
-                            <td colspan="2" align="center" class="main">
-                                <strong><?= HEADER_ORDER_ID . $cim->oID . '<br />' . HEADER_PO_UID . $index; ?></strong>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1',
-                                  '10'); ?></td>
-                        </tr>
-                        <tr>
-                            <td class="main" align="right"><?= TEXT_PO_NUMBER; ?></td>
-                            <td class="main"><?= zen_draw_input_field('po_number',
-                                  $cim->purchase_order[$x]['number'], 'size="25"'); ?></td>
-                        </tr>
-                        <?php
-                        break;
-                    case 'refund':
-                        echo zen_draw_hidden_field('refund_id', $index);
-                        if (is_array($cim->refund)) {
-                            for ($a = 0; $a < sizeof($cim->refund); $a++) {
-                                if ($cim->refund[$a]['index'] == $index) {
-                                    $x = $a;
-                                    break 1;
-                                }
-                            }
-                        }
-                        $payment_array = $cim->build_payment_array(TEXT_NONE);
-                        ?>
-                        <tr>
-                            <td colspan="2" align="center"
-                                class="pageHeading"><?= HEADER_UPDATE_REFUND . '<br />' . $cim->refund[$x]['number']; ?></td>
-                        </tr>
-                        <tr>
-                            <td colspan="2" align="center" class="main">
-                                <strong><?= HEADER_ORDER_ID . $cim->oID . '<br />' . HEADER_REFUND_UID . $index; ?></strong>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1',
-                                  '10'); ?></td>
-                        </tr>
-                        <tr>
-                            <td class="main" align="right"><?= TEXT_ATTACHED_PAYMENT; ?></td>
-                            <td class="main"><?= zen_draw_pull_down_menu('payment_id', $payment_array,
-                                  $cim->refund[$x]['payment'], ''); ?></td>
-                        </tr>
-                        <tr>
-                            <td class="main" align="right"><?= TEXT_REFUND_NUMBER; ?></td>
-                            <td class="main"><?= zen_draw_input_field('refund_number',
-                                  $cim->refund[$x]['number'], 'size="25"'); ?></td>
-                        </tr>
-                        <tr>
-                            <td class="main" align="right"><?= TEXT_REFUND_NAME; ?></td>
-                            <td class="main"><?= zen_draw_input_field('refund_name', $cim->refund[$x]['name'],
-                                  'size="25"'); ?></td>
-                        </tr>
-                        <tr>
-                            <td class="main" align="right"><?= TEXT_REFUND_AMOUNT; ?></td>
-                            <td class="main"><?= zen_draw_input_field('refund_amount',
-                                    $cim->refund[$x]['amount'],
-                                    'size="8"') . '<span class="alert">' . TEXT_NO_MINUS . '</span>'; ?></td>
-                        </tr>
-                        <tr>
-                            <td class="main" align="right"><?= TEXT_REFUND_TYPE; ?></td>
-                            <td class="main"><?= zen_draw_pull_down_menu('refund_type', $cim->payment_key,
-                                  $cim->refund[$x]['type'], ''); ?></td>
-                        </tr>
-                        <?php
-                        break;
-                }  // END switch ($payment_mode)
-                ?>
-                <tr>
-                    <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1', '15'); ?></td>
-                </tr>
-                <tr>
-                    <td class="main" colspan="2" align="center">
-                        <input type="button" value="<?= BUTTON_CANCEL; ?>" onclick="returnParent()">
-                        <input type="submit" value="<?= BUTTON_SUBMIT; ?>"
-                               onclick="document.update.submit();this.disabled=true">
-                    </td>
-                </tr>
-                </form>
-                </table></td>
-                <?php
-                break;  // END case 'update'
             case 'delete':
                 $index = $_GET['index'];
                 echo zen_draw_form('delete', FILENAME_CIM_PAYMENTS, '', 'get', '', true);
@@ -873,7 +635,7 @@
                 $cim_module = new authorizenet_cim();
         
                 $profileId = $cim_module->getCustomerProfile((int)$_GET['cID']);
-                if (!$profileId) {
+                if ($profileId) {
                     $cim_module->deleteStoredData($_GET['cID'], $profileId);
                 }
                 ?>

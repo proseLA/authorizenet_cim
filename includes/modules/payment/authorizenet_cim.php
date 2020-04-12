@@ -80,6 +80,7 @@
             }
         }
     
+
         function getControllerResponse($controller)
         {
             if (in_array(MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE, array('Test', 'Sandbox'))) {
@@ -598,12 +599,29 @@
                 $this->errorMessages[] = $logData;
             }
             
+            if (DEBUG_CIM) {
+                $this->checkLogName();
+                trigger_error($logData);
+            }
+            
             if ($error || DEBUG_CIM) {
                 error_log(date(DATE_RFC2822) . ":\n" . $logData . "\n", 3, $response_log);
             }
-            
-            if (DEBUG_CIM) {
-                trigger_error($logData);
+        }
+    
+        function checkLogName()
+        {
+            $log = ini_get('error_log');
+            $start = strpos($log, 'cim');
+            if ($start === false) {
+                $end = strrpos(ini_get('error_log'), "/");
+                if ($end !== false) {
+                    $log_prefix = (IS_ADMIN_FLAG) ? '/cimDEBUG-adm-' : '/cimDEBUG-';
+                    $log_date = new DateTime();
+                    $debug_logfile_path = substr($log, 0, $end) . $log_prefix . $log_date->format('Ymd-His-u') . '.log';
+                    unset($log_prefix, $log_date);
+                    ini_set('error_log', $debug_logfile_path);
+                }
             }
         }
         
@@ -742,8 +760,9 @@
                         $logData .= " Code : " . $tresponse->getMessages()[0]->getCode() . "\n";
                         $logData .= " Description : " . $tresponse->getMessages()[0]->getDescription() . "\n";
     
-                        $this->insertRefund($refund->fields['payment_id'], $ordersID,  $tresponse->getMessages()[0]->getCode(),
-                          $refund->fields['payment_name'], $refund->fields['transaction_id'], $refund_amount,'REF',$tresponse->getAuthCode());
+                        $this->insertRefund($refund->fields['payment_id'], $ordersID,  $tresponse->getTransId(),
+                          $refund->fields['payment_name'], $refund->fields['transaction_id'], $refund_amount,'REF',
+                          $tresponse->getMessages()[0]->getCode());
                         $this->update_payment($ordersID, $refund->fields['transaction_id'], $refund_amount);
                         $update_status = $this->checkZeroBalance($ordersID);
                         if ($update_status) {
@@ -804,11 +823,6 @@
             return $error;
         }
     
-        /**
-         * Check to see whether module is installed
-         *
-         * @return boolean
-         */
         function check()
         {
             global $db;
@@ -821,10 +835,6 @@
             return $this->_check;
         }
         
-        /**
-         * Install the payment module and its configuration settings
-         *
-         */
         function install()
         {
             global $db;
@@ -869,23 +879,12 @@
             $this->tableCheckup();
         }
     
-        // The duty description for the transaction (optional)
-        
-        /**
-         * Remove the module and all its settings
-         *
-         */
         function remove()
         {
             global $db;
             $db->Execute("delete from " . TABLE_CONFIGURATION . " where configuration_key like 'MODULE\_PAYMENT\_AUTHORIZENET\_CIM\_%'");
         }
-        
-        /**
-         * Internal list of configuration keys used for configuration of the module
-         *
-         * @return array
-         */
+
         function keys()
         {
             return array(
