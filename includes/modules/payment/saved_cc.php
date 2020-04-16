@@ -119,9 +119,9 @@
             $cc_index = $_SESSION['saved_cc'];
             $customerID = $_SESSION['customer_id'];
             
-            $valid_payment_profile = $this->checkValidProfile($customerID, $cc_index);
+            $valid_payment_profile = $this->checkValidPaymentProfile($customerID, $cc_index);
             
-            if (!$valid_payment_profile) {
+            if (!$valid_payment_profile['valid']) {
                 $messageStack->add_session('checkout_payment',
                   'There was a problem with that card.  Please select a different card!', 'error');
                 trigger_error('the card index does not correspond to the right customer!');
@@ -130,9 +130,9 @@
             
             $customerProfileId = $this->getCustomerProfile($customerID);
             $this->setParameter('customerProfileId', $customerProfileId);
-            $this->setParameter('customerPaymentProfileId', $valid_payment_profile);
+            $this->setParameter('customerPaymentProfileId', $valid_payment_profile['payment_profile_id']);
     
-            $this->response = $this->chargeCustomerProfile($customerProfileId, $valid_payment_profile);
+            $this->response = $this->chargeCustomerProfile($customerProfileId, $valid_payment_profile['payment_profile_id']);
     
             $this->addErrorsMessageStack('Customer Payment Transaction');
         }

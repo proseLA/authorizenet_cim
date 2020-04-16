@@ -15,9 +15,9 @@
     
     class authorizenet_cim extends base
     {
-
+        
         var $code, $title, $description, $enabled, $authorize = '';
-
+        
         var $version = '2.0'; // the code revision number for this class
         var $params = array();
         var $success = false;
@@ -37,7 +37,7 @@
         var $transID;
         
         var $errorMessages = array();
-
+        
         /**
          * Constructor
          *
@@ -70,23 +70,13 @@
             if (defined('MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID') && (int)MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID > 0) {
                 $this->order_status = (int)MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID;
             }
-    
+            
             if ($this->enabled && is_object($order)) {
                 $this->update_status();
             }
-    
+            
             if (!defined('DEBUG_CIM') && ($this->enabled)) {
                 define('DEBUG_CIM', MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING);
-            }
-        }
-    
-
-        function getControllerResponse($controller)
-        {
-            if (in_array(MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE, array('Test', 'Sandbox'))) {
-                return $controller->executeWithApiResponse(\net\authorize\api\constants\ANetEnvironment::SANDBOX);
-            } else {
-                return $controller->executeWithApiResponse(\net\authorize\api\constants\ANetEnvironment::PRODUCTION);
             }
         }
         
@@ -311,7 +301,7 @@
         function before_process()
         {
             global $response, $db, $order, $messageStack, $customerID;
-
+            
             $order->info['cc_number'] = str_pad(substr($_POST['cc_number'], -4), strlen($_POST['cc_number']), "X",
               STR_PAD_LEFT);
             $order->info['cc_expires'] = $_POST['cc_expires'];
@@ -334,46 +324,49 @@
             
             $this->addErrorsMessageStack('Customer Payment Profile');
             
-            $this->response = $this->chargeCustomerProfile($this->params['customerProfileId'], $this->params['customerPaymentProfileId']);
+            $this->response = $this->chargeCustomerProfile($this->params['customerProfileId'],
+              $this->params['customerPaymentProfileId']);
             
             $this->addErrorsMessageStack('Customer Payment Transaction');
         }
         
-        function setParameter($field = "", $value = null)
+        function getCustomerProfile($customer_id)
         {
-            $this->params[$field] = $value;
-        }
-        
-        function merchantCredentials() {
-            $merch = new AnetAPI\MerchantAuthenticationType();
-            $merch->setName(trim(MODULE_PAYMENT_AUTHORIZENET_CIM_LOGIN));
-            $merch->setTransactionKey(trim(MODULE_PAYMENT_AUTHORIZENET_CIM_TXNKEY));
-            return($merch);
+            global $db;
+            $sql = "SELECT customers_customerProfileId FROM " . TABLE_CUSTOMERS . " WHERE customers_id = :custId ";
+            $sql = $db->bindVars($sql, ':custId', $customer_id, 'string');
+            $check_customer = $db->Execute($sql);
+            
+            if ($check_customer->fields['customers_customerProfileId'] !== 0) {
+                $customerProfileId = $check_customer->fields['customers_customerProfileId'];
+            } else {
+                $customerProfileId = false;
+            }
+            return $customerProfileId;
         }
         
         function createCustomerProfileRequest()
         {
             global $customerID, $order;
-    
+            
             $customerID = $_SESSION['customer_id'];
-    
+            
             // Create a new CustomerProfileType and add the payment profile object
             $customerProfile = new AnetAPI\CustomerProfileType();
-            $customerProfile->setDescription($order->customer['firstname'] . ' ' .$order->customer['lastname']);
+            $customerProfile->setDescription($order->customer['firstname'] . ' ' . $order->customer['lastname']);
             $customerProfile->setMerchantCustomerId($customerID);
             $customerProfile->setEmail($order->customer['email_address']);
             //$customerProfile->setpaymentProfiles($paymentProfiles);
             //$customerProfile->setShipToList($shippingProfiles);
-    
+            
             // Assemble the complete transaction request
             $request = new AnetAPI\CreateCustomerProfileRequest();
             $request->setMerchantAuthentication($this->merchantCredentials());
-            //$request->setRefId($refId);
             $request->setProfile($customerProfile);
-    
+            
             $controller = new AnetController\CreateCustomerProfileController($request);
             $response = $this->getControllerResponse($controller);
-    
+            
             $error = true;
             if (($response != null) && ($response->getMessages()->getResultCode() == "Ok")) {
                 $error = false;
@@ -385,197 +378,44 @@
                 $errorMessages = $response->getMessages()->getMessage();
                 $logData .= "Response : " . $errorMessages[0]->getCode() . "  " . $errorMessages[0]->getText() . "\n";
             }
-    
-            $this->logError($logData, $error);
-            return $response;
-        }
-    
-        function createCustomerPaymentProfileRequest()
-        {
-            global $order, $customerID;
-        
-            if ($this->params['customerProfileId'] == 0 || (!isset($this->params['customerProfileId']))) {
-                $customerProfileId = $this->getCustomerProfile($customerID);
-                if ($customerProfileId == false) {
-                    $this->createCustomerProfileRequest();
-                } else {
-                    $this->setParameter('customerProfileId', $customerProfileId);
-                }
-            }
-        
-            // here we are checking to see if the customer already has this card on file.
-            // if we have it, return that profile TODO incorporate expiration date and update paymentProfile
-            $existing_profile = $this->getCustomerPaymentProfile($customerID,
-              substr(trim($_POST['cc_number']), -4));
-        
-            if (!is_null($existing_profile['profile'])) {
-                if ($existing_profile['exp_date'] !== $_POST['cc_expires_date']) {
-                    $this->updateCustomerPaymentProfile($this->params['customerProfileId'], $existing_profile['profile']);
-                }
-                $this->setParameter('customerPaymentProfileId', $existing_profile['profile']);
-                return;
-            }
-        
-            // Set credit card information for payment profile
-            $creditCard = new AnetAPI\CreditCardType();
-            $creditCard->setCardNumber($_POST['cc_number']);
-            $creditCard->setExpirationDate($_POST['cc_expires']);
-            $creditCard->setCardCode($_POST['cc_cvv']);
-            $paymentCreditCard = new AnetAPI\PaymentType();
-            $paymentCreditCard->setCreditCard($creditCard);
-        
-            // Create the Bill To info for new payment type
-            $billto = new AnetAPI\CustomerAddressType();
-            $billto->setFirstName($order->billing['firstname']);
-            $billto->setLastName($order->billing['lastname']);
-            $billto->setCompany($order->billing['company']);
-            $billto->setAddress($order->billing['street_address']);
-            $billto->setCity($order->billing['city']);
-            $billto->setState($order->billing['state']);
-            $billto->setZip($order->billing['postcode']);
-            $billto->setCountry($order->billing['country']['title']);
-            //$billto->setPhoneNumber();
-            //$billto->setfaxNumber();
-        
-            // Create a new Customer Payment Profile object
-            $paymentprofile = new AnetAPI\CustomerPaymentProfileType();
-            $paymentprofile->setCustomerType('individual');
-            $paymentprofile->setBillTo($billto);
-            $paymentprofile->setPayment($paymentCreditCard);
-            $paymentprofile->setDefaultPaymentProfile(true);
-        
-            $paymentprofiles[] = $paymentprofile;
-        
-            // Assemble the complete transaction request
-            $paymentprofilerequest = new AnetAPI\CreateCustomerPaymentProfileRequest();
-            $paymentprofilerequest->setMerchantAuthentication($this->merchantCredentials());
-        
-            // Add an existing profile id to the request
-            $paymentprofilerequest->setCustomerProfileId($this->params['customerProfileId']);
-            $paymentprofilerequest->setPaymentProfile($paymentprofile);
-            $paymentprofilerequest->setValidationMode(MODULE_PAYMENT_AUTHORIZENET_CIM_VALIDATION);
-        
-            // Create the controller and get the response
-            $controller = new AnetController\CreateCustomerPaymentProfileController($paymentprofilerequest);
-            $response = $this->getControllerResponse($controller);
             
-            $error = true;
-            if (($response != null) && ($response->getMessages()->getResultCode() == "Ok")) {
-                $error = false;
-                $logData =  "Create Customer Payment Profile SUCCESS: " . $response->getCustomerPaymentProfileId() . "\n";
-                $this->setParameter('customerPaymentProfileId', $response->getCustomerPaymentProfileId());
-                $save = 'N';
-                if ($_POST['cc_save'] == 'on') {
-                    $save = 'Y';
-                }
-            
-                $this->saveCCToken($customerID, $this->params['customerPaymentProfileId'], substr($_POST['cc_number'], -4),
-                  $_POST['cc_expires'], $save);
-                $order->info['payment_profile_id'] = $this->params['customerPaymentProfileId'];
-            } else {
-                $logData = "Create Customer Payment Profile: ERROR Invalid response\n";
-                $errorMessages = $response->getMessages()->getMessage();
-                $logData .= "Customer: " . $customerID . "\n";
-                $logData .= "Response : " . $errorMessages[0]->getCode() . "  " . $errorMessages[0]->getText() . "\n";
-                if ($errorMessages[0]->getCode() == 'E00039') {
-                    $error = false;
-                    $this->setParameter('customerPaymentProfileId', $response->getCustomerPaymentProfileId());
-                    $save = 'N';
-                    if ($_POST['cc_save'] == 'on') {
-                        $save = 'Y';
-                    }
-                    $this->saveCCToken($customerID, $this->params['customerPaymentProfileId'],
-                      substr($_POST['cc_number'], -4),
-                      $_POST['cc_expires'], $save);
-                    $order->info['payment_profile_id'] = $this->params['customerPaymentProfileId'];
-                }
-            }
             $this->logError($logData, $error);
             return $response;
         }
-    
-        function chargeCustomerProfile($profileid, $paymentprofileid)
+        
+        function merchantCredentials()
         {
-            global $order;
-    
-            $profileToCharge = new AnetAPI\CustomerProfilePaymentType();
-            $profileToCharge->setCustomerProfileId($profileid);
-            $paymentProfile = new AnetAPI\PaymentProfileType();
-            $paymentProfile->setPaymentProfileId($paymentprofileid);
-            $profileToCharge->setPaymentProfile($paymentProfile);
-        
-            $transactionRequestType = new AnetAPI\TransactionRequestType();
-            $transactionRequestType->setTransactionType("authCaptureTransaction");
-            $transactionRequestType->setAmount($order->info['total']);
-            $transactionRequestType->setProfile($profileToCharge);
-        
-            if (count($order->products) > 0) {
-                foreach (array_slice($order->products, 0, 30) as $items) {
-                    $lineItem1 = new AnetAPI\LineItemType();
-                    $lineItem1->setItemId(zen_get_prid($items['id']));
-                    $lineItem1->setName(substr(preg_replace('/[^a-z0-9_ ]/i', '',
-                      preg_replace('/&nbsp;/', ' ', $items['name'])), 0, 30));
-                    //$lineItem1->setDescription("Here's the first line item");
-                    $lineItem1->setQuantity($items['qty']);
-                    $lineItem1->setUnitPrice($items['final_price']);
-                    $lineItem1->getTaxable($order->info['tax'] == 0 ? false : true);
-                    $transactionRequestType->addToLineItems($lineItem1);
-                }
-            }
-        
-            $request = new AnetAPI\CreateTransactionRequest();
-            $request->setMerchantAuthentication($this->merchantCredentials());
-            $request->setRefId($this->nextOrderNumber($order->info));
-            $request->setTransactionRequest($transactionRequestType);
-            $controller = new AnetController\CreateTransactionController($request);
-            $response = $this->getControllerResponse($controller);
-        
-            $error = true;
-            if ($response != null) {
-                if ($response->getMessages()->getResultCode() == "Ok") {
-                    $tresponse = $response->getTransactionResponse();
-                
-                    if ($tresponse != null && $tresponse->getMessages() != null) {
-                        $error = false;
-                        $logData = "Transaction Response code : " . $tresponse->getResponseCode() . "\n";
-                        $logData .= " Charge Customer Profile APPROVED  :" . "\n";
-                        $logData .= " Charge Customer Profile AUTH CODE : " . $tresponse->getAuthCode() . "\n";
-                        $this->approvalCode = $tresponse->getAuthCode();
-                        $logData .= " Charge Customer Profile TRANS ID  : " . $tresponse->getTransId() . "\n";
-                        $this->transID =  $tresponse->getTransId();
-                        $logData .= " Code : " . $tresponse->getMessages()[0]->getCode() . "\n";
-                        $logData .= " Description : " . $tresponse->getMessages()[0]->getDescription() . "\n";
-                    
-                        $this->insertPayment($tresponse->getTransId(),
-                          $order->billing['firstname'] . ' ' . $order->billing['lastname'],
-                          $order->info['total'], $this->code, $this->params['customerPaymentProfileId'],
-                          $tresponse->getAuthCode(),
-                          (isset($order->customer['id']) ? $order->customer['id'] : $_SESSION['customer_id']));
-                    } else {
-                        $logData = "Transaction Failed \n";
-                        if ($tresponse->getErrors() != null) {
-                            $logData .= " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
-                            $logData .= " Error message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
-                        }
-                    }
-                } else {
-                    $logData = "Transaction Failed \n";
-                    $tresponse = $response->getTransactionResponse();
-                    if ($tresponse != null && $tresponse->getErrors() != null) {
-                        $logData .= " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
-                        $logData .= " Error message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
-                    } else {
-                        $logData .= " Error code  : " . $response->getMessages()->getMessage()[0]->getCode() . "\n";
-                        $logData .= " Error message : " . $response->getMessages()->getMessage()[0]->getText() . "\n";
-                    }
-                }
-            } else {
-                $logData = "No response returned \n";
-            }
-            $this->logError($logData, $error);
-            return $response;
+            $merch = new AnetAPI\MerchantAuthenticationType();
+            $merch->setName(trim(MODULE_PAYMENT_AUTHORIZENET_CIM_LOGIN));
+            $merch->setTransactionKey(trim(MODULE_PAYMENT_AUTHORIZENET_CIM_TXNKEY));
+            return ($merch);
         }
-    
+        
+        function getControllerResponse($controller)
+        {
+            if (in_array(MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE, array('Test', 'Sandbox'))) {
+                return $controller->executeWithApiResponse(\net\authorize\api\constants\ANetEnvironment::SANDBOX);
+            } else {
+                return $controller->executeWithApiResponse(\net\authorize\api\constants\ANetEnvironment::PRODUCTION);
+            }
+        }
+        
+        function updateCustomer($customerID, $profileID)
+        {
+            global $db;
+            $sql = "UPDATE " . TABLE_CUSTOMERS . "
+            SET customers_customerProfileId = :profileID
+            WHERE customers_id = :custID ";
+            $sql = $db->bindVars($sql, ':custID', $customerID, 'integer');
+            $sql = $db->bindVars($sql, ':profileID', $profileID, 'integer');
+            $db->Execute($sql);
+        }
+        
+        function setParameter($field = "", $value = null)
+        {
+            $this->params[$field] = $value;
+        }
+        
         function logError($logData, $error = false)
         {
             $response_log = (defined('DIR_FS_LOGS') ? DIR_FS_LOGS : DIR_FS_SQL_CACHE) . '/cim_response.log';
@@ -593,7 +433,7 @@
                 error_log(date(DATE_RFC2822) . ":\n" . $logData . "\n", 3, $response_log);
             }
         }
-    
+        
         function checkLogName()
         {
             $log = ini_get('error_log');
@@ -627,7 +467,430 @@
                 }
             }
         }
+        
+        function createCustomerPaymentProfileRequest()
+        {
+            global $order, $customerID;
+            
+            // for card_update
+            if (!isset($customerID) && (!defined('IS_ADMIN_FLAG') || ('IS_ADMIN_FLAG' == 0))) {
+                $customerID = $_SESSION['customer_id'];
+            }
+            
+            if (!isset($this->params['customerProfileId']) || ($this->params['customerProfileId'] == 0)) {
+                $customerProfileId = $this->getCustomerProfile($customerID);
+                if ($customerProfileId == false) {
+                    $this->createCustomerProfileRequest();
+                } else {
+                    $this->setParameter('customerProfileId', $customerProfileId);
+                }
+            }
+            
+            // for card_update
+            $exp_date = $this->convertExpDate($_POST['cc_year'], $_POST['cc_month']);
+            
+            // here we are checking to see if the customer already has this card on file.
+            // if we have it, return that profile
+            $existing_profile = $this->getCustomerPaymentProfile($customerID,
+              substr(trim($_POST['cc_number']), -4));
+            
+            if (!is_null($existing_profile['profile'])) {
+                if ($existing_profile['exp_date'] !== $exp_date) {
+                    $this->updateCustomerPaymentProfile($this->params['customerProfileId'],
+                      $existing_profile['profile']);
+                }
+                $this->setParameter('customerPaymentProfileId', $existing_profile['profile']);
+                return;
+            }
+            
+            // Set credit card information for payment profile
+            $creditCard = new AnetAPI\CreditCardType();
+            $creditCard->setCardNumber($_POST['cc_number']);
+            $creditCard->setExpirationDate($exp_date);
+            $creditCard->setCardCode($_POST['cc_cvv']);
+            $paymentCreditCard = new AnetAPI\PaymentType();
+            $paymentCreditCard->setCreditCard($creditCard);
+            
+            // Create the Bill To info for new payment type
+            $billto = $this->billtoAddress();
+            
+            // Create a new Customer Payment Profile object
+            $paymentprofile = new AnetAPI\CustomerPaymentProfileType();
+            $paymentprofile->setCustomerType('individual');
+            $paymentprofile->setBillTo($billto);
+            $paymentprofile->setPayment($paymentCreditCard);
+            $paymentprofile->setDefaultPaymentProfile(true);
+            
+            $paymentprofiles[] = $paymentprofile;
+            
+            // Assemble the complete transaction request
+            $paymentprofilerequest = new AnetAPI\CreateCustomerPaymentProfileRequest();
+            $paymentprofilerequest->setMerchantAuthentication($this->merchantCredentials());
+            
+            // Add an existing profile id to the request
+            $paymentprofilerequest->setCustomerProfileId($this->params['customerProfileId']);
+            $paymentprofilerequest->setPaymentProfile($paymentprofile);
+            $paymentprofilerequest->setValidationMode(MODULE_PAYMENT_AUTHORIZENET_CIM_VALIDATION);
+            
+            // Create the controller and get the response
+            $controller = new AnetController\CreateCustomerPaymentProfileController($paymentprofilerequest);
+            $response = $this->getControllerResponse($controller);
+            
+            $error = true;
+            if (($response != null) && ($response->getMessages()->getResultCode() == "Ok")) {
+                $error = false;
+                $logData = "Create Customer Payment Profile SUCCESS: " . $response->getCustomerPaymentProfileId() . "\n";
+                $this->setParameter('customerPaymentProfileId', $response->getCustomerPaymentProfileId());
+                $save = $this->saveCard();
+                
+                $this->saveCCToken($customerID, $this->params['customerPaymentProfileId'],
+                  substr($_POST['cc_number'], -4),
+                  $exp_date, $save);
+                $order->info['payment_profile_id'] = $this->params['customerPaymentProfileId'];
+            } else {
+                $logData = "Create Customer Payment Profile: ERROR Invalid response\n";
+                $errorMessages = $response->getMessages()->getMessage();
+                $logData .= "Customer: " . $customerID . "\n";
+                $logData .= "Response : " . $errorMessages[0]->getCode() . "  " . $errorMessages[0]->getText() . "\n";
+                if ($errorMessages[0]->getCode() == 'E00039') {
+                    $error = false;
+                    $this->setParameter('customerPaymentProfileId', $response->getCustomerPaymentProfileId());
+                    $save = $this->saveCard();
+                    $this->saveCCToken($customerID, $this->params['customerPaymentProfileId'],
+                      substr($_POST['cc_number'], -4),
+                      $exp_date, $save);
+                    $order->info['payment_profile_id'] = $this->params['customerPaymentProfileId'];
+                }
+            }
+            $this->logError($logData, $error);
+            return $logData;
+        }
+        
+        function convertExpDate($year, $month)
+        {
+            if (isset($_POST['cc_expires_date'])) {
+                return $_POST['cc_expires_date'];
+            } else {
+                return '20' . $year . '-' . $month;
+            }
+        }
+        
+        function saveCard()
+        {
+            if (($_POST['cc_save'] == 'on') || ($_POST['new_cid'] == 'NEW') || isset($_POST['update_cid'])) {
+                return 'Y';
+            } else {
+                return 'N';
+            }
+        }
+        
+        function getAddressInfo($response = null)
+        {
+            // for card_update
+            global $customerID, $db;
     
+            $return = [];
+            if ($_POST['address_selection'] == 'new') {
+                if (!is_null($response)) {
+                    $return['firstname'] = $response->getbillTo()->getfirstName();
+                    $return['lastname'] = $response->getbillTo()->getLastName();;
+                } else {
+                    $sql = "SELECT customers_firstname, customers_lastname from " . TABLE_CUSTOMERS . "
+                      WHERE customers_id = :custID";
+                    $sql = $db->bindVars($sql, ':custID', $customerID, 'integer');
+                    $customer = $db->Execute($sql);
+                    $return['firstname'] = $customer->fields['customers_firstname'];
+                    $return['lastname'] = $customer->fields['customers_lastname'];
+                }
+                $return['street_address'] = $_POST['street_address'];
+                $return['city'] = $_POST['city'];
+                $return['state'] = $_POST['state'];
+                $return['postcode'] = $_POST['postcode'];
+                //for foreign countries, customer would need to create new address and select it.
+                // pain but do not want to redo whole thing here.
+                $return['country']['title'] = 'United States';
+        
+            } else {
+                // from order class
+                $sql = "select ab.entry_firstname, ab.entry_lastname, ab.entry_company,
+                                   ab.entry_street_address, ab.entry_suburb, ab.entry_postcode,
+                                   ab.entry_city, ab.entry_zone_id, z.zone_name, ab.entry_country_id,
+                                   c.countries_id, c.countries_name, c.countries_iso_code_2,
+                                   c.countries_iso_code_3, c.address_format_id, ab.entry_state
+                                  from " . TABLE_ADDRESS_BOOK . " ab
+                                  left join " . TABLE_ZONES . " z on (ab.entry_zone_id = z.zone_id)
+                                  left join " . TABLE_COUNTRIES . " c on (ab.entry_country_id = c.countries_id)
+                                  where ab.customers_id = :custID
+                                  and ab.address_book_id = :addBookID";
+                $sql = $db->bindVars($sql, ':custID', $customerID, 'integer');
+                $sql = $db->bindVars($sql, ':addBookID', $_POST['address_selection'], 'integer');
+                $address = $db->Execute($sql);
+        
+                $return['firstname'] = $address->fields['entry_firstname'];
+                $return['lastname'] = $address->fields['entry_lastname'];
+                $return['company'] = $address->fields['entry_company'];
+                $return['street_address'] = $address->fields['entry_street_address'];
+                $return['city'] = $address->fields['entry_city'];
+                $return['state'] = ((zen_not_null($address->fields['entry_state'])) ? $address->fields['entry_state'] : $address->fields['zone_name']);
+                $return['postcode'] = $address->fields['entry_postcode'];
+                $return['country']['title'] = $address->fields['countries_name'];
+            }
+            return $return;
+        }
+        
+        function getCustomerPaymentProfile($customer_id, $last_four)
+        {
+            global $db;
+            
+            $sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . "
+            WHERE customers_id = :custId and last_four = :last4 order by index_id desc limit 1";
+            $sql = $db->bindVars($sql, ':custId', $customer_id, 'string');
+            $sql = $db->bindVars($sql, ':last4', $last_four, 'string');
+            $check_customer_cc = $db->Execute($sql);
+            
+            if ($check_customer_cc->fields['payment_profile_id'] !== 0) {
+                $paymentProfileId = $check_customer_cc->fields['payment_profile_id'];
+                $exp_date = $check_customer_cc->fields['exp_date'];
+            } else {
+                $paymentProfileId = false;
+                $exp_date = false;
+            }
+            return array('profile' => $paymentProfileId, 'exp_date' => $exp_date);
+        }
+        
+        function billtoAddress($response = null)
+        {
+            global $order;
+            
+            //for card_update
+            if (isset($_POST['address_selection'])) {
+                // card_update address change
+                $order = new stdClass();
+                $order->billing = $this->getAddressInfo($response);
+            } elseif (!is_object($order)) {
+                // card_update - just update exp date
+                if (!is_null($response)) {
+                    return $response->getPaymentProfile()->getbillTo();
+                } else {
+                    trigger_error('from card update, no payment profile, should never get here');
+                    return;
+                }
+            }
+            // from checkout or getAddressInfo above
+            $billto = new AnetAPI\CustomerAddressType();
+            $billto->setFirstName($order->billing['firstname']);
+            $billto->setLastName($order->billing['lastname']);
+            $billto->setCompany($order->billing['company']);
+            $billto->setAddress($order->billing['street_address']);
+            $billto->setCity($order->billing['city']);
+            $billto->setState($order->billing['state']);
+            $billto->setZip($order->billing['postcode']);
+            $billto->setCountry($order->billing['country']['title']);
+            //$billto->setPhoneNumber();
+            //$billto->setfaxNumber();
+            return $billto;
+        }
+    
+        function updateCustomerPaymentProfile($customerProfileId, $customerPaymentProfileId)
+        {
+            global $order, $customer_id;
+        
+            //for card_update
+            $exp_date = $this->convertExpDate($_POST['cc_year'], $_POST['cc_month']);
+        
+            $request = new AnetAPI\GetCustomerPaymentProfileRequest();
+            $request->setMerchantAuthentication($this->merchantCredentials());
+            $request->setCustomerProfileId($customerProfileId);
+            $request->setCustomerPaymentProfileId($customerPaymentProfileId);
+        
+            $controller = new AnetController\GetCustomerPaymentProfileController($request);
+            $response = $this->getControllerResponse($controller);
+            if (($response != null) && ($response->getMessages()->getResultCode() == "Ok")) {
+                
+                $billto = $this->billToAddress($response);
+            
+                $creditCard = new AnetAPI\CreditCardType();
+                $creditCard->setCardNumber($response->getPaymentProfile()->getPayment()->getCreditCard()->getCardNumber());
+                $creditCard->setExpirationDate($exp_date);
+            
+                $paymentCreditCard = new AnetAPI\PaymentType();
+                $paymentCreditCard->setCreditCard($creditCard);
+                $paymentprofile = new AnetAPI\CustomerPaymentProfileExType();
+                //$paymentprofile->setBillTo($billto);
+                $paymentprofile->setCustomerPaymentProfileId($customerPaymentProfileId);
+                $paymentprofile->setPayment($paymentCreditCard);
+            
+                $paymentprofile->setBillTo($billto);
+            
+                // Submit a UpdatePaymentProfileRequest
+                $request = new AnetAPI\UpdateCustomerPaymentProfileRequest();
+                $request->setMerchantAuthentication($this->merchantCredentials());
+                $request->setCustomerProfileId($customerProfileId);
+                $request->setPaymentProfile($paymentprofile);
+            
+                $controller = new AnetController\UpdateCustomerPaymentProfileController($request);
+                $response = $this->getControllerResponse($controller);
+                $error = true;
+                if (($response != null) && ($response->getMessages()->getResultCode() == "Ok")) {
+                    $Message = $response->getMessages()->getMessage();
+                    $error = false;
+                    $logData = "Update Customer Payment Profile SUCCESS: " . $Message[0]->getCode() . "  " . $Message[0]->getText() . "\n";
+                    $save = $this->saveCard();
+                    $this->updateCCToken($_SESSION['customer_id'], $customerPaymentProfileId, $exp_date, $save);
+                } else {
+                    if ($response != null) {
+                        $errorMessages = $response->getMessages()->getMessage();
+                        $logData = "Failed to Update Customer Payment Profile :  " . $errorMessages[0]->getCode() . "  " . $errorMessages[0]->getText() . "\n";
+                    }
+                }
+                $this->logError($logData, $error);
+                return $logData;
+            }
+        }
+        
+        function updateCCToken($custId, $payment_profile, $exp_date, $save)
+        {
+            global $db;
+            
+            $sql = "UPDATE " . TABLE_CUSTOMERS_CC . " SET exp_date = :expDate, enabled = :save, card_last_modified = now()
+            where customers_id = :custID and payment_profile_id = :profID";
+            // (customers_id, payment_profile_id, last_four, exp_date, enabled, card_last_modified)
+            // values (:custID,  :profID, :lastFour, :expDate, :save, now())";
+            $sql = $db->bindVars($sql, ':custID', $custId, 'integer');
+            $sql = $db->bindVars($sql, ':profID', $payment_profile, 'integer');
+            $sql = $db->bindVars($sql, ':expDate', $exp_date, 'string');
+            $sql = $db->bindVars($sql, ':save', $save, 'string');
+            
+            $db->Execute($sql);
+        }
+        
+        function saveCCToken($custId, $payment_profile, $lastfour, $exp_date, $save)
+        {
+            global $db;
+            
+            //$insert_date = '20' . substr($exp_date,2,2) .'-'. substr($exp_date,0,2);
+            $sql = "INSERT " . TABLE_CUSTOMERS_CC . "
+	        (customers_id, payment_profile_id, last_four, exp_date, enabled, card_last_modified)
+	        values (:custID,  :profID, :lastFour, :expDate, :save, now())";
+            $sql = $db->bindVars($sql, ':custID', $custId, 'integer');
+            $sql = $db->bindVars($sql, ':profID', $payment_profile, 'integer');
+            $sql = $db->bindVars($sql, ':lastFour', $lastfour, 'string');
+            $sql = $db->bindVars($sql, ':expDate', $exp_date, 'string');
+            $sql = $db->bindVars($sql, ':save', $save, 'string');
+            
+            $db->Execute($sql);
+        }
+        
+        function chargeCustomerProfile($profileid, $paymentprofileid)
+        {
+            global $order;
+            
+            $profileToCharge = new AnetAPI\CustomerProfilePaymentType();
+            $profileToCharge->setCustomerProfileId($profileid);
+            $paymentProfile = new AnetAPI\PaymentProfileType();
+            $paymentProfile->setPaymentProfileId($paymentprofileid);
+            $profileToCharge->setPaymentProfile($paymentProfile);
+            
+            $transactionRequestType = new AnetAPI\TransactionRequestType();
+            $transactionRequestType->setTransactionType("authCaptureTransaction");
+            $transactionRequestType->setAmount($order->info['total']);
+            $transactionRequestType->setProfile($profileToCharge);
+            
+            if (count($order->products) > 0) {
+                foreach (array_slice($order->products, 0, 30) as $items) {
+                    $lineItem1 = new AnetAPI\LineItemType();
+                    $lineItem1->setItemId(zen_get_prid($items['id']));
+                    $lineItem1->setName(substr(preg_replace('/[^a-z0-9_ ]/i', '',
+                      preg_replace('/&nbsp;/', ' ', $items['name'])), 0, 30));
+                    //$lineItem1->setDescription("Here's the first line item");
+                    $lineItem1->setQuantity($items['qty']);
+                    $lineItem1->setUnitPrice($items['final_price']);
+                    $lineItem1->getTaxable($order->info['tax'] == 0 ? false : true);
+                    $transactionRequestType->addToLineItems($lineItem1);
+                }
+            }
+            
+            $request = new AnetAPI\CreateTransactionRequest();
+            $request->setMerchantAuthentication($this->merchantCredentials());
+            $request->setRefId($this->nextOrderNumber($order->info));
+            $request->setTransactionRequest($transactionRequestType);
+            $controller = new AnetController\CreateTransactionController($request);
+            $response = $this->getControllerResponse($controller);
+            
+            $error = true;
+            if ($response != null) {
+                if ($response->getMessages()->getResultCode() == "Ok") {
+                    $tresponse = $response->getTransactionResponse();
+                    
+                    if ($tresponse != null && $tresponse->getMessages() != null) {
+                        $error = false;
+                        $logData = "Transaction Response code : " . $tresponse->getResponseCode() . "\n";
+                        $logData .= " Charge Customer Profile APPROVED  :" . "\n";
+                        $logData .= " Charge Customer Profile AUTH CODE : " . $tresponse->getAuthCode() . "\n";
+                        $this->approvalCode = $tresponse->getAuthCode();
+                        $logData .= " Charge Customer Profile TRANS ID  : " . $tresponse->getTransId() . "\n";
+                        $this->transID = $tresponse->getTransId();
+                        $logData .= " Code : " . $tresponse->getMessages()[0]->getCode() . "\n";
+                        $logData .= " Description : " . $tresponse->getMessages()[0]->getDescription() . "\n";
+                        
+                        $this->insertPayment($tresponse->getTransId(),
+                          $order->billing['firstname'] . ' ' . $order->billing['lastname'],
+                          $order->info['total'], $this->code, $this->params['customerPaymentProfileId'],
+                          $tresponse->getAuthCode(),
+                          (isset($order->customer['id']) ? $order->customer['id'] : $_SESSION['customer_id']));
+                    } else {
+                        $logData = "Transaction Failed \n";
+                        if ($tresponse->getErrors() != null) {
+                            $logData .= " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
+                            $logData .= " Error message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
+                        }
+                    }
+                } else {
+                    $logData = "Transaction Failed \n";
+                    $tresponse = $response->getTransactionResponse();
+                    if ($tresponse != null && $tresponse->getErrors() != null) {
+                        $logData .= " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
+                        $logData .= " Error message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
+                    } else {
+                        $logData .= " Error code  : " . $response->getMessages()->getMessage()[0]->getCode() . "\n";
+                        $logData .= " Error message : " . $response->getMessages()->getMessage()[0]->getText() . "\n";
+                    }
+                }
+            } else {
+                $logData = "No response returned \n";
+            }
+            $this->logError($logData, $error);
+            return $response;
+        }
+        
+        function nextOrderNumber($order)
+        {
+            global $db;
+            if (isset($order['orders_id'])) {
+                return $order['orders_id'];
+            } else {
+                $nextID = $db->Execute("SELECT (orders_id + 1) AS nextID FROM " . TABLE_ORDERS . " ORDER BY orders_id DESC LIMIT 1");
+                $nextID = $nextID->fields['nextID'];
+                return $nextID;
+            }
+        }
+        
+        function insertPayment($transID, $name, $total, $type, $profileID, $approval, $custID)
+        {
+            global $db;
+            $sql = "insert into " . TABLE_CIM_PAYMENTS . " ( payment_name, payment_amount, payment_type, date_posted, last_modified,  transaction_id, payment_profile_id, approval_code, customers_id)
+VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :approval_code, :custID)";
+            
+            $sql = $db->bindVars($sql, ':transID', $transID, 'string');
+            $sql = $db->bindVars($sql, ':nameFull', $name, 'string');
+            $sql = $db->bindVars($sql, ':amount', $total, 'noquotestring');
+            $sql = $db->bindVars($sql, ':type', $type, 'string');
+            $sql = $db->bindVars($sql, ':paymentProfileID', $profileID, 'string');
+            $sql = $db->bindVars($sql, ':approval_code', $approval, 'string');
+            $sql = $db->bindVars($sql, ':custID', $custID, 'string');
+            $db->Execute($sql);
+        }
+        
         /**
          * Post-process activities. Updates the order-status history data with the auth code from the transaction.
          *
@@ -635,11 +898,45 @@
          */
         function after_process()
         {
-            global $insert_id, $db, $customerID;
+            global $insert_id, $customerID;
             
             $this->updateOrderAndPayment($customerID, $this->transID, $insert_id, $this->approvalCode,
               $this->params['customerPaymentProfileId'], $this->order_status);
             
+        }
+        
+        function updateOrderAndPayment($customerID, $transID, $insertID, $approval, $payment_profile_id, $status)
+        {
+            global $db;
+            
+            $sql = "update  " . TABLE_CIM_PAYMENTS . " set orders_id = :insertID
+            WHERE customers_id = :custId and transaction_id = :transID and orders_id = 0";
+            $sql = $db->bindVars($sql, ':custId', $customerID, 'integer');
+            $sql = $db->bindVars($sql, ':transID', $transID, 'string');
+            $sql = $db->bindVars($sql, ':insertID', $insertID, 'integer');
+            $db->Execute($sql);
+            
+            $this->updateOrderInfo($insertID, $status);
+            
+            $sql = "insert into " . TABLE_ORDERS_STATUS_HISTORY . " (comments, orders_id, orders_status_id, date_added) values (:orderComments, :orderID, :orderStatus, now() )";
+            $sql = $db->bindVars($sql, ':orderComments',
+              'Credit Card payment.  AUTH: ' . $approval . '. TransID: ' . $transID . '.',
+              'string');
+            $sql = $db->bindVars($sql, ':orderID', $insertID, 'integer');
+            $sql = $db->bindVars($sql, ':orderStatus', $status, 'integer');
+            $db->Execute($sql);
+        }
+        
+        function updateOrderInfo($ordersID, $status)
+        {
+            global $db;
+            
+            $sql = "UPDATE " . TABLE_ORDERS . "
+        	SET orders_status = :stat
+        	WHERE orders_id = :orderID ";
+            $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
+            $sql = $db->bindVars($sql, ':stat', $status, 'integer');
+            $db->Execute($sql);
         }
         
         function doCimRefund($ordersID, $refund_amount)
@@ -669,7 +966,7 @@
             }
             
             $details = $this->getTransactionDetails($refund->fields['transaction_id']);
-
+            
             if (strpos($details->getTransaction()->getTransactionStatus(), 'Pending') !== false) {
                 // if the transaction is pending, a void will void all of the amount
                 $response = $this->voidTransaction($ordersID, $refund, $max_refund);
@@ -684,7 +981,7 @@
                 return false;
             }
         }
-    
+        
         function getTransactionDetails($transactionId)
         {
             $request = new AnetAPI\GetTransactionDetailsRequest();
@@ -709,7 +1006,91 @@
             
             return $response;
         }
-    
+        
+        function voidTransaction($ordersID, $refund, $refund_amount)
+        {
+            $transactionRequestType = new AnetAPI\TransactionRequestType();
+            $transactionRequestType->setTransactionType("voidTransaction");
+            $transactionRequestType->setRefTransId(trim($refund->fields['transaction_id']));
+            
+            $request = new AnetAPI\CreateTransactionRequest();
+            $request->setMerchantAuthentication($this->merchantCredentials());
+            $request->setRefId($ordersID);
+            $request->setTransactionRequest($transactionRequestType);
+            $controller = new AnetController\CreateTransactionController($request);
+            $response = $this->getControllerResponse($controller);
+            
+            $error = true;
+            if ($response != null) {
+                if ($response->getMessages()->getResultCode() == "Ok") {
+                    $tresponse = $response->getTransactionResponse();
+                    
+                    if ($tresponse != null && $tresponse->getMessages() != null) {
+                        
+                        $this->insertRefund($refund->fields['payment_id'], $ordersID, $tresponse->getTransId(),
+                          $refund->fields['payment_name'],
+                          $refund->fields['transaction_id'], $refund_amount, 'VOID', $tresponse->getAuthCode());
+                        $this->update_payment($ordersID, $refund->fields['transaction_id'], $refund_amount);
+                        $this->updateOrderInfo($ordersID, MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID);
+                        $error = false;
+                        $logData = " Transaction Response code : " . $tresponse->getResponseCode() . "\n";
+                        $logData .= " Void transaction SUCCESS AUTH CODE: " . $tresponse->getAuthCode() . "\n";
+                        $logData .= " Void transaction SUCCESS TRANS ID  : " . $tresponse->getTransId() . "\n";
+                        $logData .= " Code : " . $tresponse->getMessages()[0]->getCode() . "\n";
+                        $logData .= " Description : " . $tresponse->getMessages()[0]->getDescription() . "\n";
+                    } else {
+                        $logData = "Transaction Failed \n";
+                        $logData .= "Order ID: " . $ordersID . "\n";
+                        if ($tresponse->getErrors() != null) {
+                            $logData .= " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
+                            $logData .= " Error message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
+                        }
+                    }
+                } else {
+                    $logData = "Transaction Failed \n";
+                    $logData .= "Order ID: " . $ordersID . "\n";
+                    $tresponse = $response->getTransactionResponse();
+                    if ($tresponse != null && $tresponse->getErrors() != null) {
+                        $logData .= " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
+                        $message = $tresponse->getErrors()[0]->getErrorText() . "\n";
+                    } else {
+                        $logData .= " Error code  : " . $response->getMessages()->getMessage()[0]->getCode() . "\n";
+                        $logData .= " Error message : " . $response->getMessages()->getMessage()[0]->getText() . "\n";
+                    }
+                }
+            } else {
+                $logData = "No response returned \n";
+                $logData .= "Order ID: " . $ordersID . "\n";
+            }
+            $this->logError($logData, $error);
+            return $response;
+        }
+        
+        function insertRefund($paymentID, $ordersID, $transID, $name, $payment_trans_id, $amount, $type, $approval_code)
+        {
+            global $db;
+            $sql = "insert into " . TABLE_CIM_REFUNDS . " (payment_id, orders_id, transaction_id, refund_name, refund_amount, refund_type, payment_trans_id, date_posted, approval_code) values (:paymentID, :orderID, :transID, :payment_name, :amount, :type, :payment_trans_id, now(), :apprCode )";
+            $sql = $db->bindVars($sql, ':paymentID', $paymentID, 'integer');
+            $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
+            $sql = $db->bindVars($sql, ':transID', $transID, 'string');
+            $sql = $db->bindVars($sql, ':payment_name', $name, 'string');
+            $sql = $db->bindVars($sql, ':type', $type, 'string');
+            $sql = $db->bindVars($sql, ':apprCode', $approval_code, 'string');
+            $sql = $db->bindVars($sql, ':payment_trans_id', trim($payment_trans_id), 'string');
+            $sql = $db->bindVars($sql, ':amount', $amount, 'noquotestring');
+            $db->Execute($sql);
+        }
+        
+        function update_payment($ordersID, $transID, $amount)
+        {
+            global $db;
+            $sql = "update " . TABLE_CIM_PAYMENTS . " set refund_amount = (refund_amount + :amount) where transaction_id = :transID and orders_id = :orderID";
+            $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
+            $sql = $db->bindVars($sql, ':transID', trim($transID), 'string');
+            $sql = $db->bindVars($sql, ':amount', $amount, 'noquotestring');
+            $db->Execute($sql);
+        }
+        
         function refundTransaction($ordersID, $refund, $refund_amount)
         {
             $profileToCharge = new AnetAPI\CustomerProfilePaymentType();
@@ -717,36 +1098,36 @@
             $paymentProfile = new AnetAPI\PaymentProfileType();
             $paymentProfile->setPaymentProfileId($refund->fields['payment_profile_id']);
             $profileToCharge->setPaymentProfile($paymentProfile);
-        
+            
             //create a transaction
             $transactionRequest = new AnetAPI\TransactionRequestType();
             $transactionRequest->setTransactionType("refundTransaction");
             $transactionRequest->setAmount($refund_amount);
             $transactionRequest->setProfile($profileToCharge);
             $transactionRequest->setRefTransId($refund->fields['transaction_id']);
-        
-        
+            
+            
             $request = new AnetAPI\CreateTransactionRequest();
             $request->setMerchantAuthentication($this->merchantCredentials());
             $request->setRefId($ordersID);
             $request->setTransactionRequest($transactionRequest);
             $controller = new AnetController\CreateTransactionController($request);
             $response = $this->getControllerResponse($controller);
-        
+            
             $error = true;
             if ($response != null) {
                 if ($response->getMessages()->getResultCode() == "Ok") {
                     $tresponse = $response->getTransactionResponse();
-                
+                    
                     if ($tresponse != null && $tresponse->getMessages() != null) {
                         $error = false;
                         $logData = " Transaction Response code : " . $tresponse->getResponseCode() . "\n";
                         $logData .= " Refund SUCCESS: " . $tresponse->getTransId() . "\n";
                         $logData .= " Code : " . $tresponse->getMessages()[0]->getCode() . "\n";
                         $logData .= " Description : " . $tresponse->getMessages()[0]->getDescription() . "\n";
-    
-                        $this->insertRefund($refund->fields['payment_id'], $ordersID,  $tresponse->getTransId(),
-                          $refund->fields['payment_name'], $refund->fields['transaction_id'], $refund_amount,'REF',
+                        
+                        $this->insertRefund($refund->fields['payment_id'], $ordersID, $tresponse->getTransId(),
+                          $refund->fields['payment_name'], $refund->fields['transaction_id'], $refund_amount, 'REF',
                           $tresponse->getMessages()[0]->getCode());
                         $this->update_payment($ordersID, $refund->fields['transaction_id'], $refund_amount);
                         $update_status = $this->checkZeroBalance($ordersID);
@@ -779,7 +1160,7 @@
             $this->logError($logData, $error);
             return $response;
         }
-    
+        
         function checkZeroBalance($ordersID)
         {
             global $db;
@@ -798,7 +1179,7 @@
             }
             return false;
         }
-    
+        
         function get_error()
         {
             $error = array(
@@ -807,7 +1188,7 @@
             );
             return $error;
         }
-    
+        
         function check()
         {
             global $db;
@@ -815,7 +1196,9 @@
                 $check_query = $db->Execute("select configuration_value from " . TABLE_CONFIGURATION . " where configuration_key = 'MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS'");
                 $this->_check = $check_query->RecordCount();
             }
-            if ($this->_check > 0) $this->install(); // install any missing keys
+            if ($this->_check > 0) {
+                $this->install();
+            } // install any missing keys
             
             return $this->_check;
         }
@@ -860,444 +1243,8 @@
             if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING')) {
                 $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Debug Mode', 'MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING', 'Off', 'Would you like to enable debug mode?  Failed transactions will always be logged in the cim_response.log file in your ZC logs directory.', '6', '17', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
             }
-        
+            
             $this->tableCheckup();
-        }
-    
-        function remove()
-        {
-            global $db;
-            $db->Execute("delete from " . TABLE_CONFIGURATION . " where configuration_key like 'MODULE\_PAYMENT\_AUTHORIZENET\_CIM\_%'");
-        }
-
-        function keys()
-        {
-            return array(
-              'MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS',
-              'MODULE_PAYMENT_AUTHORIZENET_CIM_LOGIN',
-              'MODULE_PAYMENT_AUTHORIZENET_CIM_TXNKEY',
-              'MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE',
-              //'MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE',
-              //'MODULE_PAYMENT_AUTHORIZENET_CIM_STORE_DATA',
-              //'MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_CUSTOMER',
-              //'MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_MERCHANT',
-              'MODULE_PAYMENT_AUTHORIZENET_CIM_USE_CVV',
-              'MODULE_PAYMENT_AUTHORIZENET_CIM_VALIDATION',
-              'MODULE_PAYMENT_AUTHORIZENET_CIM_SORT_ORDER',
-              'MODULE_PAYMENT_AUTHORIZENET_CIM_ZONE',
-              'MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID',
-              'MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID',
-              'MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING',
-            );
-        }
-        
-        function deleteStoredData($customer_id, $customerProfileID)
-        {
-            $cards = $this->getCustomerCards($customer_id, true);
-            foreach ($cards as $card) {
-                $this->deleteCustomerPaymentProfile($customerProfileID, $card['payment_profile_id']);
-            }
-            // i think i best to keep the profile in case one needs to do a refund on an existing transaction.
-            //$this->deleteCustomerProfile($customerProfileID);
-        }
-        
-        function getCustomerCards($customerID, $all = false)
-        {
-            global $db;
-            $sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . " WHERE customers_id = :custID AND payment_profile_id <> 0";
-            if (!$all) {
-                $sql .= " and enabled = 'Y'";
-            }
-            $sql = $db->bindVars($sql, ':custID', $customerID, 'integer');
-            $customer_cards = $db->Execute($sql);
-            
-            return $customer_cards;
-        }
-    
-        function voidTransaction($ordersID, $refund, $refund_amount)
-        {
-            $transactionRequestType = new AnetAPI\TransactionRequestType();
-            $transactionRequestType->setTransactionType("voidTransaction");
-            $transactionRequestType->setRefTransId(trim($refund->fields['transaction_id']));
-        
-            $request = new AnetAPI\CreateTransactionRequest();
-            $request->setMerchantAuthentication($this->merchantCredentials());
-            $request->setRefId($ordersID);
-            $request->setTransactionRequest($transactionRequestType);
-            $controller = new AnetController\CreateTransactionController($request);
-            $response = $this->getControllerResponse($controller);
-    
-            $error = true;
-            if ($response != null) {
-                if ($response->getMessages()->getResultCode() == "Ok") {
-                    $tresponse = $response->getTransactionResponse();
-            
-                    if ($tresponse != null && $tresponse->getMessages() != null) {
-                
-                        $this->insertRefund($refund->fields['payment_id'], $ordersID, $tresponse->getTransId(),
-                          $refund->fields['payment_name'],
-                          $refund->fields['transaction_id'], $refund_amount, 'VOID', $tresponse->getAuthCode());
-                        $this->update_payment($ordersID, $refund->fields['transaction_id'], $refund_amount);
-                        $this->updateOrderInfo($ordersID, MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID);
-                        $error = false;
-                        $logData = " Transaction Response code : " . $tresponse->getResponseCode() . "\n";
-                        $logData .= " Void transaction SUCCESS AUTH CODE: " . $tresponse->getAuthCode() . "\n";
-                        $logData .= " Void transaction SUCCESS TRANS ID  : " . $tresponse->getTransId() . "\n";
-                        $logData .= " Code : " . $tresponse->getMessages()[0]->getCode() . "\n";
-                        $logData .= " Description : " . $tresponse->getMessages()[0]->getDescription() . "\n";
-                    } else {
-                        $logData = "Transaction Failed \n";
-                        $logData .= "Order ID: " . $ordersID . "\n";
-                        if ($tresponse->getErrors() != null) {
-                            $logData .= " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
-                            $logData .= " Error message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
-                        }
-                    }
-                } else {
-                    $logData = "Transaction Failed \n";
-                    $logData .= "Order ID: " . $ordersID . "\n";
-                    $tresponse = $response->getTransactionResponse();
-                    if ($tresponse != null && $tresponse->getErrors() != null) {
-                        $logData .= " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
-                        $message = $tresponse->getErrors()[0]->getErrorText() . "\n";
-                    } else {
-                        $logData .= " Error code  : " . $response->getMessages()->getMessage()[0]->getCode() . "\n";
-                        $logData .= " Error message : " . $response->getMessages()->getMessage()[0]->getText() . "\n";
-                    }
-                }
-            } else {
-                $logData = "No response returned \n";
-                $logData .= "Order ID: " . $ordersID . "\n";
-            }
-            $this->logError($logData, $error);
-            return $response;
-        }
-    
-        function nextOrderNumber($order)
-        {
-            global $db;
-            if (isset($order['orders_id'])) {
-                return $order['orders_id'];
-            } else {
-                $nextID = $db->Execute("SELECT (orders_id + 1) AS nextID FROM " . TABLE_ORDERS . " ORDER BY orders_id DESC LIMIT 1");
-                $nextID = $nextID->fields['nextID'];
-                return $nextID;
-            }
-        }
-        
-        function updateCustomer($customerID, $profileID)
-        {
-            global $db;
-            $sql = "UPDATE " . TABLE_CUSTOMERS . "
-            SET customers_customerProfileId = :profileID
-            WHERE customers_id = :custID ";
-            $sql = $db->bindVars($sql, ':custID', $customerID, 'integer');
-            $sql = $db->bindVars($sql, ':profileID', $profileID, 'integer');
-            $db->Execute($sql);
-        }
-        
-        function getCustomerProfile($customer_id)
-        {
-            global $db;
-            $sql = "SELECT customers_customerProfileId FROM " . TABLE_CUSTOMERS . "
-            WHERE customers_id = :custId ";
-            $sql = $db->bindVars($sql, ':custId', $customer_id, 'string');
-            $check_customer = $db->Execute($sql);
-            
-            if ($check_customer->fields['customers_customerProfileId'] !== 0) {
-                $customerProfileId = $check_customer->fields['customers_customerProfileId'];
-            } else {
-                $customerProfileId = false;
-            }
-            return $customerProfileId;
-        }
-        
-        function getCustomerPaymentProfile($customer_id, $last_four)
-        {
-            global $db;
-            
-            $sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . "
-            WHERE customers_id = :custId and last_four = :last4 order by index_id desc limit 1";
-            $sql = $db->bindVars($sql, ':custId', $customer_id, 'string');
-            $sql = $db->bindVars($sql, ':last4', $last_four, 'string');
-            $check_customer_cc = $db->Execute($sql);
-            
-            if ($check_customer_cc->fields['payment_profile_id'] !== 0) {
-                $paymentProfileId = $check_customer_cc->fields['payment_profile_id'];
-                $exp_date = $check_customer_cc->fields['exp_date'];
-            } else {
-                $paymentProfileId = false;
-                $exp_date = false;
-            }
-            return array('profile' => $paymentProfileId, 'exp_date' => $exp_date);
-        }
-        
-        function saveCCToken($custId, $payment_profile, $lastfour, $exp_date, $save)
-        {
-            global $db;
-
-            $insert_date = '20' . substr($exp_date,2,2) .'-'. substr($exp_date,0,2);
-            $sql = "INSERT " . TABLE_CUSTOMERS_CC . "
-	        (customers_id, payment_profile_id, last_four, exp_date, enabled, card_last_modified)
-	        values (:custID,  :profID, :lastFour, :expDate, :save, now())";
-            $sql = $db->bindVars($sql, ':custID', $custId, 'integer');
-            $sql = $db->bindVars($sql, ':profID', $payment_profile, 'integer');
-            $sql = $db->bindVars($sql, ':lastFour', $lastfour, 'string');
-            $sql = $db->bindVars($sql, ':expDate', $insert_date, 'string');
-            $sql = $db->bindVars($sql, ':save', $save, 'string');
-            
-            $db->Execute($sql);
-        }
-    
-        function updateCCToken($custId, $payment_profile, $exp_date, $save)
-        {
-            global $db;
-        
-            $sql = "UPDATE " . TABLE_CUSTOMERS_CC . " SET exp_date = :expDate, enabled = :save, card_last_modified = now()
-            where customers_id = :custID and payment_profile_id = :profID";
-	       // (customers_id, payment_profile_id, last_four, exp_date, enabled, card_last_modified)
-	       // values (:custID,  :profID, :lastFour, :expDate, :save, now())";
-            $sql = $db->bindVars($sql, ':custID', $custId, 'integer');
-            $sql = $db->bindVars($sql, ':profID', $payment_profile, 'integer');
-            $sql = $db->bindVars($sql, ':expDate', $exp_date, 'string');
-            $sql = $db->bindVars($sql, ':save', $save, 'string');
-        
-            $db->Execute($sql);
-        }
-        
-        function updateOrderInfo($ordersID, $status)
-        {
-            global $db;
-            
-            $sql = "UPDATE " . TABLE_ORDERS . "
-        	SET orders_status = :stat
-        	WHERE orders_id = :orderID ";
-            $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
-            $sql = $db->bindVars($sql, ':stat', $status, 'integer');
-            $db->Execute($sql);
-        }
-        
-        function insertPayment($transID, $name, $total, $type, $profileID, $approval, $custID)
-        {
-            global $db;
-            $sql = "insert into " . TABLE_CIM_PAYMENTS . " ( payment_name, payment_amount, payment_type, date_posted, last_modified,  transaction_id, payment_profile_id, approval_code, customers_id)
-VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :approval_code, :custID)";
-            
-            $sql = $db->bindVars($sql, ':transID', $transID, 'string');
-            $sql = $db->bindVars($sql, ':nameFull', $name, 'string');
-            $sql = $db->bindVars($sql, ':amount', $total, 'noquotestring');
-            $sql = $db->bindVars($sql, ':type', $type, 'string');
-            $sql = $db->bindVars($sql, ':paymentProfileID', $profileID, 'string');
-            $sql = $db->bindVars($sql, ':approval_code', $approval, 'string');
-            $sql = $db->bindVars($sql, ':custID', $custID, 'string');
-            $db->Execute($sql);
-        }
-        
-        function insertRefund($paymentID, $ordersID, $transID, $name, $payment_trans_id, $amount, $type, $approval_code)
-        {
-            global $db;
-            $sql = "insert into " . TABLE_CIM_REFUNDS . " (payment_id, orders_id, transaction_id, refund_name, refund_amount, refund_type, payment_trans_id, date_posted, approval_code) values (:paymentID, :orderID, :transID, :payment_name, :amount, :type, :payment_trans_id, now(), :apprCode )";
-            $sql = $db->bindVars($sql, ':paymentID', $paymentID, 'integer');
-            $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
-            $sql = $db->bindVars($sql, ':transID', $transID, 'string');
-            $sql = $db->bindVars($sql, ':payment_name', $name, 'string');
-            $sql = $db->bindVars($sql, ':type', $type, 'string');
-            $sql = $db->bindVars($sql, ':apprCode', $approval_code, 'string');
-            $sql = $db->bindVars($sql, ':payment_trans_id', trim($payment_trans_id), 'string');
-            $sql = $db->bindVars($sql, ':amount', $amount, 'noquotestring');
-            $db->Execute($sql);
-        }
-        
-        function update_payment($ordersID, $transID, $amount)
-        {
-            global $db;
-            $sql = "update " . TABLE_CIM_PAYMENTS . " set refund_amount = (refund_amount + :amount) where transaction_id = :transID and orders_id = :orderID";
-            $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
-            $sql = $db->bindVars($sql, ':transID', trim($transID), 'string');
-            $sql = $db->bindVars($sql, ':amount', $amount, 'noquotestring');
-            $db->Execute($sql);
-        }
-        
-        // returns payment profile ID or false if the index is not found or it does not match the logged in customer.
-        function checkValidProfile($customerID, $cc_index)
-        {
-            global $db;
-            $sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . "
-            WHERE index_id = :indexID";
-            $sql = $db->bindVars($sql, ':indexID', $cc_index, 'integer');
-            $check_customer_cc = $db->Execute($sql);
-            
-            if ($check_customer_cc->fields['customers_id'] !== $customerID) {
-                $return = false;
-            } else {
-                $return = $check_customer_cc->fields['payment_profile_id'];
-            }
-            return $return;
-            
-        }
-        
-        function updateOrderAndPayment($customerID, $transID, $insertID, $approval, $payment_profile_id, $status)
-        {
-            global $db;
-    
-            $sql = "update  " . TABLE_CIM_PAYMENTS . " set orders_id = :insertID
-            WHERE customers_id = :custId and transaction_id = :transID and orders_id = 0";
-            $sql = $db->bindVars($sql, ':custId', $customerID, 'integer');
-            $sql = $db->bindVars($sql, ':transID', $transID, 'string');
-            $sql = $db->bindVars($sql, ':insertID', $insertID, 'integer');
-            $db->Execute($sql);
-            
-            $this->updateOrderInfo($insertID, $status);
-            
-            $sql = "insert into " . TABLE_ORDERS_STATUS_HISTORY . " (comments, orders_id, orders_status_id, date_added) values (:orderComments, :orderID, :orderStatus, now() )";
-            $sql = $db->bindVars($sql, ':orderComments',
-              'Credit Card payment.  AUTH: ' . $approval . '. TransID: ' . $transID . '.',
-              'string');
-            $sql = $db->bindVars($sql, ':orderID', $insertID, 'integer');
-            $sql = $db->bindVars($sql, ':orderStatus', $status, 'integer');
-            $db->Execute($sql);
-        }
-    
-        function deleteCustomerPaymentProfile($customerProfileId, $customerpaymentprofileid)
-        {
-            global $db;
-            
-            $request = new AnetAPI\DeleteCustomerPaymentProfileRequest();
-            $request->setMerchantAuthentication($this->merchantCredentials());
-            $request->setCustomerProfileId($customerProfileId);
-            $request->setCustomerPaymentProfileId($customerpaymentprofileid);
-            $controller = new AnetController\DeleteCustomerPaymentProfileController($request);
-            $response = $this->getControllerResponse($controller);
-        
-            $error = true;
-            if (($response != null) && ($response->getMessages()->getResultCode() == "Ok")) {
-                $error = false;
-                $logData = "SUCCESS: Delete Customer Payment Profile  SUCCESS  :" . "\n";
-            } else {
-                $logData = "ERROR :  Delete Customer Payment Profile: Invalid response\n";
-                $errorMessages = $response->getMessages()->getMessage();
-                $logData .= "Response : " . $errorMessages[0]->getCode() . "  " . $errorMessages[0]->getText() . "\n";
-            }
-            $this->logError($logData, $error);
-    
-            $sql = "delete from " . TABLE_CUSTOMERS_CC . "  WHERE payment_profile_id = :profileID ";
-            $sql = $db->bindVars($sql, ':profileID', $customerpaymentprofileid, 'integer');
-            $db->Execute($sql);
-            
-            return $response;
-        }
-    
-        function deleteCustomerProfile($customerProfileId)
-        {
-            global $db;
-        
-            $request = new AnetAPI\DeleteCustomerProfileRequest();
-            $request->setMerchantAuthentication($this->merchantCredentials());
-            $request->setCustomerProfileId($customerProfileId);
-        
-            $controller = new AnetController\DeleteCustomerProfileController($request);
-            $response = $this->getControllerResponse($controller);
-        
-            $error = true;
-            if (($response != null) && ($response->getMessages()->getResultCode() == "Ok")) {
-                $error = false;
-                $logData = "DeleteCustomerProfile SUCCESS : " . "\n";
-            } else {
-                $logData = "ERROR :  DeleteCustomerProfile: Invalid response\n";
-                $errorMessages = $response->getMessages()->getMessage();
-                $logData .= "Response : " . $errorMessages[0]->getCode() . "  " . $errorMessages[0]->getText() . "\n";
-            }
-    
-            $this->logError($logData, $error);
-    
-            $sql = "UPDATE " . TABLE_CUSTOMERS . " set customers_customerProfileId = 0
-		            WHERE customers_customerProfileId = :profileID ";
-            $sql = $db->bindVars($sql, ':profileID', $customerProfileId, 'integer');
-            $db->Execute($sql);
-        
-            return $response;
-        }
-    
-        function updateCustomerPaymentProfile($customerProfileId, $customerPaymentProfileId)
-        {
-            global $customer_id;
-            /*
-              $request = new AnetAPI\GetCustomerPaymentProfileRequest();
-              $request->setMerchantAuthentication($this->merchantCredentials());
-              $request->setCustomerProfileId($customerProfileId);
-              $request->setCustomerPaymentProfileId($customerPaymentProfileId);
-              
-              $controller = new AnetController\GetCustomerPaymentProfileController($request);
-              $response = $controller->executeWithApiResponse( \net\authorize\api\constants\ANetEnvironment::SANDBOX);
-              if (($response != null) && ($response->getMessages()->getResultCode() == "Ok"))
-              {*/
-            //$billto = new AnetAPI\CustomerAddressType();
-            //$billto = $response->getPaymentProfile()->getbillTo();
-        
-            $creditCard = new AnetAPI\CreditCardType();
-            $creditCard->setCardNumber($_POST['cc_number']);
-            $creditCard->setExpirationDate($_POST['cc_expires_date']);
-        
-            $paymentCreditCard = new AnetAPI\PaymentType();
-            $paymentCreditCard->setCreditCard($creditCard);
-            $paymentprofile = new AnetAPI\CustomerPaymentProfileExType();
-            //$paymentprofile->setBillTo($billto);
-            $paymentprofile->setCustomerPaymentProfileId($customerPaymentProfileId);
-            $paymentprofile->setPayment($paymentCreditCard);
-        
-            // We're updating the billing address but everything has to be passed in an update
-            // For card information you can pass exactly what comes back from an GetCustomerPaymentProfile
-            // if you don't need to update that info
-        
-            /* Update the Bill To info for new payment type
-            $billto->setFirstName("Mrs Mary");
-            $billto->setLastName("Doe");
-            $billto->setAddress("9 New St.");
-            $billto->setCity("Brand New City");
-            $billto->setState("WA");
-            $billto->setZip("98004");
-            $billto->setPhoneNumber("000-000-0000");
-            $billto->setfaxNumber("999-999-9999");
-            $billto->setCountry("USA");
-            
-            // Update the Customer Payment Profile object
-            $paymentprofile->setBillTo($billto);
-            */
-        
-            // Submit a UpdatePaymentProfileRequest
-            $request = new AnetAPI\UpdateCustomerPaymentProfileRequest();
-            $request->setMerchantAuthentication($this->merchantCredentials());
-            $request->setCustomerProfileId($customerProfileId);
-            $request->setPaymentProfile($paymentprofile);
-        
-            $controller = new AnetController\UpdateCustomerPaymentProfileController($request);
-            $response = $this->getControllerResponse($controller);
-            $error = true;
-            if (($response != null) && ($response->getMessages()->getResultCode() == "Ok")) {
-                $Message = $response->getMessages()->getMessage();
-                $error = false;
-                $logData =  "Update Customer Payment Profile SUCCESS: " . $Message[0]->getCode() . "  " . $Message[0]->getText() . "\n";
-                $save = 'N';
-                if ($_POST['cc_save'] == 'on') {
-                    $save = 'Y';
-                }
-                $this->updateCCToken($_SESSION['customer_id'], $customerPaymentProfileId, $_POST['cc_expires_date'], $save);
-            } else {
-                if ($response != null) {
-                    $errorMessages = $response->getMessages()->getMessage();
-                    $logData = "Failed to Update Customer Payment Profile :  " . $errorMessages[0]->getCode() . "  " . $errorMessages[0]->getText() . "\n";
-                }
-            }
-            $this->logError($logData, $error);
-        
-            /*	return $response;
-            }
-            else
-            {
-              echo "Failed to Get Customer Payment Profile :  " . $errorMessages[0]->getCode() . "  " .$errorMessages[0]->getText() . "\n";
-            }
-          */
-            return $response;
         }
     
         protected function tableCheckup()
@@ -1395,5 +1342,137 @@ CREATE TABLE `" . TABLE_CUSTOMERS_CC . "` (
             if ($fieldOkay2 !== true) {
                 $db->Execute("ALTER TABLE " . TABLE_CUSTOMERS . " ADD COLUMN `customers_customerProfileId`        int(11) NOT NULL DEFAULT 0 after `customers_paypal_ec`");
             }
+        }
+        
+        function remove()
+        {
+            global $db;
+            $db->Execute("delete from " . TABLE_CONFIGURATION . " where configuration_key like 'MODULE\_PAYMENT\_AUTHORIZENET\_CIM\_%'");
+        }
+        
+        function keys()
+        {
+            return array(
+              'MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS',
+              'MODULE_PAYMENT_AUTHORIZENET_CIM_LOGIN',
+              'MODULE_PAYMENT_AUTHORIZENET_CIM_TXNKEY',
+              'MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE',
+                //'MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE',
+                //'MODULE_PAYMENT_AUTHORIZENET_CIM_STORE_DATA',
+                //'MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_CUSTOMER',
+                //'MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_MERCHANT',
+              'MODULE_PAYMENT_AUTHORIZENET_CIM_USE_CVV',
+              'MODULE_PAYMENT_AUTHORIZENET_CIM_VALIDATION',
+              'MODULE_PAYMENT_AUTHORIZENET_CIM_SORT_ORDER',
+              'MODULE_PAYMENT_AUTHORIZENET_CIM_ZONE',
+              'MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID',
+              'MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID',
+              'MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING',
+            );
+        }
+        
+        // returns payment profile ID or false if the index is not found or it does not match the logged in customer.
+
+        function deleteStoredData($customer_id, $customerProfileID)
+        {
+            $cards = $this->getCustomerCards($customer_id, true);
+            foreach ($cards as $card) {
+                $this->deleteCustomerPaymentProfile($customerProfileID, $card['payment_profile_id']);
+            }
+            // i think i best to keep the profile in case one needs to do a refund on an existing transaction.
+            //$this->deleteCustomerProfile($customerProfileID);
+        }
+        
+        function getCustomerCards($customerID, $all = false)
+        {
+            global $db;
+            $sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . " WHERE customers_id = :custID AND payment_profile_id <> 0";
+            if (!$all) {
+                $sql .= " and enabled = 'Y'";
+            }
+            $sql = $db->bindVars($sql, ':custID', $customerID, 'integer');
+            $customer_cards = $db->Execute($sql);
+            
+            return $customer_cards;
+        }
+        
+        function deleteCustomerPaymentProfile($customerProfileId, $customerpaymentprofileid)
+        {
+            global $db;
+            
+            $request = new AnetAPI\DeleteCustomerPaymentProfileRequest();
+            $request->setMerchantAuthentication($this->merchantCredentials());
+            $request->setCustomerProfileId($customerProfileId);
+            $request->setCustomerPaymentProfileId($customerpaymentprofileid);
+            $controller = new AnetController\DeleteCustomerPaymentProfileController($request);
+            $response = $this->getControllerResponse($controller);
+            
+            $error = true;
+            if (($response != null) && ($response->getMessages()->getResultCode() == "Ok")) {
+                $error = false;
+                $logData = "SUCCESS: Delete Customer Payment Profile" . "\n";
+            } else {
+                $logData = "ERROR :  Delete Customer Payment Profile: Invalid response\n";
+                $errorMessages = $response->getMessages()->getMessage();
+                $logData .= "Response : " . $errorMessages[0]->getCode() . "  " . $errorMessages[0]->getText() . "\n";
+            }
+            $this->logError($logData, $error);
+            
+            $sql = "delete from " . TABLE_CUSTOMERS_CC . "  WHERE payment_profile_id = :profileID ";
+            $sql = $db->bindVars($sql, ':profileID', $customerpaymentprofileid, 'integer');
+            $db->Execute($sql);
+            
+            return $logData;
+        }
+        
+        function checkValidPaymentProfile($customerID, $cc_index)
+        {
+            global $db;
+            $sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . "
+            WHERE index_id = :indexID";
+            $sql = $db->bindVars($sql, ':indexID', $cc_index, 'integer');
+            $check_customer_cc = $db->Execute($sql);
+            
+            if ($check_customer_cc->fields['customers_id'] !== $customerID) {
+                $return['valid'] = false;
+            } else {
+                $return['payment_profile_id'] = $check_customer_cc->fields['payment_profile_id'];
+                $return['valid'] = true;
+                $return['last_four'] = $check_customer_cc->fields['last_four'];
+                $return['exp_date'] = $check_customer_cc->fields['exp_date'];
+            }
+            return $return;
+            
+        }
+        
+        function deleteCustomerProfile($customerProfileId)
+        {
+            global $db;
+            
+            $request = new AnetAPI\DeleteCustomerProfileRequest();
+            $request->setMerchantAuthentication($this->merchantCredentials());
+            $request->setCustomerProfileId($customerProfileId);
+            
+            $controller = new AnetController\DeleteCustomerProfileController($request);
+            $response = $this->getControllerResponse($controller);
+            
+            $error = true;
+            if (($response != null) && ($response->getMessages()->getResultCode() == "Ok")) {
+                $error = false;
+                $logData = "DeleteCustomerProfile SUCCESS : " . "\n";
+            } else {
+                $logData = "ERROR :  DeleteCustomerProfile: Invalid response\n";
+                $errorMessages = $response->getMessages()->getMessage();
+                $logData .= "Response : " . $errorMessages[0]->getCode() . "  " . $errorMessages[0]->getText() . "\n";
+            }
+            
+            $this->logError($logData, $error);
+            
+            $sql = "UPDATE " . TABLE_CUSTOMERS . " set customers_customerProfileId = 0
+		            WHERE customers_customerProfileId = :profileID ";
+            $sql = $db->bindVars($sql, ':profileID', $customerProfileId, 'integer');
+            $db->Execute($sql);
+            
+            return $response;
         }
     }
