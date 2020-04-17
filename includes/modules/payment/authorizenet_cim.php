@@ -575,69 +575,6 @@
             }
         }
         
-        function saveCard()
-        {
-            if (($_POST['cc_save'] == 'on') || ($_POST['new_cid'] == 'NEW') || isset($_POST['update_cid'])) {
-                return 'Y';
-            } else {
-                return 'N';
-            }
-        }
-        
-        function getAddressInfo($response = null)
-        {
-            // for card_update
-            global $customerID, $db;
-    
-            $return = [];
-            if ($_POST['address_selection'] == 'new') {
-                if (!is_null($response)) {
-                    $return['firstname'] = $response->getbillTo()->getfirstName();
-                    $return['lastname'] = $response->getbillTo()->getLastName();;
-                } else {
-                    $sql = "SELECT customers_firstname, customers_lastname from " . TABLE_CUSTOMERS . "
-                      WHERE customers_id = :custID";
-                    $sql = $db->bindVars($sql, ':custID', $customerID, 'integer');
-                    $customer = $db->Execute($sql);
-                    $return['firstname'] = $customer->fields['customers_firstname'];
-                    $return['lastname'] = $customer->fields['customers_lastname'];
-                }
-                $return['street_address'] = $_POST['street_address'];
-                $return['city'] = $_POST['city'];
-                $return['state'] = $_POST['state'];
-                $return['postcode'] = $_POST['postcode'];
-                //for foreign countries, customer would need to create new address and select it.
-                // pain but do not want to redo whole thing here.
-                $return['country']['title'] = 'United States';
-        
-            } else {
-                // from order class
-                $sql = "select ab.entry_firstname, ab.entry_lastname, ab.entry_company,
-                                   ab.entry_street_address, ab.entry_suburb, ab.entry_postcode,
-                                   ab.entry_city, ab.entry_zone_id, z.zone_name, ab.entry_country_id,
-                                   c.countries_id, c.countries_name, c.countries_iso_code_2,
-                                   c.countries_iso_code_3, c.address_format_id, ab.entry_state
-                                  from " . TABLE_ADDRESS_BOOK . " ab
-                                  left join " . TABLE_ZONES . " z on (ab.entry_zone_id = z.zone_id)
-                                  left join " . TABLE_COUNTRIES . " c on (ab.entry_country_id = c.countries_id)
-                                  where ab.customers_id = :custID
-                                  and ab.address_book_id = :addBookID";
-                $sql = $db->bindVars($sql, ':custID', $customerID, 'integer');
-                $sql = $db->bindVars($sql, ':addBookID', $_POST['address_selection'], 'integer');
-                $address = $db->Execute($sql);
-        
-                $return['firstname'] = $address->fields['entry_firstname'];
-                $return['lastname'] = $address->fields['entry_lastname'];
-                $return['company'] = $address->fields['entry_company'];
-                $return['street_address'] = $address->fields['entry_street_address'];
-                $return['city'] = $address->fields['entry_city'];
-                $return['state'] = ((zen_not_null($address->fields['entry_state'])) ? $address->fields['entry_state'] : $address->fields['zone_name']);
-                $return['postcode'] = $address->fields['entry_postcode'];
-                $return['country']['title'] = $address->fields['countries_name'];
-            }
-            return $return;
-        }
-        
         function getCustomerPaymentProfile($customer_id, $last_four)
         {
             global $db;
@@ -658,39 +595,6 @@
             return array('profile' => $paymentProfileId, 'exp_date' => $exp_date);
         }
         
-        function billtoAddress($response = null)
-        {
-            global $order;
-            
-            //for card_update
-            if (isset($_POST['address_selection'])) {
-                // card_update address change
-                $order = new stdClass();
-                $order->billing = $this->getAddressInfo($response);
-            } elseif (!is_object($order)) {
-                // card_update - just update exp date
-                if (!is_null($response)) {
-                    return $response->getPaymentProfile()->getbillTo();
-                } else {
-                    trigger_error('from card update, no payment profile, should never get here');
-                    return;
-                }
-            }
-            // from checkout or getAddressInfo above
-            $billto = new AnetAPI\CustomerAddressType();
-            $billto->setFirstName($order->billing['firstname']);
-            $billto->setLastName($order->billing['lastname']);
-            $billto->setCompany($order->billing['company']);
-            $billto->setAddress($order->billing['street_address']);
-            $billto->setCity($order->billing['city']);
-            $billto->setState($order->billing['state']);
-            $billto->setZip($order->billing['postcode']);
-            $billto->setCountry($order->billing['country']['title']);
-            //$billto->setPhoneNumber();
-            //$billto->setfaxNumber();
-            return $billto;
-        }
-    
         function updateCustomerPaymentProfile($customerProfileId, $customerPaymentProfileId)
         {
             global $order, $customer_id;
@@ -745,6 +649,189 @@
                 }
                 $this->logError($logData, $error);
                 return $logData;
+            }
+        }
+        
+        function billtoAddress($response = null)
+        {
+            global $order;
+            
+            //for card_update
+            if (isset($_POST['address_selection'])) {
+                // card_update address change
+                $order = new stdClass();
+                $order->billing = $this->getAddressInfo($response);
+            } elseif (!is_object($order)) {
+                // card_update - just update exp date
+                if (!is_null($response)) {
+                    return $response->getPaymentProfile()->getbillTo();
+                } else {
+                    trigger_error('from card update, no payment profile, should never get here');
+                    return;
+                }
+            }
+            // from checkout or getAddressInfo above
+            $billto = new AnetAPI\CustomerAddressType();
+            $billto->setFirstName($order->billing['firstname']);
+            $billto->setLastName($order->billing['lastname']);
+            $billto->setCompany($order->billing['company']);
+            $billto->setAddress($order->billing['street_address']);
+            $billto->setCity($order->billing['city']);
+            $billto->setState($order->billing['state']);
+            $billto->setZip($order->billing['postcode']);
+            $billto->setCountry($order->billing['country']['title']);
+            //$billto->setPhoneNumber();
+            //$billto->setfaxNumber();
+            return $billto;
+        }
+    
+        function addNewAddress()
+        {
+            global $customer_id, $db, $zco_notifier;
+        
+            $sql_data_array = array(
+              array('fieldName' => 'entry_firstname', 'value' => $_POST['firstname'], 'type' => 'stringIgnoreNull'),
+              array('fieldName' => 'entry_lastname', 'value' => $_POST['lastname'], 'type' => 'stringIgnoreNull'),
+              array(
+                'fieldName' => 'entry_street_address',
+                'value' => $_POST['street_address'],
+                'type' => 'stringIgnoreNull'
+              ),
+              array('fieldName' => 'entry_postcode', 'value' => $_POST['postcode'], 'type' => 'stringIgnoreNull'),
+              array('fieldName' => 'entry_city', 'value' => $_POST['city'], 'type' => 'stringIgnoreNull'),
+              array('fieldName' => 'entry_country_id', 'value' => $_POST['zone_country_id'], 'type' => 'integer')
+            );
+        
+            if (ACCOUNT_GENDER == 'true') {
+                $sql_data_array[] = array(
+                  'fieldName' => 'entry_gender',
+                  'value' => $_POST['gender'],
+                  'type' => 'enum:m|f'
+                );
+            }
+            if (ACCOUNT_COMPANY == 'true') {
+                $sql_data_array[] = array(
+                  'fieldName' => 'entry_company',
+                  'value' => $_POST['company'],
+                  'type' => 'stringIgnoreNull'
+                );
+            }
+            if (ACCOUNT_SUBURB == 'true') {
+                $sql_data_array[] = array(
+                  'fieldName' => 'entry_suburb',
+                  'value' => $_POST['suburb'],
+                  'type' => 'stringIgnoreNull'
+                );
+            }
+        
+            if (ACCOUNT_STATE == 'true') {
+                if (!empty($_POST['zone_id']) && $_POST['zone_id'] > 0) {
+                    $sql_data_array[] = array(
+                      'fieldName' => 'entry_zone_id',
+                      'value' => $_POST['zone_id'],
+                      'type' => 'integer'
+                    );
+                    $sql_data_array[] = array(
+                      'fieldName' => 'entry_state',
+                      'value' => '',
+                      'type' => 'stringIgnoreNull'
+                    );
+                } else {
+                    $sql_data_array[] = array('fieldName' => 'entry_zone_id', 'value' => '0', 'type' => 'integer');
+                    $sql_data_array[] = array(
+                      'fieldName' => 'entry_state',
+                      'value' => $_POST['state'],
+                      'type' => 'stringIgnoreNull'
+                    );
+                }
+            }
+    
+            $sql_data_array[] = array(
+              'fieldName' => 'customers_id',
+              'value' => $customer_id,
+              'type' => 'integer'
+            );
+    
+            $db->perform(TABLE_ADDRESS_BOOK, $sql_data_array);
+            $new_address_book_id = $db->Insert_ID();
+            if ($_POST['primary'] == 'on') {
+                $this->updateDefaultCustomerBillTo($new_address_book_id);
+            }
+            $zco_notifier->notify('NOTIFY_MODULE_ADDRESS_BOOK_ADDED_ADDRESS_BOOK_RECORD',
+              array_merge(array('address_id' => $new_address_book_id), $sql_data_array));
+        }
+    
+        function updateDefaultCustomerBillto($id)
+        {
+            global $db, $customer_id, $zco_notifier;
+        
+            $sql = "UPDATE " . TABLE_CUSTOMERS . " SET customers_default_address_id = :addID WHERE customers_id = :custID";
+            $sql = $db->bindVars($sql, ":addID", $id, 'integer');
+            $sql = $db->bindVars($sql, ":custID", $customer_id, 'integer');
+            $db->Execute($sql);
+        
+            $zco_notifier->notify('NOTIFY_MODULE_ADDRESS_BOOK_UPDATED_PRIMARY_CUSTOMER_RECORD',
+              array('address_id' => $id, 'customers_id' => $customer_id));
+        }
+    
+    
+        function getAddressInfo($response = null)
+        {
+            // for card_update
+            global $customerID, $db;
+        
+            $return = [];
+            if ($_POST['address_selection'] == 'new') {
+                $this->addNewAddress();
+            
+                $return['firstname'] = $_POST['customers_firstname'];
+                $return['lastname'] = $_POST['customers_lastname'];
+                $return['street_address'] = $_POST['street_address'];
+                $return['city'] = $_POST['city'];
+                if (empty($_POST['zone_id'])) {
+                    $return['state'] = $_POST['state'];
+                } else {
+                    $return['state'] = zen_get_zone_name($_POST['zone_country_id'], $_POST['zone_id'], $_POST['state']);
+                }
+                $return['postcode'] = $_POST['postcode'];
+                //for foreign countries, customer would need to create new address and select it.
+                // pain but do not want to redo whole thing here.
+                $return['country']['title'] = zen_get_country_name($_POST['zone_country_id']);
+            
+            } else {
+                // from order class
+                $sql = "select ab.entry_firstname, ab.entry_lastname, ab.entry_company,
+                                   ab.entry_street_address, ab.entry_suburb, ab.entry_postcode,
+                                   ab.entry_city, ab.entry_zone_id, z.zone_name, ab.entry_country_id,
+                                   c.countries_id, c.countries_name, c.countries_iso_code_2,
+                                   c.countries_iso_code_3, c.address_format_id, ab.entry_state
+                                  from " . TABLE_ADDRESS_BOOK . " ab
+                                  left join " . TABLE_ZONES . " z on (ab.entry_zone_id = z.zone_id)
+                                  left join " . TABLE_COUNTRIES . " c on (ab.entry_country_id = c.countries_id)
+                                  where ab.customers_id = :custID
+                                  and ab.address_book_id = :addBookID";
+                $sql = $db->bindVars($sql, ':custID', $customerID, 'integer');
+                $sql = $db->bindVars($sql, ':addBookID', $_POST['address_selection'], 'integer');
+                $address = $db->Execute($sql);
+        
+                $return['firstname'] = $address->fields['entry_firstname'];
+                $return['lastname'] = $address->fields['entry_lastname'];
+                $return['company'] = $address->fields['entry_company'];
+                $return['street_address'] = $address->fields['entry_street_address'];
+                $return['city'] = $address->fields['entry_city'];
+                $return['state'] = ((zen_not_null($address->fields['entry_state'])) ? $address->fields['entry_state'] : $address->fields['zone_name']);
+                $return['postcode'] = $address->fields['entry_postcode'];
+                $return['country']['title'] = $address->fields['countries_name'];
+            }
+            return $return;
+        }
+    
+        function saveCard()
+        {
+            if (($_POST['cc_save'] == 'on') || ($_POST['new_cid'] == 'NEW') || isset($_POST['update_cid'])) {
+                return 'Y';
+            } else {
+                return 'N';
             }
         }
         

@@ -1,0 +1,32 @@
+#select-cc_month, #select-cc_year {
+    width: 15%;
+}
+.payment_select {
+    margin-bottom: 10px;
+}
+.address_selection {
+	float: left;
+	width: 100%;
+    display: flex;
+}
+
+.size18 {
+    font-size: 18px;
+    padding-top: 12px;
+}
+
+.review_box {
+    border: 1px solid #CAC9C9;
+    border-radius: 4px 4px 4px 4px;
+    margin-bottom: 8px;
+    padding: 12px;
+    float: left;
+    width: 96.2%;
+}
+
+#cc_address > h2 {
+    margin: 1px 1px 3px
+}
+#cardUpdate {
+    background: white;
+}

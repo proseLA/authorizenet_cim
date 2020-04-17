@@ -80,8 +80,10 @@ $(function() {
 	$('input[name="address_selection"]').click(function() {
 		if ($('input[name="address_selection"][value="new"]').is(":checked")) {
 			$("#show_select").show(1000);
+			 $("#cardUpdate > form[name='card_update']").removeAttr("novalidate");
 		} else {
 			$("#show_select").hide(300);
+			 $("#cardUpdate > form[name='card_update']").attr("novalidate");
 		}
 	});
 	$(".last_four, .expiration_date").css("font-weight","bold");
@@ -127,9 +129,11 @@ $(function() {
 		else{$("#cc_date_error").removeClass("inputError_show").addClass("inputError");}
 		if (!error_free){e.preventDefault();}
 	});
-	$("#cardUpdate > form[name='card_update'] > #cc_address").hide();
-	$("#cardUpdate > form[name='card_update']").after("<div id='update_add'><span class='pay_buttons'><input type='submit' id='change_billing' value='Change Billing Address' /></a></span></div>");
-	if ($('input[name="address_selection"][value="new"]').is(":checked")) { $("#show_select").show(700); $('#change_billing').fadeOut(); }
+	//$("#cardUpdate > form[name='card_update'] > #cc_address").hide();
+	//$("#cardUpdate > form[name='card_update']").after("<div id='update_add'><span class='pay_buttons'><input type='submit' id='change_billing' value='Change Billing Address' /></a></span></div>");
+	if ($('input[name="address_selection"][value="new"]').is(":checked")) {
+	    $("#show_select").show(700); $('#change_billing').fadeOut();
+	}
 	$("#change_billing").click(function() {
 		$("#cc_address").show(1000);
 		$('#change_billing').fadeOut();

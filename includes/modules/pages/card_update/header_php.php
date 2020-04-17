@@ -40,6 +40,7 @@
               'There was a problem deleting your card.  Please contact the store owner.', 'error');
         }
     }
+
     if (isset($_POST['update_cid'])) {
         $payment_profile = $cim->checkValidPaymentProfile($customer_id, $_POST['update_cid']);
         $update_cid = $cim->updateCustomerPaymentProfile($userProfile, $payment_profile['payment_profile_id']);
@@ -48,8 +49,7 @@
         if ($start === false) {
             $messageStack->add_session(FILENAME_ACCOUNT, 'Your credit card has been UPDATED!', 'success');
             if (isset($_POST['address_selection']) && ($_POST['address_selection'] !== 'new')) {
-                // maybe we need to do this in the authorizenet?
-                //update_default_billto();
+                $cim->updateDefaultCustomerBillto($_POST['address_selection']);
             }
             zen_redirect(zen_href_link(FILENAME_ACCOUNT, '', 'SSL'));
         } else {
@@ -65,7 +65,7 @@
         if ($start === false) {
             $messageStack->add_session(FILENAME_ACCOUNT, 'You have successfully added a new Credit Card!', 'success');
             if (isset($_POST['address_selection']) && ($_POST['address_selection'] !== 'new')) {
-                //update_default_billto();
+                $cim->updateDefaultCustomerBillto($_POST['address_selection']);
             }
             zen_redirect(zen_href_link(FILENAME_ACCOUNT, '', 'SSL'));
         } elseif ($new_cid->error) {
@@ -73,6 +73,29 @@
             zen_redirect(zen_href_link(FILENAME_CARD_UPDATE, '', 'SSL'));
         }
     }
+    $today = getdate();
+    for ($i = $today['year']; $i < $today['year'] + 10; $i++) {
+        $expires_year[] = array(
+          'id' => strftime('%y', mktime(0, 0, 0, 1, 1, $i)),
+          'text' => strftime('%Y', mktime(0, 0, 0, 1, 1, $i))
+        );
+    }
+    for ($i = 1; $i < 13; $i++) {
+        $expires_month[] = array(
+          'id' => sprintf('%02d', $i),
+          'text' => strftime('%B', mktime(0, 0, 0, $i, 1, 2000))
+        );
+    }
+    
+    
+    if (($messageStack->size('card_update') > 0) && ($_GET['action'] !== 'delete')) {
+        echo $messageStack->output('card_update');
+        $messageStack->reset();
+    }
+    $h2_title = 'Select Billing Address for Credit Card or Enter New Billing Address';
+    $div_id = 'cc_address';
+    $new_address_title = 'New Bill-To Address';
+    //$new_address_warning = '* Required information.<br />Note that this address is only used for validating CC information.  We are currently not storing this cc address.';
     
     $breadcrumb->add(NAVBAR_TITLE);
     
