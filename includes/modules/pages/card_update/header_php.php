@@ -23,7 +23,8 @@
     $userProfile = $cim->getCustomerProfile($customer_id);
     if ($userProfile == false) {
         // do messageStack error
-        //redirect
+        // redirect
+        //TODO 
         die(__FILE__ . ':' . __LINE__);
     }
     
@@ -128,22 +129,4 @@
         $addresses->MoveNext();
     }
     
-    $today = getdate();
-    
     include_once(DIR_WS_CLASSES . 'cc_validation.php');
-    
-    function update_default_billto()
-    {
-        global $db;
-        $sql = "update " . TABLE_CUSTOMERS . " set customers_default_address_id = :cdaID
-          WHERE customers_id = :custID";
-        $sql = $db->bindVars($sql, ':custID', $customer_id, 'integer');
-        $sql = $db->bindVars($sql, ':cdaID', $_POST['address_selection'], 'integer');
-        $db->Execute($sql);
-        return;
-    }
-    
-    
-    $zco_notifier->notify('NOTIFY_HEADER_END_CARD_UPDATE');
-
-
