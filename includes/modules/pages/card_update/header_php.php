@@ -22,10 +22,8 @@
     
     $userProfile = $cim->getCustomerProfile($customer_id);
     if ($userProfile == false) {
-        // do messageStack error
-        // redirect
-        //TODO 
-        die(__FILE__ . ':' . __LINE__);
+        $messageStack->add_session(FILENAME_ACCOUNT, 'Sorry, you have no credit cards on file', 'error');
+        zen_redirect(zen_href_link(FILENAME_ACCOUNT, '', 'SSL'));
     }
     
     if (isset($_POST['delete_cid'])) {

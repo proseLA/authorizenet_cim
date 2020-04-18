@@ -16,9 +16,6 @@ var selected;
 $(function() {
 	var exMonth;
 	var exYear;
-	//$("#mj-slideshow").empty();
-	//$("#mj-slideshow").removeAttr("style");
-	//$("#mj-slideshow").css("min-height", "0");
 	$("#pmt-saved_cc").attr('checked', 'checked');
 	$(":radio").filter(':checked').css("color", "green");
 	$("input[name='payment']:checked").css("color", "red");
@@ -39,7 +36,6 @@ $(function() {
 	$('input[name="loginButton_x"]').click(function(em) {
 		if (!isValidEmailAddress($('input[name="email_address"]').val())) {
 			$("#email_valid_error").removeClass("inputError").addClass("inputError_show");
-			openOverlay('#overlay-warning');
 			em.preventDefault();
 		} else {$("#email_valid_error").removeClass("inputError_show").addClass("inputError");}
 	});
@@ -74,7 +70,6 @@ $(function() {
 			}
 			validateNewAddress();
 		}
-		if (!error_free){ openOverlay('#overlay-warning'); p.preventDefault();}
 	});
 	$("#show_select").hide();
 	$('input[name="address_selection"]').click(function() {
@@ -83,7 +78,7 @@ $(function() {
 			 $("#cardUpdate > form[name='card_update']").removeAttr("novalidate");
 		} else {
 			$("#show_select").hide(300);
-			 $("#cardUpdate > form[name='card_update']").attr("novalidate");
+			 $("#cardUpdate > form[name='card_update']").attr("novalidate", "true");
 		}
 	});
 	$(".last_four, .expiration_date").css("font-weight","bold");
@@ -129,8 +124,6 @@ $(function() {
 		else{$("#cc_date_error").removeClass("inputError_show").addClass("inputError");}
 		if (!error_free){e.preventDefault();}
 	});
-	//$("#cardUpdate > form[name='card_update'] > #cc_address").hide();
-	//$("#cardUpdate > form[name='card_update']").after("<div id='update_add'><span class='pay_buttons'><input type='submit' id='change_billing' value='Change Billing Address' /></a></span></div>");
 	if ($('input[name="address_selection"][value="new"]').is(":checked")) {
 	    $("#show_select").show(700); $('#change_billing').fadeOut();
 	}
@@ -142,27 +135,6 @@ $(function() {
 		error_free=true;
 		validateNewAddress();
 		if (!error_free){e.preventDefault();}
-	});
-	$("form[name='ship_address_update']").submit(function (f) {
-		error_free=true;
-		validateNewAddress();
-		if (!error_free){f.preventDefault();}
-	});
-	
-	$(".abdatc_button").mouseover(function (ttt) { $(this).css('color', 'grey'); });
-	$(".abdatc_button").mouseout(function (ttt) { $(this).css('color', 'white'); });
-	$("<input type='submit' id='change_to_default' class='btn btn-default' value='Change Shipping Below to Address Above' /></a>").appendTo('#last_row.sh_err2');
-	$("#change_to_default").click(function() {
-		$("input[name*='sh_name']").val($('#def_name').text());
-		$("input[name*='sh_comp']").val($('#def_company').text());
-		$("input[name*='sh_addr1']").val($('#def_address1').text());
-		$("input[name*='sh_addr2']").val($('#def_address2').text());
-		$("input[name*='sh_city']").val($('#def_city').text());
-		$("input[name*='sh_zip']").val($('#def_zip').text());
-		$("input[name*='sh_state']").val($('#def_state').text());
-		$("input[name*='sh_country']").val($('#def_country').text());
-		$("#updated_address").attr('value',true);
-		$('#def_ship').fadeOut();
 	});
 	$("#checkout form[name='checkout_payment']").submit(function (t) {
 		error_free=true;
@@ -188,9 +160,6 @@ $(function() {
 			$("#cc_number_error").removeClass("inputError_show").addClass("inputError");
 			$("#cc_date_error").removeClass("inputError_show").addClass("inputError");
 		}
-
-
-		if (!error_free && (!$("#disc-ot_coupon").val())) {openOverlay('#overlay-warning'); t.preventDefault();}
 	});
 
 	function validateNewAddress() {
@@ -226,48 +195,10 @@ $.fn.exists = function(callback) {
   }
   return this;
 };
-function isValidEmailAddress(emailAddress) {
-    //var pattern = new RegExp(/^(("[\w-\s]+")|([\w-]+(?:\.[\w-]+)*)|("[\w-\s]+")([\w-]+(?:\.[\w-]+)*))(@((?:[\w-]+\.)*\w[\w-]{0,66})\.([a-z]{2,6}(?:\.[a-z]{2})?)$)|(@\[?((25[0-5]\.|2[0-4][0-9]\.|1[0-9]{2}\.|[0-9]{1,2}\.))((25[0-5]|2[0-4][0-9]|1[0-9]{2}|[0-9]{1,2})\.){2}(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[0-9]{1,2})\]?$)/i);
+function isValidEmailAddress(emailAddress) {q
 var pattern = /^([a-z\d!#$%&'*+\-\/=?^_`{|}~\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]+(\.[a-z\d!#$%&'*+\-\/=?^_`{|}~\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]+)*|"((([ \t]*\r\n)?[ \t]+)?([\x01-\x08\x0b\x0c\x0e-\x1f\x7f\x21\x23-\x5b\x5d-\x7e\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]|\\[\x01-\x09\x0b\x0c\x0d-\x7f\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]))*(([ \t]*\r\n)?[ \t]+)?")@(([a-z\d\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]|[a-z\d\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF][a-z\d\-._~\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]*[a-z\d\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])\.)+([a-z\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]|[a-z\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF][a-z\d\-._~\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]*[a-z\u00A0-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF])\.?$/i;
     return pattern.test(emailAddress);
 }
-function openOverlay(olEl) {
-	if(!$("#disc-ot_coupon" ).val()) {
-		$oLay = $(olEl);
-		if ($('#overlay-shade').length == 0)
-			$('body').prepend('<div id="overlay-shade"></div>');
-		$('#overlay-shade').fadeTo(300, 0.6, function () {
-			var props = {
-				oLayWidth: $oLay.width(),
-				scrTop: $(window).scrollTop(),
-				viewPortWidth: $(window).width()
-			};
-			var x = ($(window).width() / 2) + $(document).scrollLeft() - ($('#overlay-warning').outerWidth() / 2);
-			var leftPos = ((props.viewPortWidth - props.oLayWidth) / 2);
-			$oLay
-				.css({
-					display: 'block',
-					opacity: 0,
-					top: '-=300',
-					left: leftPos + 'px'
-				})
-				.animate({
-					top: props.scrTop + 10,
-					opacity: 1
-				}, 600);
-		});
-	}
-}
-
-    function closeOverlay() {
-        $('.overlay').animate({
-            top : '-=300',
-            opacity : 0
-        }, 400, function() {
-            $('#overlay-shade').fadeOut(300);
-            $(this).css('display','none');
-        });
-    }
 });
 
 function check_form_optional(form_name) {
@@ -329,40 +260,6 @@ function check_select(field_name, field_default, message) {
 
     if (field_value == field_default) {
       error_message = error_message + "* " + message + "\n";
-      error = true;
-    }
-  }
-}
-
-function check_password(field_name_1, field_name_2, field_size, message_1, message_2) {
-  if (form.elements[field_name_1] && (form.elements[field_name_1].type != "hidden")) {
-    var password = form.elements[field_name_1].value;
-    var confirmation = form.elements[field_name_2].value;
-
-    if (password == '' || password.length < field_size) {
-      error_message = error_message + "* " + message_1 + "\n";
-      error = true;
-    } else if (password != confirmation) {
-      error_message = error_message + "* " + message_2 + "\n";
-      error = true;
-    }
-  }
-}
-
-function check_password_new(field_name_1, field_name_2, field_name_3, field_size, message_1, message_2, message_3) {
-  if (form.elements[field_name_1] && (form.elements[field_name_1].type != "hidden")) {
-    var password_current = form.elements[field_name_1].value;
-    var password_new = form.elements[field_name_2].value;
-    var password_confirmation = form.elements[field_name_3].value;
-
-    if (password_current == '' ) {
-      error_message = error_message + "* " + message_1 + "\n";
-      error = true;
-    } else if (password_new == '' || password_new.length < field_size) {
-      error_message = error_message + "* " + message_2 + "\n";
-      error = true;
-    } else if (password_new != password_confirmation) {
-      error_message = error_message + "* " + message_3 + "\n";
       error = true;
     }
   }

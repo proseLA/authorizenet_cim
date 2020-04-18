@@ -82,7 +82,7 @@
               'fields' => array(
                 array(
                   'title' => 'Saved Credit Card',
-                  'field' => zen_draw_pull_down_menu('saved_cc', $cards, '', $onFocus),
+                  'field' => zen_draw_pull_down_menu('saved_cc_index', $cards, '', $onFocus),
                   'tag' => 'card_index'
                 )
               )
@@ -98,12 +98,12 @@
         
         function pre_confirmation_check()
         {
-            return false;
+            global $messageStack;
+            $_SESSION['saved_cc_index'] = $_POST['saved_cc_index'];
         }
         
         function confirmation()
         {
-            $_SESSION['saved_cc'] = (int)($_POST['saved_cc']);
             return array('title' => MODULE_PAYMENT_SAVED_CC_TEXT_DESCRIPTION);
         }
         
@@ -116,7 +116,7 @@
         {
             global $messageStack, $customerID;
             
-            $cc_index = $_SESSION['saved_cc'];
+            $cc_index = $_SESSION['saved_cc_index'];
             $customerID = $_SESSION['customer_id'];
             
             $valid_payment_profile = $this->checkValidPaymentProfile($customerID, $cc_index);
