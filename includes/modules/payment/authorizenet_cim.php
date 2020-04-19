@@ -73,7 +73,11 @@
             }
         
             if (!defined('DEBUG_CIM') && ($this->enabled)) {
-                define('DEBUG_CIM', MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING);
+                if (in_array(MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING, array('True','TRUE','true'))) {
+                    define('DEBUG_CIM', true);
+                } else {
+                    define('DEBUG_CIM', false);
+                }
             }
         }
     
@@ -1074,10 +1078,10 @@
             $request = new AnetAPI\GetTransactionDetailsRequest();
             $request->setMerchantAuthentication($this->merchantCredentials());
             $request->setTransId($transactionId);
-        
+    
             $controller = new AnetController\GetTransactionDetailsController($request);
             $response = $this->getControllerResponse($controller);
-        
+    
             $error = true;
             if (($response != null) && ($response->getMessages()->getResultCode() == "Ok")) {
                 $logData = "SUCCESS: Transaction Status:" . $response->getTransaction()->getTransactionStatus() . "\n";
@@ -1159,7 +1163,6 @@
             } else {
                 $logData = "No response returned \n";
             }
-        
             $this->logError($logData, $error);
             return $response;
         }
