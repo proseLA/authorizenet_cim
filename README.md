@@ -1,8 +1,8 @@
 # authorizenet_cim
 CIM Module for authorizenet for zencart
-this is an update for the authorizenet_cim module done years ago for zencart.  the biggest difference is this module is NOT for reordering products.  it is for keeping a credit card on file for the customer to use for future purchases.  the credit card is tokenized and stored on authorize.net servers.
+this is a new version of the authorizenet.net API module.  currently, you MUST have CIM enabled on your authorize.net account for this module to work.  it is for keeping a credit card on file for the customer to use for future purchases.  the credit card is tokenized and stored on authorize.net servers.
 
-the code repurposes a bunch of code from the super orders ZC module which does not seem to be active.  it is NOT meant as a replacement for that module.  it may play nice with super orders.  i do not know, i have not tested.  i have modified all of the namespaces, so that hopefully they can place nice together.
+the code repurposes some code from the super orders ZC module which does not seem to be active.  it is NOT meant as a replacement for that module.  it may play nice with super orders.  i do not know, i have not tested.  i have modified all of the namespaces, so that hopefully they can place nice together.
 
 to use this module, you must subscribe to the authorize.net CIM program.  the last time i checked, this added another $10/month to your authorize.net bill.
 
@@ -11,6 +11,8 @@ currently, the module does NOT modify any ZC core files.
 refunds must be issued within 120 days of the transaction.  this is inherent in the system from authorize.net.
 
 the code was developed for ZC v156 running php 7.3.  there is no implication that it will run with earlier versions of ZC, and while anyone is free to do as they wish, no support will be provided by me for earlier versions of ZC.
+
+it has also been tested to run with v157-alpha without problem.  it also tested fine with the popular OPC plug-in.
 
 # quick note on PCI-DSS
 PCI-DSS is legal document.  i am not a lawyer.  i offer no opinion on this module as to how it effects your PCI-DSS status.  
