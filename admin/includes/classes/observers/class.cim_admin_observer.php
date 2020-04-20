@@ -21,11 +21,11 @@
             switch ($eventID) {
                 
                 case 'NOTIFY_ADMIN_ORDERS_PAYMENTDATA_COLUMN2':
-                    require_once(DIR_WS_CLASSES . 'cim_order.php');
-                    require_once(DIR_WS_CLASSES . 'currencies.php');
+                    require_once DIR_WS_CLASSES . 'authnet_order.php';
+                    require_once DIR_WS_CLASSES . 'currencies.php';
                     $currencies = new currencies();
                     
-                    $cim = new cim_order($p1);
+                    $cim = new authnet_order($p1);
                     ?>
                     <div class="panel panel-default " style="width: 60%">
                         <table class="table table-hover">
@@ -132,7 +132,7 @@
                         exit ();
                     }
     
-                    if (!defined('FILENAME_CIM_PAYMENTS')) {
+                    if (!defined('FILENAME_AUTHNET_PAYMENTS')) {
                         require_once DIR_FS_CATALOG . DIR_WS_LANGUAGES . $_SESSION['language'] . '/modules/payment/authorizenet_cim.php';
                     }
                     require_once DIR_FS_CATALOG_MODULES . 'payment/' . 'authorizenet_cim.php';
@@ -144,7 +144,7 @@
                     if (!empty($cards->count()) || $cards->count() > 0) {
                         $p2[] = array(
                           'align' => 'text-center',
-                          'text' => '<a href="javascript:cimpopupWindow(\'' . zen_href_link(FILENAME_CIM_PAYMENTS,
+                          'text' => '<a href="javascript:cimpopupWindow(\'' . zen_href_link(FILENAME_AUTHNET_PAYMENTS,
                               'cID=' . $p1->customers_id . '&action=clearCards',
                               'NONSSL') . '\', \'scrollbars=yes,resizable=yes,width=100,height=1000,screenX=150,screenY=100,top=100,left=150\')"' .
                             'class="btn btn-danger" role="button" id="cards_btn" class="btn btn-danger btn-margin">Delete Credit Cards</a>'

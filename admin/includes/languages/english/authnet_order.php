@@ -1,5 +1,16 @@
 <?php
-    
+
+    define('TEXT_CIM_DATA', 'Authorizenet CIM Payments');
+    define('CIM_NUMBER', 'Transaction ID');
+    define('CIM_NAME', 'Payment Name');
+    define('CIM_AMOUNT', 'Amount');
+    define('CIM_TYPE', 'Payment Type');
+    define('CIM_POSTED', 'Date Posted');
+    define('CIM_MODIFIED', 'Last Modified');
+    define('CIM_ACTION', 'Action');
+    define('CIM_APPROVAL', 'Code');
+
+
     define('HEADER_ENTER_PAYMENT', 'Enter Payment');
     define('HEADER_ENTER_PO', 'Enter Purchase Order');
     define('HEADER_ENTER_REFUND', 'Enter Refund');

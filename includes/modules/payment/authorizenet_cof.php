@@ -1,12 +1,12 @@
 <?php
     
     /**
-     *  saved_cc payment module
+     *  authorizenet_cof payment module
      *  prose_la
      */
     require_once (IS_ADMIN_FLAG === true ? DIR_FS_CATALOG_MODULES : DIR_WS_MODULES) . 'payment/authorizenet_cim.php';
     
-    class saved_cc extends authorizenet_cim
+    class authorizenet_cof extends authorizenet_cim
     {
         var $code, $title, $description, $enabled;
         
@@ -14,11 +14,11 @@
         {
             global $order;
             
-            include_once((IS_ADMIN_FLAG === true ? DIR_FS_CATALOG_LANGUAGES : DIR_WS_LANGUAGES) . $_SESSION['language'] . '/modules/payment/authorizenet_cim.php');
+            require_once (IS_ADMIN_FLAG === true ? DIR_FS_CATALOG_LANGUAGES : DIR_WS_LANGUAGES) . $_SESSION['language'] . '/modules/payment/authorizenet_cim.php';
             
             parent::__construct();
             
-            $this->code = 'saved_cc';
+            $this->code = 'authorizenet_cof';
             $this->title = MODULE_PAYMENT_SAVED_CC_TEXT_TITLE;
             // this module is entirely dependent on the authorizenet_cim module.  if that is not enabled.  neither is this.
             $this->enabled = ((MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS == 'True') ? true : false);
