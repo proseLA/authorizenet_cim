@@ -15,9 +15,6 @@
             
             $this->oID = (int)$orders_id;   // now you have the order_id whenever you need it
             
-            if (!defined('TABLE_CIM_PAYMENTS')) {
-                include DIR_FS_CATALOG . DIR_WS_LANGUAGES . $_SESSION['language'] . '/modules/payment/cim_tables.php';
-            }
             include DIR_FS_CATALOG . DIR_WS_ADMIN . DIR_WS_LANGUAGES . $_SESSION['language'] . '/cim_order.php';
             $this->start();
         }
@@ -129,50 +126,7 @@
             // subtract from the order total to get the balance due
             $this->balance_due = $this->order_total - $this->amount_applied;
             
-            // compare this balance to the one stored in the orders table, update if necessary
-            if ($this->balance_due != $order_query->fields['balance_due']) {
-                $this->new_balance();
-            }
-            
         }   // END function start
-        
-        
-        // input the current value of $this->balance_due into balance_due
-        // field in the orders table
-        function new_balance()
-        {
-            //$a['balance_due'] = $this->balance_due;
-            //zen_db_perform(TABLE_ORDERS, $a, 'update', 'orders_id = ' . $this->oID);
-        }
-        
-        // builds an array of all payments attached to an order, suitable for a dropdown menu
-        /*
-        function build_payment_array($include_blank = false)
-        {
-            global $db;
-            $payment_array = array();
-            
-            // include a user-defined "empty" entry if requested
-            if ($include_blank) {
-                $payment_array[] = array(
-                  'id' => false,
-                  'text' => $include_blank
-                );
-            }
-            
-            $payment_query = $db->Execute("select payment_id, transaction_id from " . TABLE_CIM_PAYMENTS . " where orders_id = '" . $this->oID . "'");
-            
-            while (!$payment_query->EOF) {
-                $payment_array[] = array(
-                  'id' => $payment_query->fields['payment_id'],
-                  'text' => $payment_query->fields['transaction_id']
-                );
-                $payment_query->MoveNext();
-            }
-            
-            return $payment_array;
-        }
-        */
         
         // Displays a button that will open a popup window to confirm deleting a payment entry
         // This code assumes you have the popupWindow() function defined in your header!
@@ -187,151 +141,6 @@
             //    zen_image_button('btn_refund.gif', sprintf(ALT_TEXT_DELETE, str_replace('_', ' ', $payment_mode))) . '</a>';
         }
         
-        /*
-        
-        function add_payment($payment_number, $payment_name, $payment_amount, $payment_type, $purchase_order_id = false)
-        {
-            
-            $new_payment = array(
-              'orders_id' => $this->oID,
-              'transaction_id' => zen_db_prepare_input($payment_number),
-              'payment_name' => zen_db_prepare_input($payment_name),
-              'payment_amount' => zen_db_prepare_input($payment_amount),
-              'payment_type' => zen_db_prepare_input($payment_type),
-              'date_posted' => 'now()',
-              'last_modified' => 'now()'
-            );
-            
-            // link the payment to its P.O. if applicable
-            if ($purchase_order_id) {
-                $new_payment['purchase_order_id'] = (int)$purchase_order_id;
-            }
-            
-            zen_db_perform(TABLE_CIM_PAYMENTS, $new_payment);
-            
-            $new_index = mysql_insert_id();
-            return $new_index;
-        }
-        
-        
-        function update_payment(
-          $payment_id,
-          $purchase_order_id = false,
-          $payment_number = false,
-          $payment_name = false,
-          $payment_amount = false,
-          $payment_type = false,
-          $orders_id = false
-        ) {
-            $update_payment = array();
-            $update_payment['last_modified'] = 'now()';
-            
-            if ($orders_id && $orders_id != '') {
-                $update_payment['orders_id'] = (int)$orders_id;
-            }
-            if ($payment_number && $payment_number != '') {
-                $update_payment['payment_number'] = zen_db_prepare_input($payment_number);
-            }
-            if ($payment_name && $payment_name != '') {
-                $update_payment['payment_name'] = zen_db_prepare_input($payment_name);
-            }
-            if ($payment_amount && $payment_amount != '') {
-                $update_payment['payment_amount'] = zen_db_prepare_input($payment_amount);
-            }
-            if ($payment_type && $payment_type != '') {
-                $update_payment['payment_type'] = zen_db_prepare_input($payment_type);
-            }
-            if (is_numeric($purchase_order_id)) {
-                $update_payment['purchase_order_id'] = (int)$purchase_order_id;
-            }
-            
-            zen_db_perform(TABLE_CIM_PAYMENTS, $update_payment, 'update', "payment_id = '" . $payment_id . "'");
-        }
-        
-        
-        function add_refund($payment_id, $refund_number, $refund_name, $refund_amount, $refund_type)
-        {
-            
-            $new_refund = array(
-              'payment_id' => (int)$payment_id,
-              'orders_id' => $this->oID,
-              'transaction_id' => zen_db_prepare_input($refund_number),
-              'refund_name' => zen_db_prepare_input($refund_name),
-              'refund_amount' => zen_db_prepare_input($refund_amount),
-              'refund_type' => zen_db_prepare_input($refund_type),
-              'date_posted' => 'now()',
-              'last_modified' => 'now()'
-            );
-            
-            zen_db_perform(TABLE_CIM_REFUNDS, $new_refund);
-            
-            $new_index = mysql_insert_id();
-            return $new_index;
-        }
-        
-        
-        function update_refund(
-          $refund_id,
-          $payment_id = false,
-          $refund_number = false,
-          $refund_name = false,
-          $refund_amount = false,
-          $refund_type = false,
-          $orders_id = false
-        ) {
-            $update_refund = array();
-            $update_refund['last_modified'] = 'now()';
-            
-            if (is_numeric($payment_id)) {
-                $update_refund['payment_id'] = (int)$payment_id;
-            }
-            if ($refund_number && $refund_number != '') {
-                $update_refund['transaction_id'] = zen_db_prepare_input($refund_number);
-            }
-            if ($refund_name && $refund_name != '') {
-                $update_refund['refund_name'] = zen_db_prepare_input($refund_name);
-            }
-            if ($refund_amount && $refund_amount != '') {
-                $update_refund['refund_amount'] = zen_db_prepare_input($refund_amount);
-            }
-            if ($refund_type && $refund_type != '') {
-                $update_refund['refund_type'] = zen_db_prepare_input($refund_type);
-            }
-            if ($orders_id && $orders_id != '') {
-                $update_refund['orders_id'] = (int)$orders_id;
-            }
-            
-            zen_db_perform(TABLE_CIM_REFUNDS, $update_refund, 'update', "refund_id = '" . $refund_id . "'");
-        }
-        
-        
-        function delete_refund($refund_id, $payment_id = false, $all = false)
-        {
-            global $db;
-            $db->Execute("delete from " . TABLE_CIM_REFUNDS . " where refund_id = '" . $refund_id . "' limit 1");
-        }
-        
-        
-        function delete_payment($payment_id)
-        {
-            global $db;
-            echo $payment_id;
-            new dBug($this);
-            die(__FILE__ . ':' . __LINE__);
-            
-            //$db->Execute("delete from " . TABLE_CIM_PAYMENTS . " where payment_id = '" . $payment_id . "' limit 1");
-        }
-        
-        function delete_all_data()
-        {
-            global $db;
-            // remove payment data
-            $db->Execute("delete from " . TABLE_CIM_PAYMENTS . " where orders_id = '" . $this->oID . "'");
-            // remove refund data
-            $db->Execute("delete from " . TABLE_CIM_REFUNDS . " where orders_id = '" . $this->oID . "'");
-        }
-        */
-        
         // translates payment type codes into full text
         function full_type($code)
         {
@@ -342,28 +151,4 @@
             }
             return $full_text;
         }
-        /*
-        function find_refunds($payment_id)
-        {
-            $refund_array = array();
-            
-            for ($x = 0; $x < sizeof($this->refund); $x++) {
-                if ($this->refund[$x]['payment'] == $payment_id) {
-                    $refund_array[] = array(
-                      'index' => $this->refund[$x]['index'],
-                      'payment' => $payment_id,
-                      'number' => $this->refund[$x]['number'],
-                      'name' => $this->refund[$x]['name'],
-                      'amount' => $this->refund[$x]['amount'],
-                      'type' => $this->refund[$x]['type'],
-                      'posted' => $this->refund[$x]['posted'],
-                      'modified' => $this->refund[$x]['modified']
-                    );
-                }
-            }
-            
-            return $refund_array;
-        }
-        */
-        
     }

@@ -71,26 +71,7 @@
                     window.opener.focus();
                     self.close();
                 }
-
-                // Only script specific to this form goes here.
-                // General-purpose routines are in a separate file.
-/*
-                function validateOnSubmit() {
-                    var elem;
-                    var errs = 0;
-                    // execute all element validations in reverse order, so focus gets
-                    // set to the first one in error.
-                    if (!validateTelnr(document.forms.demo.telnr, 'inf_telnr', true)) errs += 1;
-                    if (!validateAge(document.forms.demo.age, 'inf_age', false)) errs += 1;
-                    if (!validateEmail(document.forms.demo.email, 'inf_email', true)) errs += 1;
-                    if (!validatePresent(document.forms.demo.from, 'inf_from')) errs += 1;
-
-                    if (errs > 1) alert('There are fields which need correction before sending');
-                    if (errs == 1) alert('There is a field which needs correction before sending');
-
-                    return (errs == 0);
-                }
-*/
+                
                 //-->
             </script>
         </head>
@@ -227,7 +208,7 @@
                 ?>
                 <div class="alert alert-danger">Are you sure you want to delete all the stored credit cards for:<br/>
                     <h2><?= zen_customers_name($_GET['cID']) . '?'; ?></h2>
-                    <a href=<?= zen_href_link('cim_payments',
+                    <a href=<?= zen_href_link(FILENAME_CIM_PAYMENTS,
                       'cID=' . (int)$_GET['cID'] . '&action=clearCards_confirm',
                       'SSL'); ?>   class="btn btn-danger" role="button" id="cards_btn" class="btn btn-danger
                     btn-margin">Delete Credit Cards</a>

@@ -144,7 +144,7 @@
                     if (!empty($cards->count()) || $cards->count() > 0) {
                         $p2[] = array(
                           'align' => 'text-center',
-                          'text' => '<a href="javascript:cimpopupWindow(\'' . zen_href_link('cim_payments',
+                          'text' => '<a href="javascript:cimpopupWindow(\'' . zen_href_link(FILENAME_CIM_PAYMENTS,
                               'cID=' . $p1->customers_id . '&action=clearCards',
                               'NONSSL') . '\', \'scrollbars=yes,resizable=yes,width=100,height=1000,screenX=150,screenY=100,top=100,left=150\')"' .
                             'class="btn btn-danger" role="button" id="cards_btn" class="btn btn-danger btn-margin">Delete Credit Cards</a>'
