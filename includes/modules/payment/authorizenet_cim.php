@@ -9,11 +9,11 @@
     }
     
     require $sdk_loader;
-    
-    use net\authorize\api\contract\v1 as AnetAPI;
-    use net\authorize\api\controller as AnetController;
-    
-    class authorizenet_cim extends base
+
+use net\authorize\api\contract\v1 as AnetAPI;
+use net\authorize\api\controller as AnetController;
+
+class authorizenet_cim extends base
     {
         
         var $code, $title, $description, $enabled, $authorize = '';
@@ -76,7 +76,7 @@
                 if (in_array(MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING, array('True','TRUE','true'))) {
                     define('DEBUG_CIM', true);
                 } else {
-                    define('DEBUG_CIM', false);
+                    define('DEBUG_CIM', true);
                 }
             }
         }
@@ -666,12 +666,10 @@
               'value' => $customer_id,
               'type' => 'integer'
             );
-        
+
             $db->perform(TABLE_ADDRESS_BOOK, $sql_data_array);
             $new_address_book_id = $db->Insert_ID();
-            if ($_POST['primary'] == 'on') {
-                $this->updateDefaultCustomerBillTo($new_address_book_id);
-            }
+            $this->updateDefaultCustomerBillTo($new_address_book_id);
             $zco_notifier->notify('NOTIFY_MODULE_ADDRESS_BOOK_ADDED_ADDRESS_BOOK_RECORD',
               array_merge(array('address_id' => $new_address_book_id), $sql_data_array));
         }
@@ -702,7 +700,7 @@
             global $db;
         
             $sql = "SELECT cust.customers_customerProfileId, cim.*, ord.order_total FROM " . TABLE_CIM_PAYMENTS . " cim
-            left join " . TABLE_CUSTOMERS . " cust on cim.customers_id = cust.customers_id
+            left join " . TABLE_CUSTOMERS_CIM_PROFILE . " cust on cim.customers_id = cust.customers_id
             left join " . TABLE_ORDERS . " ord on cim.orders_id = ord.orders_id
             where cim.orders_id = :orderID and ((cim.payment_amount - cim.refund_amount) > 0) order by cim.payment_id desc limit 1";
             $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
@@ -762,10 +760,10 @@
         function getCustomerProfile($customer_id)
         {
             global $db;
-            $sql = "SELECT customers_customerProfileId FROM " . TABLE_CUSTOMERS . " WHERE customers_id = :custId ";
+            $sql = "SELECT customers_customerProfileId FROM " . TABLE_CUSTOMERS_CIM_PROFILE . " WHERE customers_id = :custId ";
             $sql = $db->bindVars($sql, ':custId', $customer_id, 'string');
             $check_customer = $db->Execute($sql);
-        
+
             if ($check_customer->fields['customers_customerProfileId'] !== 0) {
                 $customerProfileId = $check_customer->fields['customers_customerProfileId'];
             } else {
@@ -830,6 +828,17 @@
                 $logData = "ERROR :  Invalid response\n";
                 $errorMessages = $response->getMessages()->getMessage();
                 $logData .= "Response : " . $errorMessages[0]->getCode() . "  " . $errorMessages[0]->getText() . "\n";
+                if ($errorMessages[0]->getCode() == 'E00039') {
+                    $id_text = $errorMessages[0]->getText();
+                    $start = strpos($id_text, 'with ID ');
+                    $end = strrpos($id_text, " already");
+                    $profile = substr($id_text, $start + 8, ($end - ($start+8)));
+                    if (is_numeric($profile)) {
+                        $this->updateCustomer($customerID, $profile);
+                        $this->setParameter('customerProfileId', $response->getCustomerProfileId());
+                        $error = false;
+                    }
+                }
             }
         
             $this->logError($logData, $error);
@@ -1278,7 +1287,7 @@
         
             $this->logError($logData, $error);
         
-            $sql = "UPDATE " . TABLE_CUSTOMERS . " set customers_customerProfileId = 0
+            $sql = "UPDATE " . TABLE_CUSTOMERS_CIM_PROFILE . " set customers_customerProfileId = 0
 		            WHERE customers_customerProfileId = :profileID ";
             $sql = $db->bindVars($sql, ':profileID', $customerProfileId, 'integer');
             $db->Execute($sql);
@@ -1332,14 +1341,17 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
         function updateDefaultCustomerBillto($id)
         {
             global $db, $customer_id, $zco_notifier;
-        
-            $sql = "UPDATE " . TABLE_CUSTOMERS . " SET customers_default_address_id = :addID WHERE customers_id = :custID";
-            $sql = $db->bindVars($sql, ":addID", $id, 'integer');
-            $sql = $db->bindVars($sql, ":custID", $customer_id, 'integer');
-            $db->Execute($sql);
-        
-            $zco_notifier->notify('NOTIFY_MODULE_ADDRESS_BOOK_UPDATED_PRIMARY_CUSTOMER_RECORD',
-              array('address_id' => $id, 'customers_id' => $customer_id));
+
+            if (isset($_POST['primary']) && $_POST['primary'] == 'on') {
+
+                $sql = "UPDATE " . TABLE_CUSTOMERS . " SET customers_default_address_id = :addID WHERE customers_id = :custID";
+                $sql = $db->bindVars($sql, ":addID", $id, 'integer');
+                $sql = $db->bindVars($sql, ":custID", $customer_id, 'integer');
+                $action = $db->Execute($sql);
+
+                $zco_notifier->notify('NOTIFY_MODULE_ADDRESS_BOOK_UPDATED_PRIMARY_CUSTOMER_RECORD',
+                    array('address_id' => $id, 'customers_id' => $customer_id));
+            }
         }
     
         function updateOrderAndPayment($customerID, $transID, $insertID, $approval, $payment_profile_id, $status)
@@ -1455,20 +1467,28 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
         function updateCustomer($customerID, $profileID)
         {
             global $db;
-            $sql = "UPDATE " . TABLE_CUSTOMERS . "
-            SET customers_customerProfileId = :profileID
-            WHERE customers_id = :custID ";
+            $sql = "SELECT FROM " . TABLE_CUSTOMERS_CIM_PROFILE . " WHERE customers_id = :custID";
+            $sql = $db->bindVars($sql, ':custID', $customerID, 'integer');
+            $customer = $db->Execute($sql);
+
+            if ($customer->count() > 0) {
+                $sql = "UPDATE " . TABLE_CUSTOMERS_CIM_PROFILE . " set customers_customerProfileId = :profileID,
+                date_modified = now() WHERE customers_id = :custID";
+            } else {
+                $sql = "INSERT INTO " . TABLE_CUSTOMERS_CIM_PROFILE . " (`customers_id`, `customers_customerProfileId`, `date_created`, `date_modified`)
+            VALUES (:custID, :profileID, now(), now())";
+            }
             $sql = $db->bindVars($sql, ':custID', $customerID, 'integer');
             $sql = $db->bindVars($sql, ':profileID', $profileID, 'integer');
             $db->Execute($sql);
         }
-    
-        protected function tableCheckup()
-        {
-            global $db, $sniffer;
-        
-            if (!$sniffer->table_exists(TABLE_CIM_PAYMENTS)) {
-                $sql = "
+
+    protected function tableCheckup()
+    {
+        global $db, $sniffer;
+
+        if (!$sniffer->table_exists(TABLE_CIM_PAYMENTS)) {
+            $sql = "
                 CREATE TABLE `" . TABLE_CIM_PAYMENTS . "` (
                 `payment_id` int(11) NOT NULL AUTO_INCREMENT,
   `orders_id` int(11) NOT NULL DEFAULT 0,
@@ -1485,11 +1505,11 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
   PRIMARY KEY (`payment_id`),
   KEY `refund_index` (`orders_id`)
 )";
-                $db->Execute($sql);
-            }
-        
-            if (!$sniffer->table_exists(TABLE_CIM_PAYMENT_TYPES)) {
-                $sql = "
+            $db->Execute($sql);
+        }
+
+        if (!$sniffer->table_exists(TABLE_CIM_PAYMENT_TYPES)) {
+            $sql = "
                 CREATE TABLE `" . TABLE_CIM_PAYMENT_TYPES . "` (
   `payment_type_id` int(11) NOT NULL AUTO_INCREMENT,
   `language_id` int(11) NOT NULL DEFAULT 1,
@@ -1499,9 +1519,9 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
   UNIQUE KEY `type_code` (`payment_type_code`),
   KEY `type_code_2` (`payment_type_code`)
 )";
-                $db->Execute($sql);
-            
-                $sql = "INSERT INTO `" . TABLE_CIM_PAYMENT_TYPES . "` (`payment_type_id`, `language_id`, `payment_type_code`, `payment_type_full`) VALUES
+            $db->Execute($sql);
+
+            $sql = "INSERT INTO `" . TABLE_CIM_PAYMENT_TYPES . "` (`payment_type_id`, `language_id`, `payment_type_code`, `payment_type_full`) VALUES
 (1,	1,	'CA',	'Cash'),
 (2,	1,	'CK',	'Check'),
 (3,	1,	'MO',	'Money Order'),
@@ -1518,11 +1538,11 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
 (14,	1,	'MAES',	'Maestro'),
 (15,	1,	'JCB',	'JCB'),
 (16,	1,	'VOID',	'Void')";
-                $db->Execute($sql);
-            }
-        
-            if (!$sniffer->table_exists(TABLE_CIM_REFUNDS)) {
-                $sql = "
+            $db->Execute($sql);
+        }
+
+        if (!$sniffer->table_exists(TABLE_CIM_REFUNDS)) {
+            $sql = "
 CREATE TABLE `" . TABLE_CIM_REFUNDS . "` (
   `refund_id` int(11) NOT NULL AUTO_INCREMENT,
   `payment_id` int(11) NOT NULL DEFAULT 0,
@@ -1536,11 +1556,11 @@ CREATE TABLE `" . TABLE_CIM_REFUNDS . "` (
   `date_posted` datetime DEFAULT NULL,
   PRIMARY KEY (`refund_id`)
 )";
-                $db->Execute($sql);
-            }
-        
-            if (!$sniffer->table_exists(TABLE_CUSTOMERS_CC)) {
-                $sql = "
+            $db->Execute($sql);
+        }
+
+        if (!$sniffer->table_exists(TABLE_CUSTOMERS_CC)) {
+            $sql = "
 CREATE TABLE `" . TABLE_CUSTOMERS_CC . "` (
   `index_id` int(11) NOT NULL AUTO_INCREMENT,
   `customers_id` int(11) NOT NULL,
@@ -1552,12 +1572,20 @@ CREATE TABLE `" . TABLE_CUSTOMERS_CC . "` (
   `card_last_modified` datetime NOT NULL,
   PRIMARY KEY (`index_id`)
 )";
-                $db->Execute($sql);
-            }
-            $fieldOkay2 = ($sniffer->field_exists(TABLE_CUSTOMERS, 'customers_customerProfileId')) ? true : -1;
-            if ($fieldOkay2 !== true) {
-                $db->Execute("ALTER TABLE " . TABLE_CUSTOMERS . " ADD COLUMN `customers_customerProfileId`        int(11) NOT NULL DEFAULT 0 after `customers_paypal_ec`");
-            }
+            $db->Execute($sql);
         }
+        if (!$sniffer->table_exists(TABLE_CUSTOMERS_CIM_PROFILE)) {
+            $sql = "
+CREATE TABLE `" . TABLE_CUSTOMERS_CIM_PROFILE . "` (
+ `index` int(11) NOT NULL AUTO_INCREMENT,
+  `customers_id` int(11) NOT NULL,
+  `customers_customerProfileId` int(11) NOT NULL,
+  `date_created` datetime NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE current_timestamp(),
+  `date_modified` datetime NOT NULL,
+  PRIMARY KEY (`index`)
+)";
+            $db->Execute($sql);
+        }
+    }
     
     }

@@ -75,10 +75,10 @@ $(function() {
 	$('input[name="address_selection"]').click(function() {
 		if ($('input[name="address_selection"][value="new"]').is(":checked")) {
 			$("#show_select").show(1000);
-			 $("#cardUpdate > form[name='card_update']").removeAttr("novalidate");
+			 $("#cardUpdate > form").removeAttr("novalidate");
 		} else {
 			$("#show_select").hide(300);
-			 $("#cardUpdate > form[name='card_update']").attr("novalidate", "true");
+			 $("#cardUpdate > form").attr("novalidate", "true");
 		}
 	});
 	$(".last_four, .expiration_date").css("font-weight","bold");
@@ -122,7 +122,7 @@ $(function() {
 		if (!validateExpDate()) {
 			$("#cc_date_error").removeClass("inputError").addClass("inputError_show"); error_free=false;}
 		else{$("#cc_date_error").removeClass("inputError_show").addClass("inputError");}
-		if (!error_free){e.preventDefault();}
+		//if (!error_free){e.preventDefault();}
 	});
 	if ($('input[name="address_selection"][value="new"]').is(":checked")) {
 	    $("#show_select").show(700); $('#change_billing').fadeOut();

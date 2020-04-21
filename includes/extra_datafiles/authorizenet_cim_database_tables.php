@@ -14,5 +14,6 @@
     define('TABLE_CIM_PAYMENTS', DB_PREFIX . 'authorize_cim_payments');
     define('TABLE_CIM_REFUNDS', DB_PREFIX . 'authorize_cim_refunds');
     define('TABLE_CIM_PAYMENT_TYPES', DB_PREFIX . 'authorize_cim_payment_types');
+    define('TABLE_CUSTOMERS_CIM_PROFILE', DB_PREFIX . 'customers_cim_profile');
 
     define('FILENAME_AUTHNET_PAYMENTS', 'authorizenet_payments');

@@ -47,9 +47,7 @@
         $start = strpos($update_cid, 'ERROR');
         if ($start === false) {
             $messageStack->add_session(FILENAME_ACCOUNT, 'Your credit card has been UPDATED!', 'success');
-            if (isset($_POST['address_selection']) && ($_POST['address_selection'] !== 'new')) {
-                $cim->updateDefaultCustomerBillto($_POST['address_selection']);
-            }
+            $cim->updateDefaultCustomerBillto($_POST['address_selection']);
             zen_redirect(zen_href_link(FILENAME_ACCOUNT, '', 'SSL'));
         } else {
             $messageStack->add_session(FILENAME_CARD_UPDATE, 'Problem updating your card: ' . $update_cid, 'error');
@@ -63,9 +61,7 @@
         $start = strpos($new_cid, 'ERROR');
         if ($start === false) {
             $messageStack->add_session(FILENAME_ACCOUNT, 'You have successfully added a new Credit Card!', 'success');
-            if (isset($_POST['address_selection']) && ($_POST['address_selection'] !== 'new')) {
-                $cim->updateDefaultCustomerBillto($_POST['address_selection']);
-            }
+            $cim->updateDefaultCustomerBillto($_POST['address_selection']);
             zen_redirect(zen_href_link(FILENAME_ACCOUNT, '', 'SSL'));
         } elseif ($new_cid->error) {
             $messageStack->add_session(FILENAME_CARD_UPDATE, $new_cid, 'error');
