@@ -40,12 +40,7 @@ class authorizenet_cim extends base
         var $errorMessages = array();
     
         // zen-cart base payment functions
-    
-        /**
-         * Constructor
-         *
-         * @return authorizenet_cim
-         */
+
         function __construct()
         {
             global $order, $messageStack;
@@ -67,7 +62,7 @@ class authorizenet_cim extends base
             } else {
                 $this->title = MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CATALOG_TITLE;
             }
-            $this->description = 'Authorizenet API using CIM: version' . $this->version; // Descriptive Info about module in Admin
+            $this->description = 'Authorizenet API using CIM: version ' . $this->version . MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_DESCRIPTION;
             $this->form_action_url = zen_href_link(FILENAME_CHECKOUT_PROCESS, '', 'SSL', false);
             $this->order_status = (int)DEFAULT_ORDERS_STATUS_ID;
             if (defined('MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID') && (int)MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID > 0) {
@@ -171,7 +166,7 @@ class authorizenet_cim extends base
                 ),
                 array(
                   'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CREDIT_CARD_NUMBER,
-                  'field' => zen_draw_input_field('authorizenet_cim_cc_number', '4012888888881881',
+                  'field' => zen_draw_input_field('authorizenet_cim_cc_number', '',
                     'id="' . $this->code . '-cc-number"' . $onFocus),
                   'tag' => $this->code . '-cc-number'
                 ),
@@ -189,7 +184,7 @@ class authorizenet_cim extends base
             if (MODULE_PAYMENT_AUTHORIZENET_CIM_USE_CVV == 'True') {
                 $selection['fields'][] = array(
                   'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CVV,
-                  'field' => zen_draw_input_field('authorizenet_cim_cc_cvv', '456',
+                  'field' => zen_draw_input_field('authorizenet_cim_cc_cvv', '',
                       'size="4" maxlength="4"' . ' id="' . $this->code . '-cc-cvv"' . $onFocus) . ' ' . '<a href="javascript:popupWindow(\'' . zen_href_link(FILENAME_POPUP_CVV_HELP) . '\')">' . MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_POPUP_CVV_LINK . '</a>',
                   'tag' => $this->code . '-cc-cvv'
                 );
@@ -203,11 +198,7 @@ class authorizenet_cim extends base
         
             return $selection;
         }
-    
-        /**
-         * Evaluates the Credit Card Type for acceptance and the validity of the Credit Card Number & Expiration Date
-         *
-         */
+
         function pre_confirmation_check()
         {
             global $messageStack;
@@ -418,7 +409,7 @@ class authorizenet_cim extends base
                 $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Request CVV Number', 'MODULE_PAYMENT_AUTHORIZENET_CIM_USE_CVV', 'True', 'Do you want to ask the customer for the card\'s CVV number', '6', '11', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
             }
             if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_VALIDATION')) {
-                $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Validation Mode (liveMode validates cardInfo)', 'MODULE_PAYMENT_AUTHORIZENET_CIM_VALIDATION', 'testMode', 'Validation Mode', '6', '12', 'zen_cfg_select_option(array(\'none\', \'testMode\', \'liveMode\'), ', now())");
+                $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Validation Mode (liveMode validates cardInfo)', 'MODULE_PAYMENT_AUTHORIZENET_CIM_VALIDATION', 'liveMode', 'Validation Mode', '6', '12', 'zen_cfg_select_option(array(\'none\', \'testMode\', \'liveMode\'), ', now())");
             }
             if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_SORT_ORDER')) {
                 $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Sort order of display.', 'MODULE_PAYMENT_AUTHORIZENET_CIM_SORT_ORDER', '0', 'Sort order of display. Lowest is displayed first.', '6', '13', now())");
@@ -433,7 +424,7 @@ class authorizenet_cim extends base
                 $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Set Refunded Order Status', 'MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID', '1', 'Set the status of refunded orders to this value (refund amounts must be equal to payment total)', '6', '16', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now())");
             }
             if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING')) {
-                $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Debug Mode', 'MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING', 'Off', 'Would you like to enable debug mode?  Failed transactions will always be logged in the cim_response.log file in your ZC logs directory.', '6', '17', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
+                $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Debug Mode', 'MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING', 'False', 'Would you like to enable debug mode?  Failed transactions will always be logged in the cim_response.log file in your ZC logs directory.', '6', '17', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
             }
         
             $this->tableCheckup();
