@@ -1,0 +1,1 @@
+go into the docs directory.  double click on the index.html.  all install instructions are there.

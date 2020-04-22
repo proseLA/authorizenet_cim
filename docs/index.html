@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>authorize card on file transactions</title>
+
+    <!-- Bootstrap Core CSS -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <link href="css/grayscale.css" rel="stylesheet">
+
+    <!-- Custom Fonts -->
+    <link href="font-awesome-4.2.0/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+    <link href="http://fonts.googleapis.com/css?family=Lora:400,700,400italic,700italic" rel="stylesheet"
+          type="text/css">
+    <link href="http://fonts.googleapis.com/css?family=Montserrat:400,700" rel="stylesheet" type="text/css">
+
+    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+    <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+</head>
+
+<body id="page-top" data-spy="scroll" data-target=".navbar-fixed-top">
+
+<!-- Navigation -->
+<nav class="navbar navbar-custom navbar-fixed-top" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-main-collapse">
+                <i class="fa fa-bars"></i>
+            </button>
+        </div>
+
+        <!-- Collect the nav links, forms, and other content for toggling -->
+        <div class="collapse navbar-collapse navbar-right navbar-main-collapse">
+            <ul class="nav navbar-nav">
+                <!-- Hidden li included to remove active class from about link when scrolled up past about section -->
+                <li class="hidden">
+                    <a href="#page-top"></a>
+                </li>
+                <li>
+                    <a class="page-scroll" href="#install">Install</a>
+                </li>
+                <li>
+                    <a class="page-scroll" href="#notes">Notes</a>
+                </li>
+                <li>
+                    <a class="page-scroll" href="#contact">Contact</a>
+                </li>
+            </ul>
+        </div>
+        <!-- /.navbar-collapse -->
+    </div>
+    <!-- /.container -->
+</nav>
+<!-- Intro Header -->
+<header class="intro" style="padding-top: 40px">
+    <div class="intro-body">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-8 col-md-offset-2">
+                    <h2 class="brand-heading">authorize.net Customer Integration Management</h1>
+                    <h3 class="brand-title">Yes you can offer credit cards on file securely!</h3>
+                    <p class="intro-text"></p>
+                    <a href="#install" class="btn btn-circle page-scroll">
+                        <i class="fa fa-angle-double-down animated"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+
+<!-- About Section -->
+<section id="install" class="container content-section">
+    <div class="row">
+
+        <H2>How to Install</H2>
+
+        <li>There are 2 directories that mirror your zen-cart install; an includes directory and an admin directory
+        </li>
+        <li>Rename the YOUR_TEMPLATE directory within the includes/templates directory to the name of the template that
+            you using.
+        </li>
+        <li>Now copy the includes directory into the includes directory of your store. This is a merge.</li>
+        <li>Rename the admin directory to the name of your admin directory and merge it with your existing admin
+            directory.
+        </li>
+        <li>If you need help with FTPing the files up to your server, or an FTP client, go to the zen-cart forum.</li>
+        <li>Go to Admin -> Modules -> Payment and you will see 2 new payment modules</li>
+        <li>Enable authorizenet_cim, enter your API login ID and transaction key. Select Test mode or Production Mode.
+            And you are off and running.
+        </li>
+        <li>Card on File transactions are automatically enabled when authorizenet_cim gets enabled.</li>
+        <li>I like using liveMode for validation even when in the test environment. That way you are validating test
+            credit cards.
+        </li>
+        <li>Debugging is done via the selection of Debug Mode or by creating a new constant called DEBUG_CIM and setting
+            it to boolean true
+        </li>
+    </div>
+
+
+</section>
+<!-- Download Section -->
+<section id="notes" class="container content-section ">
+    <div class="row">
+        <H2>Notes</H2>
+
+        <li>There are NO core zen-cart files modified.
+        </li>
+        <li>There are no additional fields added to any zen-cart tables</li>
+        <li>There are 5 new tables that are part of this module.</li>
+        <li>Transactions are currently ONLY authorize/capture.</li>
+        <li>There is a very visible button on the admin for refunding all or part of an order.</li>
+        <li>If you try refunding prior to settling, the transaction will automatically void.</li>
+        <li>Read what is on the pop-up window when doing refunds.  It explains a lot.</li>
+        <li>This module will log all FAILED transactions to cim_response.log in the logs directory. To see all
+            transactions (including successful transactions) in that log file, one can set the key
+            MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING to true; OR create a new constant called DEBUG_CIM and set that to
+            true. both of these do the same thing.
+        </li>
+        <li>Once debug is on, this module will create ZC style debug logs with all response data.</li>
+        <li>There is NO option to store responses in a table or to be emailed responses.  Your log files are all we got.</li>
+        <li>PCI-DSS is legal document. I am not a lawyer. I offer no opinion on this module as to how it effects your
+            PCI-DSS status.
+        </li>
+        <li>I have done everything that i think necessary to protect cardholder data. if you think this module violates
+            any tenet of PCI-DSS, feel free to open an issue with <a href="https://github.com/proseLA/authorizenet_cim/" target="_blank">me on github.</a>  The code is there for anyone to see.  I take protection of cardholder data seriously.
+        </li>
+        <li>CIM looks to be now included with all authorize.net accounts.</li>
+        <li>This module has been tested for zen-cart v1.5.6 and v1.5.7-alpha.</li>
+        <li>Refunds must be issued within 120 days of the transaction. This is inherent in the system from
+            authorize.net.
+        </li>
+        <li>I have tested this module for compatibility with OPC (One Page Checkout).</li>
+        <li>There is no warranty, express and/or implied, that this module will work or is well suited for your
+            particular application.
+        </li>
+        <li>Support for this module is on the zen-cart forum. Once approved there will be a support page for all
+            questions.
+        </li>
+    </div>
+</section>
+<!-- Contact Section -->
+<section id="contact" class="container content-section text-center">
+    <div class="row">
+        <div class="col-lg-8 col-lg-offset-2">
+            <h2>Contact Me</h2>
+            <p>I am around.... or <a href="https://www.zen-cart.com/member.php?17577-carlwhat">perhaps I'm here.</a></p>
+            <p>projects -at- rossroberts.com
+            </p>
+            <p><a href="https://www.paypal.me/carlwhat">Feel free to send money!</a> </p>
+            <ul class="list-inline banner-social-buttons">
+                <li>
+                    <a href="https://twitter.com/pRoseLA" class="btn btn-default btn-lg"><i
+                            class="fa fa-twitter fa-fw"></i> <span class="network-name">Twitter</span></a>
+                </li>
+
+                <li>
+                    <a href="https://www.instagram.com/prose_la/" class="btn btn-default btn-lg"><i
+                            class="fa fa-instagram fa-fw"></i> <span class="network-name">Instagram</span></a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer>
+    <div class="container text-center">
+        <p>&copy; proseLA 2020 </p>
+    </div>
+</footer>
+
+<!-- jQuery -->
+<script src="js/jquery.js"></script>
+
+<!-- Bootstrap Core JavaScript -->
+<script src="js/bootstrap.min.js"></script>
+
+<!-- Plugin JavaScript -->
+<script src="js/jquery.easing.min.js"></script>
+
+<!-- Custom Theme JavaScript -->
+<script src="js/grayscale.js"></script>
+
+</body>
+
+</html>
