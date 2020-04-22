@@ -7,7 +7,7 @@
     released under GPU
     https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
 
-   04/2020  project: authorizenet_cim; file: authorizenet_cof.php
+   04/2020  project: authorizenet_cim; file: authorizenet_cof.php; version 2.0
 */
 
 define('MODULE_PAYMENT_SAVED_CC_TEXT_TITLE', 'Authorize.net Card on File - COF');

@@ -1,4 +1,14 @@
 <?php
+/*  portions copyright by... zen-cart.com
+
+    developed and brought to you by proseLA
+    https://rossroberts.com
+
+    released under GPU
+    https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
+
+   04/2020  project: authorizenet_cim; file: authnet_order.php; version 2.0
+*/
     
     class authnet_order
     {

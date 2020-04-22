@@ -1,8 +1,14 @@
 <?php
-    /**
-     * authorize.net CIM payment method class
-     *
-     */
+/*  portions copyright by... zen-cart.com
+
+    developed and brought to you by proseLA
+    https://rossroberts.com
+
+    released under GPU
+    https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
+
+   04/2020  project: authorizenet_cim; file: authorizenet_cim.php; version 2.0
+*/
     
     if (!file_exists($sdk_loader = DIR_FS_CATALOG . 'includes/modules/payment/authorizenet/authorizenet-sdk/autoload.php')) {
         return false;
@@ -18,7 +24,7 @@ class authorizenet_cim extends base
         
         var $code, $title, $description, $enabled, $authorize = '';
         
-        var $version = '2.0'; // the code revision number for this class
+        var $version = '2.0';
         var $params = array();
         var $success = false;
         var $error = true;

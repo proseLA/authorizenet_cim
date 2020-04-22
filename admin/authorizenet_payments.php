@@ -1,21 +1,13 @@
 <?php
-/*
-//  SUPER ORDERS v3.0                                               	//
-//  Based on Super Order 2.0                                        	//
-//  By Frank Koehl - PM: BlindSide (original author)                	//
-//  Super Orders 3 Updated by:
-//  ~ JT of GTICustom
-//  ~ C Jones Over the Hill Web Consulting (http://overthehillweb.com)	//
-//  ~ Loose Chicken Software Development, david@loosechicken.com	//
-//                                                      		//
-//                                                     			//
-//  Released under the GNU General Public License       		//
-//  available at www.zen-cart.com/license/2_0.txt       		//
-//  or see "license.txt" in the downloaded zip          		//
-//////////////////////////////////////////////////////////////////////////
-//  DESCRIPTION:   This file generates a pop-up window that is used to 	//
-//	enter and edit payment information for a given order.		//
-//////////////////////////////////////////////////////////////////////////
+/*  portions copyright by... zen-cart.com
+
+    developed and brought to you by proseLA
+    https://rossroberts.com
+
+    released under GPU
+    https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
+
+   04/2020  project: authorizenet_cim; file: authorizenet_payments.php; version 2.0
 */
 
 require 'includes/application_top.php';
@@ -138,27 +130,7 @@ if ($_GET['process'] == '1') {
                     <td colspan="2" align="center" class="warningText"><?= WARN_DELETE_PAYMENT; ?>
                     <?php
                     break;
-                    /*
-                case 'refund':
-                    echo zen_draw_hidden_field('refund_id', $index);
-                    ?>
-                    <tr>
-                        <td colspan="2" align="center" class="pageHeading"><?= HEADER_DELETE_REFUND; ?></td>
-                    </tr>
-                    <tr>
-                        <td align="center" colspan="2" class="main">
-                            <strong><?= HEADER_ORDER_ID . $oID . '<br />' . HEADER_REFUND_UID . $index; ?></strong>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
-                    </tr>
-                    <tr class="alert alert-danger">
-                    <td colspan="2" align="center" class="warningText"><?= WARN_DELETE_REFUND; ?>
-                    <?php
-                    break;
-                    */
-            }  
+            }
             ?>
             <p><input type="button" class="btn btn-info" value="<?= BUTTON_CANCEL; ?>"
                       onclick="returnParent()">
@@ -227,8 +199,6 @@ if ($_GET['process'] == '1') {
     }  
 
 }// END else
-
-
 ?>
     <!-- body_text_eof //-->
     </td>
