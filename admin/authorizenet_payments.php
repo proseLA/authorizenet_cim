@@ -22,9 +22,9 @@ require 'includes/application_top.php';
 require_once DIR_WS_CLASSES . 'authnet_order.php';
 require_once DIR_FS_CATALOG . DIR_WS_LANGUAGES . $_SESSION['language'] . '/modules/payment/authorizenet_cim.php';
 require_once DIR_FS_CATALOG_MODULES . 'payment/' . 'authorizenet_cim.php';
-$cim_module = new authorizenet_cim();
+$authnet_cim = new authorizenet_cim();
 
-$cim_module->checkLogName();
+$authnet_cim->checkLogName();
 
 $oID = (int)$_GET['oID'];
 $payment_mode = $_GET['payment_mode'];
@@ -40,10 +40,10 @@ if ($_GET['process'] == '1') {
             switch ($payment_mode) {
                 case 'payment':
                     $refund_amt = abs(round((float)($_GET['refund_amount']), 2));
-                    $_SESSION['refund_status'] = $cim_module->doCimRefund($oID, $refund_amt);
+                    $_SESSION['refund_status'] = $authnet_cim->doCimRefund($oID, $refund_amt);
                     $affected_rows++;
-                    break;  // END case 'payment'
-            }  // END switch ($payment_mode)
+                    break;  
+            }  
             zen_redirect(zen_href_link(FILENAME_AUTHNET_PAYMENTS,
                 'oID=' . $oID . '&affected_rows=' . $affected_rows . '&action=refund_done', 'SSL'));
             break;
@@ -113,8 +113,6 @@ if ($_GET['process'] == '1') {
                     ?>
                     <table border="0" cellspacing="0" cellpadding="2">
                     <tr>
-                        <td align="center">
-                    <tr>
                         <td colspan="2" align="center" class="pageHeading"><?= HEADER_DELETE_PAYMENT; ?></td>
                     </tr>
                     <tr>
@@ -140,6 +138,7 @@ if ($_GET['process'] == '1') {
                     <td colspan="2" align="center" class="warningText"><?= WARN_DELETE_PAYMENT; ?>
                     <?php
                     break;
+                    /*
                 case 'refund':
                     echo zen_draw_hidden_field('refund_id', $index);
                     ?>
@@ -158,7 +157,8 @@ if ($_GET['process'] == '1') {
                     <td colspan="2" align="center" class="warningText"><?= WARN_DELETE_REFUND; ?>
                     <?php
                     break;
-            }  // END switch ($payment_mode)
+                    */
+            }  
             ?>
             <p><input type="button" class="btn btn-info" value="<?= BUTTON_CANCEL; ?>"
                       onclick="returnParent()">
@@ -210,9 +210,9 @@ if ($_GET['process'] == '1') {
             <?php
             break;
         case 'clearCards_confirm':
-            $profileId = $cim_module->getCustomerProfile((int)$_GET['cID']);
+            $profileId = $authnet_cim->getCustomerProfile((int)$_GET['cID']);
             if ($profileId) {
-                $cim_module->deleteStoredData($_GET['cID'], $profileId);
+                $authnet_cim->deleteStoredData($_GET['cID'], $profileId);
             }
             ?>
             <div class="alert alert-info">All cards were deleted for:<br/>
@@ -224,7 +224,7 @@ if ($_GET['process'] == '1') {
             <?php
             break;
 
-    }  // END switch ($action)
+    }  
 
 }// END else
 

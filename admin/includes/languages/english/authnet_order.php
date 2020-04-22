@@ -10,7 +10,7 @@
     define('CIM_ACTION', 'Action');
     define('CIM_APPROVAL', 'Code');
 
-
+/*
     define('HEADER_ENTER_PAYMENT', 'Enter Payment');
     define('HEADER_ENTER_PO', 'Enter Purchase Order');
     define('HEADER_ENTER_REFUND', 'Enter Refund');
@@ -24,17 +24,17 @@
     define('HEADER_CONFIRM_REFUND', 'Review Refund');
     
     //define('HEADER_DELETE_PAYMENT', 'Delete Payment');
-    
+*/
     define('HEADER_DELETE_PAYMENT', 'Refund Payment');
     define('DELETE_PAYMENT_NOTE',
-      'Leave blank for Total Refund.<br><span class="font-weight-bold">Payments not settled will void;</span><br>Irrespective of amount entered.');
+      'Leave blank for Total Refund.<br><span class="alert alert-dark">Payments not settled will void.</span><br>Irrespective of amount entered.');
     define('HEADER_DELETE_PO', 'Delete Purchase Order');
     define('HEADER_DELETE_REFUND', 'Delete Refund');
     
     define('HEADER_ORDER_ID', 'Order #');
     define('HEADER_PAYMENT_UID', 'Payment UID #');
     define('HEADER_REFUND_UID', 'Refund UID #');
-    define('HEADER_PO_UID', 'Purchase Order UID #');
+/*    define('HEADER_PO_UID', 'Purchase Order UID #');
     
     define('TEXT_PAYMENT_NUMBER', 'Number:');
     define('TEXT_PAYMENT_NAME', 'Name:');
@@ -43,12 +43,13 @@
     define('TEXT_ATTACHED_PO', 'P.O. Assignment:');
     
     define('TEXT_PO_NUMBER', 'P.O. Number:');
-    
+
     define('TEXT_ATTACHED_PAYMENT', 'Target Payment:');
     define('TEXT_REFUND_NUMBER', 'Number:');
     define('TEXT_REFUND_NAME', 'Name:');
+    */
     define('TEXT_REFUND_AMOUNT', 'Amount:');
-    define('TEXT_REFUND_TYPE', 'Type');
+//    define('TEXT_REFUND_TYPE', 'Type');
     define('TEXT_NO_MINUS', ' * No minus sign');
     
     define('BUTTON_SUBMIT', 'Submit');
@@ -58,15 +59,16 @@
     define('BUTTON_ADD_NEW', 'Add Another');
     define('BUTTON_ADD_PAYMENT', 'Add Payment');
     
-    define('CHECKBOX_UPDATE_STATUS', 'Update order status with pre-set status & comments?');
-    define('CHECKBOX_NOTIFY_CUSTOMER', 'Notify the customer?');
+//    define('CHECKBOX_UPDATE_STATUS', 'Update order status with pre-set status & comments?');
+//    define('CHECKBOX_NOTIFY_CUSTOMER', 'Notify the customer?');
     
     define('WARN_DELETE_PAYMENT', 'Are you sure you want to refund this payment?<p>This action cannot be undone!');
-    define('WARN_DELETE_PO', 'Are you sure you want to delete this purchase order?<p>This action cannot be undone!');
-    define('WARN_DELETE_REFUND', 'Are you sure you want to delete this refund?<p>This action cannot be undone!');
+/*
+    //    define('WARN_DELETE_PO', 'Are you sure you want to delete this purchase order?<p>This action cannot be undone!');
+//    define('WARN_DELETE_REFUND', 'Are you sure you want to delete this refund?<p>This action cannot be undone!');
     
-    define('TEXT_REFUND_ACTION',
-      '<strong>%s</strong> refund(s) currently tied to this payment.  What do you want to do?');
+//    define('TEXT_REFUND_ACTION',
+//      '<strong>%s</strong> refund(s) currently tied to this payment.  What do you want to do?');
     define('REFUND_ACTION_KEEP', 'Keep the refund associated with the order, but not a particular payment');
     define('REFUND_ACTION_MOVE', 'Move the refund to another payment: ');
     define('REFUND_ACTION_DROP', 'Remove it along with the refund');
@@ -76,7 +78,7 @@
     define('PAYMENT_ACTION_KEEP', 'Keep the payment associated with the order, but not a particular P.O.');
     define('PAYMENT_ACTION_MOVE', 'Move the payment to another P.O.:');
     define('PAYMENT_ACTION_DROP', 'Remove it along with the payment');
-    
+*/
     define('HEADER_REFUND_DONE', 'Refund/Void Successful');
     define('HEADER_REFUND_FAIL', 'Refund/Void Failed!');
     define('TEXT_DELETE_CONFIRM', 'The operation is complete.<p><strong>%s</strong> line(s) affected in the process.');

@@ -18,7 +18,7 @@
     } else {
         define('MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS', false);
         define('MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_DESCRIPTION',
-          '<a target="_blank" href="http://reseller.authorize.net/application.asp?resellerId=10023">Click Here to Sign Up for an Account</a><br /><br /><a target="_blank" href="https://account.authorize.net/">Authorize.net Merchant Area</a><br /><br /><strong>Requirements:</strong><br /><hr />*<strong>Authorize.net Account</strong> (see link above to signup)<br />*<strong>CURL is required </strong>and MUST be compiled with SSL support into PHP by your hosting company<br />*<strong>Authorize.net username and transaction key</strong> available from your Merchant Area');
+          '<a target="_blank" href="http://reseller.authorize.net/application/?resellerId=111066">Click Here to Sign Up for an Account</a><br /><br /><a target="_blank" href="https://account.authorize.net/">Authorize.net Merchant Area</a><br /><br /><strong>Requirements:</strong><br /><hr />*<strong>Authorize.net Account</strong> (see link above to signup)<br />*<strong>CURL is required </strong>and MUST be compiled with SSL support into PHP by your hosting company<br />*<strong>Authorize.net username and transaction key</strong> available from your Merchant Area');
     }
     define('MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_ERROR_CURL_NOT_FOUND',
       'CURL functions not found - required for Authorize.net CIM payment module');
@@ -44,6 +44,7 @@
     define('MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_ERROR', 'Credit Card Error!');
     
     // admin tools:
+/*
     define('MODULE_PAYMENT_AUTHORIZENET_CIM_ENTRY_REFUND_BUTTON_TEXT', 'Do Refund');
     define('MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_REFUND_CONFIRM_ERROR',
       'Error: You requested to do a refund but did not check the Confirmation box.');
@@ -63,6 +64,7 @@
       'Error: You requested a Void but did not check the Confirmation box.');
     define('MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_VOID_INITIATED',
       'Void Initiated. Transaction ID: %s - Auth Code: %s ');
+*/
     
     
     define('MODULE_PAYMENT_AUTHORIZENET_CIM_ENTRY_REFUND_TITLE', '<strong>Refund Transactions</strong>');

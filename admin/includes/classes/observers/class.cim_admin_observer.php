@@ -13,105 +13,75 @@
               'NOTIFY_ADMIN_CUSTOMERS_MENU_BUTTONS',
               'NOTIFY_ADMIN_FOOTER_END',
             ));
-            
         }
         
         public function update(&$class, $eventID, &$p1, &$p2, &$p3, &$p4)
         {
             switch ($eventID) {
-                
                 case 'NOTIFY_ADMIN_ORDERS_PAYMENTDATA_COLUMN2':
                     require_once DIR_WS_CLASSES . 'authnet_order.php';
                     require_once DIR_WS_CLASSES . 'currencies.php';
                     $currencies = new currencies();
                     
-                    $cim = new authnet_order($p1);
+                    $authnet = new authnet_order($p1);
                     ?>
                     <div class="panel panel-default " style="width: 60%">
-                        <table class="table table-hover">
+                        <table class="table table-hover table-bordered">
+                            <thead>
                             <tr>
-                                <td class="main"><strong><?= TEXT_CIM_DATA ?></strong></td>
-                                
+                                <th colspan="2"><?= TEXT_CIM_DATA ?></td>
                             </tr>
                             <tr class="dataTableHeadingRow">
-                                <th class="dataTableHeadingContent" align="left"
-                                    width="15%"><?= CIM_NUMBER; ?></th>
-                                <th class="dataTableHeadingContent" align="left"
-                                    width="15%"><?= CIM_NAME; ?></th>
-                                <th class="dataTableHeadingContent" align="right"
-                                    width="15%"><?= CIM_AMOUNT; ?></th>
-                                <th class="dataTableHeadingContent" align="center"
-                                    width="15%"><?= CIM_TYPE; ?></th>
-                                <th class="dataTableHeadingContent" align="left"
-                                    width="15%"><?= CIM_POSTED; ?></th>
-                                <th class="dataTableHeadingContent" align="left"
-                                    width="15%"><?= CIM_APPROVAL; ?></th>
-                                <th class="dataTableHeadingContent" align="right"
-                                    width="10%"><?= CIM_ACTION; ?></th>
+                                <th scope="col"><?= CIM_NUMBER; ?></th>
+                                <th scope="col"><?= CIM_NAME; ?></th>
+                                <th scope="col"><?= CIM_AMOUNT; ?></th>
+                                <th scope="col"><?= CIM_TYPE; ?></th>
+                                <th scope="col"><?= CIM_POSTED; ?></th>
+                                <th scope="col"><?= CIM_APPROVAL; ?></th>
+                                <th scope="col"><?= CIM_ACTION; ?></th>
                             </tr>
+                            </thead>
+                            <tbody>
                             <?php
-                                if ($cim->payment) {
-                                    for ($a = 0; $a < sizeof($cim->payment); $a++) {
-                                        if ($a != 0) {
-                                            ?>
-                                            <tr>
-                                                <td><?= zen_draw_separator('pixel_trans.gif', '1', '5'); ?></td>
-                                            </tr>
-                                            <?php
-                                        }
+                                if ($authnet->payment) {
+                                    for ($a = 0; $a < sizeof($authnet->payment); $a++) {
                                         ?>
-                                        <tr class="paymentRow bg-success">
-                                            <td class="paymentContent"
-                                                align="left"><?= $cim->payment[$a]['number']; ?></td>
-                                            <td class="paymentContent"
-                                                align="left"><?= $cim->payment[$a]['name']; ?></td>
-                                            <td class="paymentContent" align="right">
-                                                <strong><?= $currencies->format($cim->payment[$a]['amount']); ?></strong>
-                                            </td>
-                                            <td class="paymentContent"
-                                                align="center"><?= $cim->full_type($cim->payment[$a]['type']); ?></td>
-                                            <td class="paymentContent"
-                                                align="left"><?= zen_datetime_short($cim->payment[$a]['posted']); ?></td>
-                                            <td class="paymentContent"
-                                                align="left"><?= $cim->payment[$a]['approval_code']; ?></td>
-                                            <td class="paymentContent"
-                                                align="right"><?php
-                                                    $date = new DateTime($cim->payment[$a]['posted']);
+                                        <tr class="bg-success">
+                                            <th scope="row" ><?= $authnet->payment[$a]['number']; ?></th>
+                                            <td ><?= $authnet->payment[$a]['name']; ?></td>
+                                            <th scope="row"><?= $currencies->format($authnet->payment[$a]['amount']); ?></td>
+                                            <td ><?= $authnet->full_type($authnet->payment[$a]['type']); ?></td>
+                                            <td ><?= zen_datetime_short($authnet->payment[$a]['posted']); ?></td>
+                                            <td ><?= $authnet->payment[$a]['approval_code']; ?></td>
+                                            <td ><?php
+                                                    $date = new DateTime($authnet->payment[$a]['posted']);
                                                     $now = new DateTime();
-                                                    ((($cim->payment[$a]['amount'] > $cim->payment[$a]['refund_amount']) &&  $date->diff($now)->format("%d") < 120) ? $cim->button_refund('payment',
-                                                      $cim->payment[$a]['index']) : ""); ?></td>
-
+                                                    ((($authnet->payment[$a]['amount'] > $authnet->payment[$a]['refund_amount']) &&  $date->diff($now)->format("%d") < 120) ? $authnet->button_refund('payment',
+                                                      $authnet->payment[$a]['index']) : ""); ?></td>
                                         </tr>
                                         <?php
-                                        if ($cim->refund) {
-                                            for ($b = 0; $b < sizeof($cim->refund); $b++) {
-                                                if ($cim->refund[$b]['payment'] == $cim->payment[$a]['index']) {
+                                        if ($authnet->refund) {
+                                            for ($b = 0; $b < sizeof($authnet->refund); $b++) {
+                                                if ($authnet->refund[$b]['payment'] == $authnet->payment[$a]['index']) {
                                                     ?>
                                                     <tr class="refundRow bg-danger" onMouseOver="rowOverEffect(this)"
                                                         onMouseOut="rowOutEffect(this)">
-                                                        <td class="refundContent"
-                                                            align="left"><?= $cim->refund[$b]['number']; ?></td>
-                                                        <td class="refundContent"
-                                                            align="left"><?= $cim->refund[$b]['name']; ?></td>
-                                                        <td class="refundContent" align="right">
-                                                            <strong><?= '-' . $currencies->format($cim->refund[$b]['amount']); ?></strong>
-                                                        </td>
-                                                        <td class="refundContent"
-                                                            align="center"><?= $cim->full_type($cim->refund[$b]['type']); ?></td>
-                                                        <td class="refundContent"
-                                                            align="left"><?= zen_datetime_short($cim->refund[$b]['posted']); ?></td>
-                                                        <td class="refundContent"
-                                                            align="left"><?= $cim->refund[$b]['approval_code']; ?></td>
-                                                        <td class="refundContent"
-                                                            align="right"> </td>
+                                                        <th scope="row"><?= $authnet->refund[$b]['number']; ?></td>
+                                                        <td ><?= $authnet->refund[$b]['name']; ?></td>
+                                                        <th scope="row"><?= '-' . $currencies->format($authnet->refund[$b]['amount']); ?></td>
+                                                        <td ><?= $authnet->full_type($authnet->refund[$b]['type']); ?></td>
+                                                        <td ><?= zen_datetime_short($authnet->refund[$b]['posted']); ?></td>
+                                                        <td ><?= $authnet->refund[$b]['approval_code']; ?></td>
+                                                        <td > </td>
                                                     </tr>
                                                     <?php
-                                                }  // END if ($cim->refund[$b]['payment'] == $cim->payment[$a]['index'])
-                                            }  // END for($b = 0; $b < sizeof($cim->refund); $b++)
-                                        }  // END if ($cim->refund)
+                                                }  // END if ($authnet->refund[$b]['payment'] == $authnet->payment[$a]['index'])
+                                            }  // END for($b = 0; $b < sizeof($authnet->refund); $b++)
+                                        }  // END if ($authnet->refund)
                                     }  // END for($a = 0; $a < sizeof($payment); $a++)
-                                }  // END if ($cim->payment)
+                                }  // END if ($authnet->payment)
                             ?>
+                            </tbody>
                         </table>
                     </div>
                 <?php
@@ -131,14 +101,12 @@
                           E_USER_ERROR);
                         exit ();
                     }
-    
-                    if (!defined('FILENAME_AUTHNET_PAYMENTS')) {
-                        require_once DIR_FS_CATALOG . DIR_WS_LANGUAGES . $_SESSION['language'] . '/modules/payment/authorizenet_cim.php';
-                    }
+
+                    require_once DIR_FS_CATALOG . DIR_WS_LANGUAGES . $_SESSION['language'] . '/modules/payment/authorizenet_cim.php';
                     require_once DIR_FS_CATALOG_MODULES . 'payment/' . 'authorizenet_cim.php';
-                    $cim_module = new authorizenet_cim();
+                    $authnet_cim = new authorizenet_cim();
                     
-                    $cards = $cim_module->getCustomerCards($p1->customers_id, true);
+                    $cards = $authnet_cim->getCustomerCards($p1->customers_id, true);
     
                     // only show button if customer has cards on file
                     if (!empty($cards->count()) || $cards->count() > 0) {
@@ -150,9 +118,7 @@
                             'class="btn btn-danger" role="button" id="cards_btn" class="btn btn-danger btn-margin">Delete Credit Cards</a>'
                         );
                     }
-                    
                     break;
-                
                 default:
                     break;
             }

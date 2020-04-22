@@ -20,6 +20,9 @@
             
             $this->code = 'authorizenet_cof';
             $this->title = MODULE_PAYMENT_SAVED_CC_TEXT_TITLE;
+            if (IS_ADMIN_FLAG !== true) {
+                $this->title = MODULE_PAYMENT_SAVED_CC_TEXT_TITLE_STORE;
+            }
             // this module is entirely dependent on the authorizenet_cim module.  if that is not enabled.  neither is this.
             $this->enabled = ((MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS == 'True') ? true : false);
             if ($this->enabled == true) {

@@ -76,7 +76,7 @@ class authorizenet_cim extends base
                 if (in_array(MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING, array('True','TRUE','true'))) {
                     define('DEBUG_CIM', true);
                 } else {
-                    define('DEBUG_CIM', true);
+                    define('DEBUG_CIM', false);
                 }
             }
         }
@@ -764,7 +764,7 @@ class authorizenet_cim extends base
             $sql = $db->bindVars($sql, ':custId', $customer_id, 'string');
             $check_customer = $db->Execute($sql);
 
-            if ($check_customer->fields['customers_customerProfileId'] !== 0) {
+            if ($check_customer->fields['customers_customerProfileId'] != 0) {
                 $customerProfileId = $check_customer->fields['customers_customerProfileId'];
             } else {
                 $customerProfileId = false;
@@ -856,6 +856,7 @@ class authorizenet_cim extends base
         
             if (!isset($this->params['customerProfileId']) || ($this->params['customerProfileId'] == 0)) {
                 $customerProfileId = $this->getCustomerProfile($customerID);
+
                 if ($customerProfileId == false) {
                     $this->createCustomerProfileRequest();
                 } else {
@@ -898,7 +899,7 @@ class authorizenet_cim extends base
             $paymentprofile->setPayment($paymentCreditCard);
             $paymentprofile->setDefaultPaymentProfile(true);
         
-            $paymentprofiles[] = $paymentprofile;
+            //$paymentprofiles[] = $paymentprofile;
         
             // Assemble the complete transaction request
             $paymentprofilerequest = new AnetAPI\CreateCustomerPaymentProfileRequest();
@@ -1287,7 +1288,7 @@ class authorizenet_cim extends base
         
             $this->logError($logData, $error);
         
-            $sql = "UPDATE " . TABLE_CUSTOMERS_CIM_PROFILE . " set customers_customerProfileId = 0
+            $sql = "UPDATE " . TABLE_CUSTOMERS_CIM_PROFILE . " set customers_customerProfileId = 0, date_modified = now()
 		            WHERE customers_customerProfileId = :profileID ";
             $sql = $db->bindVars($sql, ':profileID', $customerProfileId, 'integer');
             $db->Execute($sql);
@@ -1395,7 +1396,7 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
                 $this->deleteCustomerPaymentProfile($customerProfileID, $card['payment_profile_id']);
             }
             // i think i best to keep the profile in case one needs to do a refund on an existing transaction.
-            //$this->deleteCustomerProfile($customerProfileID);
+            $this->deleteCustomerProfile($customerProfileID);
         }
     
         function getCustomerCards($customerID, $all = false)
@@ -1419,7 +1420,7 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
             $sql = $db->bindVars($sql, ':indexID', $cc_index, 'integer');
             $check_customer_cc = $db->Execute($sql);
         
-            if ($check_customer_cc->fields['customers_id'] !== $customerID) {
+            if ($check_customer_cc->fields['customers_id'] != $customerID) {
                 $return['valid'] = false;
             } else {
                 $return['payment_profile_id'] = $check_customer_cc->fields['payment_profile_id'];
@@ -1428,7 +1429,6 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
                 $return['exp_date'] = $check_customer_cc->fields['exp_date'];
             }
             return $return;
-        
         }
     
         function updateCCToken($custId, $payment_profile, $exp_date, $save)
@@ -1467,7 +1467,7 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
         function updateCustomer($customerID, $profileID)
         {
             global $db;
-            $sql = "SELECT FROM " . TABLE_CUSTOMERS_CIM_PROFILE . " WHERE customers_id = :custID";
+            $sql = "SELECT * FROM " . TABLE_CUSTOMERS_CIM_PROFILE . " WHERE customers_id = :custID";
             $sql = $db->bindVars($sql, ':custID', $customerID, 'integer');
             $customer = $db->Execute($sql);
 
@@ -1580,8 +1580,8 @@ CREATE TABLE `" . TABLE_CUSTOMERS_CIM_PROFILE . "` (
  `index` int(11) NOT NULL AUTO_INCREMENT,
   `customers_id` int(11) NOT NULL,
   `customers_customerProfileId` int(11) NOT NULL,
-  `date_created` datetime NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE current_timestamp(),
-  `date_modified` datetime NOT NULL,
+  `date_created` datetime NOT NULL,
+  `date_modified` datetime NOT NULL ON UPDATE current_timestamp(),
   PRIMARY KEY (`index`)
 )";
             $db->Execute($sql);
