@@ -26,5 +26,6 @@ i am working on changing the prefix of those ZC logs to be cimDEBUG as opposed t
 
 # notes on new changes / not previously documented
 card_update is available you need to integrate it with your template.  it works fine with responsive_classic but i am not a styling guy, and making it look pretty with every template it not my thing.  to make it easily accessible, one would add a link on tpl_account_default.php
+
 separated a void window from a refund window based on transaction status
 
