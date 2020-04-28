@@ -13,3 +13,6 @@
 define('MODULE_PAYMENT_SAVED_CC_TEXT_TITLE', 'Authorize.net Card on File - COF');
 define('MODULE_PAYMENT_SAVED_CC_TEXT_DESCRIPTION', 'Use tokenized credit card.');
 define('MODULE_PAYMENT_SAVED_CC_TEXT_TITLE_STORE', 'Card on File');
+
+define('MODULE_PAYMENT_AUTHORIZENET_COF_TEXT_JS_CC_CVV',
+    '* The 3 or 4 digit CVV number must be entered from the back of the credit card.');
