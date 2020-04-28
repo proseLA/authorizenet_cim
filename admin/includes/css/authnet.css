@@ -1,0 +1,6 @@
+.table-borderless td,
+.table-borderless th,
+.table-borderless tr,
+.table-borderless>tbody>tr>td{
+    border: 0;
+}

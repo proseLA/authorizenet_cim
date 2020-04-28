@@ -19,23 +19,17 @@ $authnet_cim = new authorizenet_cim();
 $authnet_cim->checkLogName();
 
 $oID = (int)$_GET['oID'];
-$payment_mode = $_GET['payment_mode'];
 $action = (isset($_GET['action']) ? $_GET['action'] : '');
 
-$cim = new authnet_order($oID);
+$authnet_order = new authnet_order($oID);
 
-// the following "if" clause actually inputs data into the DB
 if ($_GET['process'] == '1') {
     switch ($action) {
         case 'refund':
             $affected_rows = 0;
-            switch ($payment_mode) {
-                case 'payment':
-                    $refund_amt = abs(round((float)($_GET['refund_amount']), 2));
-                    $_SESSION['refund_status'] = $authnet_cim->doCimRefund($oID, $refund_amt);
-                    $affected_rows++;
-                    break;  
-            }  
+            $refund_amt = abs(round((float)($_GET['refund_amount']), 2));
+            $_SESSION['refund_status'] = $authnet_cim->doCimRefund($oID, $refund_amt);
+            $affected_rows++;
             zen_redirect(zen_href_link(FILENAME_AUTHNET_PAYMENTS,
                 'oID=' . $oID . '&affected_rows=' . $affected_rows . '&action=refund_done', 'SSL'));
             break;
@@ -53,6 +47,7 @@ if ($_GET['process'] == '1') {
                 basename($_SERVER["SCRIPT_FILENAME"], '.php'))); ?></title>
         <link rel="stylesheet" type="text/css" href="includes/stylesheet.css">
         <link rel="stylesheet" type="text/css" href="includes/cssjsmenuhover.css" media="all" id="hoverJS">
+        <link rel="stylesheet" type="text/css" href="includes/css/authnet.css"
         <script type="text/javascript" language="javascript" src="includes/general.js"></script>
         <script language="JavaScript" type="text/javascript">
             <!--
@@ -61,7 +56,6 @@ if ($_GET['process'] == '1') {
                 window.opener.focus();
                 self.close();
             }
-
             //-->
         </script>
     </head>
@@ -76,70 +70,69 @@ if ($_GET['process'] == '1') {
         <?php
     }
     ?>
-    <table border="0" width="100%" cellspacing="0" cellpadding="0" align="center">
-    <tr>
-    <td align="center">
+    <div class="alert ">
     <?php
     switch ($action) {
         case 'refund':
-            $index = $_GET['index'];
+            //$index = $_GET['index'];
+            $index = $authnet_order->payment[0]['index'];
+            $details = $authnet_cim->getTransactionDetails($authnet_order->payment[0]['number']);
+
+            $voidPayment = false;
+            if (strpos($details->getTransaction()->getTransactionStatus(), 'Pending') !== false) {
+                $voidPayment = true;
+            }
+
             echo zen_draw_form('delete', FILENAME_AUTHNET_PAYMENTS, '', 'get', '', true);
             echo zen_draw_hidden_field('action', $action);
             echo zen_draw_hidden_field('process', 1);
-            echo zen_draw_hidden_field('payment_mode', $payment_mode);
             echo zen_draw_hidden_field('oID', $oID);
-            switch ($payment_mode) {
-                case 'payment':
-                    echo zen_draw_hidden_field('payment_id', $index);
-                    // check for attached refunds
-                    $refund_exists = false;
-                    $refund_count = 0;
-                    if (is_array($cim->refund)) {
-                        for ($a = 0; $a < sizeof($cim->refund); $a++) {
-                            if ($cim->refund[$a]['payment'] == $index) {
-                                $refund_exists = true;
-                                $refund_count++;
-                            }
-                        }
-                    }
+            echo zen_draw_hidden_field('payment_id', $index);
+            ?>
+            <table class="table table-condensed table-borderless">
+                <tr>
+                    <td align="center"
+                        class="pageHeading"><?= $voidPayment ? HEADER_VOID_PAYMENT : HEADER_DELETE_PAYMENT; ?></td>
+                </tr>
+                <tr>
+                    <td align="center" class="main">
+                        <strong><?= HEADER_ORDER_ID . $authnet_order->oID . '<br />' . HEADER_PAYMENT_UID . $index; ?></strong>
+                    </td>
+                </tr>
+                <?php
+                if ($voidPayment) :
                     ?>
-                    <table border="0" cellspacing="0" cellpadding="2">
                     <tr>
-                        <td colspan="2" align="center" class="pageHeading"><?= HEADER_DELETE_PAYMENT; ?></td>
+                        <td align="center" class="main"><?= DELETE_VOID_NOTE; ?></td>
+                    </tr>
+                <?php
+                else:
+                    ?>
+                    <tr>
+                        <td align="center" class="main"><?= DELETE_PAYMENT_NOTE; ?></td>
                     </tr>
                     <tr>
-                        <td colspan="2" align="center" class="main">
-                            <strong><?= HEADER_ORDER_ID . $cim->oID . '<br />' . HEADER_PAYMENT_UID . $index; ?></strong>
-                        </td>
+                        <td align="center"><?= zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
                     </tr>
                     <tr>
-                        <td colspan="2" align="center" class="main"><?= DELETE_PAYMENT_NOTE; ?></td>
-                    </tr>
-                    <tr>
-                        <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
-                    </tr>
-                    <tr>
-                        <td class="main" align="right"><?= TEXT_REFUND_AMOUNT; ?></td>
-                        <td class="main"><?= zen_draw_input_field('refund_amount', '',
+                        <td align="center"><?= TEXT_REFUND_AMOUNT . '  ' . zen_draw_input_field('refund_amount', '',
                                 'size="8"') . '<span class="alert">' . TEXT_NO_MINUS . '</span>'; ?></td>
                     </tr>
-                    <tr>
-                        <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
-                    </tr>
-                    <tr class="alert alert-danger">
-                    <td colspan="2" align="center" class="warningText"><?= WARN_DELETE_PAYMENT; ?>
-                    <?php
-                    break;
-            }
-            ?>
-            <p><input type="button" class="btn btn-info" value="<?= BUTTON_CANCEL; ?>"
-                      onclick="returnParent()">
-                <input type="submit" class="btn btn-warning" value="<?= BUTTON_SUBMIT; ?>"
-                       onclick="document.delete.submit();this.disabled=true"></td>
-            </tr>
+                <?php
+                endif;
+                ?>
+                <tr>
+                    <td align="center"><?= zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
+                </tr>
+                <tr class="alert alert-danger">
+                    <td align="center" class="warningText"><?= WARN_DELETE_PAYMENT; ?>
+                        <p><input type="button" class="btn btn-info" value="<?= BUTTON_CANCEL; ?>"
+                                  onclick="returnParent()">
+                            <input type="submit" class="btn btn-warning" value="<?= BUTTON_SUBMIT; ?>"
+                                   onclick="document.delete.submit();this.disabled=true"></td>
+                </tr>
             </table>
             </form>
-
             <?php
             break;  // END case
         case 'refund_done':
@@ -151,23 +144,14 @@ if ($_GET['process'] == '1') {
                 $page_header = HEADER_REFUND_DONE;
             }
             ?>
-            <tr>
-                <td colspan="2" align="center" class="pageHeading"><?= $page_header; ?></td>
-            </tr>
-            <tr>
-                <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1', '15'); ?></td>
-            </tr>
-            <tr>
-                <td colspan="2" align="center" class="main"><?= sprintf(TEXT_DELETE_CONFIRM, $affected_rows); ?></td>
-            </tr>
-            <tr>
-                <td colspan="2" align="center"><?= zen_draw_separator('pixel_trans.gif', '1', '15'); ?></td>
-            </tr>
-            <tr>
-                <td class="main" colspan="2" align="center"><input type="button" class="btn btn-success"
-                                                                   value="<?= BUTTON_DELETE_CONFIRM; ?>"
-                                                                   onclick="returnParent()"></td>
-            </tr>
+            <div class="alert alert-info">
+
+                <h2><?= $page_header; ?></h2>
+                <?= sprintf(TEXT_DELETE_CONFIRM, $affected_rows); ?>
+                <input type="button" class="btn btn-success"
+                       value="<?= BUTTON_DELETE_CONFIRM; ?>"
+                       onclick="returnParent()"></td>
+            </div>
             <?php
             break;  // END case
         case 'clearCards':
@@ -195,16 +179,10 @@ if ($_GET['process'] == '1') {
             </div>
             <?php
             break;
-
-    }  
-
+    }
 }// END else
 ?>
-    <!-- body_text_eof //-->
-    </td>
-    </tr>
-</table>
-    <!-- body_eof //-->
+</div>
 </body>
     </html>
 <?php require 'includes/application_bottom.php';
