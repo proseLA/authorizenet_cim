@@ -24,7 +24,7 @@ class authorizenet_cim extends base
         
         var $code, $title, $description, $enabled, $authorize = '';
         
-        var $version = '2.0';
+        var $version = '2.01';
         var $params = array();
         var $success = false;
         var $error = true;
@@ -185,7 +185,7 @@ class authorizenet_cim extends base
                 $selection['fields'][] = array(
                   'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CVV,
                   'field' => zen_draw_input_field('authorizenet_cim_cc_cvv', '',
-                      'size="4" maxlength="4"' . ' id="' . $this->code . '-cc-cvv"' . $onFocus) . ' ' . '<a href="javascript:popupWindow(\'' . zen_href_link(FILENAME_POPUP_CVV_HELP) . '\')">' . MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_POPUP_CVV_LINK . '</a>',
+                      'size="4" maxlength="4" class="cvv_input"' . ' id="' . $this->code . '-cc-cvv"' . $onFocus) . ' ' . '<a href="javascript:popupWindow(\'' . zen_href_link(FILENAME_POPUP_CVV_HELP) . '\')">' . MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_POPUP_CVV_LINK . '</a>',
                   'tag' => $this->code . '-cc-cvv'
                 );
             }
@@ -406,7 +406,7 @@ class authorizenet_cim extends base
             //if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_CUSTOMER')) $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Customer Notifications', 'MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_CUSTOMER', 'False', 'Should Authorize.Net email a receipt to the customer?', '6', '9', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
             //if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_MERCHANT')) $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Merchant Notifications', 'MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_MERCHANT', 'False', 'Should Authorize.Net email a receipt to the merchant?', '6', '10', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
             if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_USE_CVV')) {
-                $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Request CVV Number', 'MODULE_PAYMENT_AUTHORIZENET_CIM_USE_CVV', 'True', 'Do you want to ask the customer for the card\'s CVV number', '6', '11', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
+                $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Request CVV Number', 'MODULE_PAYMENT_AUTHORIZENET_CIM_USE_CVV', 'True', 'Do you want to ask the customer for the card\'s CVV number? If set to false, ensure that on merchant dashboard at authorize.net, you have card code not selected as required.  See https://developer.authorize.net/api/reference/responseCodes.html?code=33', '6', '11', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
             }
             if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_VALIDATION')) {
                 $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Validation Mode (liveMode validates cardInfo)', 'MODULE_PAYMENT_AUTHORIZENET_CIM_VALIDATION', 'liveMode', 'Validation Mode', '6', '12', 'zen_cfg_select_option(array(\'none\', \'testMode\', \'liveMode\'), ', now())");
@@ -885,7 +885,7 @@ class authorizenet_cim extends base
             $creditCard->setCardCode($_POST['cc_cvv']);
             $paymentCreditCard = new AnetAPI\PaymentType();
             $paymentCreditCard->setCreditCard($creditCard);
-        
+
             // Create the Bill To info for new payment type
             $billto = $this->billtoAddress();
         
@@ -949,11 +949,12 @@ class authorizenet_cim extends base
             $profileToCharge->setCustomerProfileId($profileid);
             $paymentProfile = new AnetAPI\PaymentProfileType();
             $paymentProfile->setPaymentProfileId($paymentprofileid);
+            $paymentProfile->setCardCode($_POST['cc_cvv']);
             $profileToCharge->setPaymentProfile($paymentProfile);
         
             $transactionRequestType = new AnetAPI\TransactionRequestType();
             $transactionRequestType->setTransactionType("authCaptureTransaction");
-            $transactionRequestType->setAmount($order->info['total']);
+            $transactionRequestType->setAmount(number_format($order->info['total'], 2, '.', ''));
             $transactionRequestType->setProfile($profileToCharge);
         
             if (count($order->products) > 0) {

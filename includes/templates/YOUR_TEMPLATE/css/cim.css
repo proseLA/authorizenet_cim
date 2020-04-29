@@ -8,6 +8,9 @@
 
    04/2020  project: authorizenet_cim; file: cim.css; version 2.0
 */
+.cvv_input {
+    width: 25px;
+}
 
 #select-cc_month, #select-cc_year {
     width: 15%;
