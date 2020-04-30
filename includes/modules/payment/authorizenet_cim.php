@@ -24,7 +24,7 @@ class authorizenet_cim extends base
         
         var $code, $title, $description, $enabled, $authorize = '';
         
-        var $version = '2.01';
+        var $version = '2.0.1';
         var $params = array();
         var $success = false;
         var $error = true;

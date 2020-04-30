@@ -31,7 +31,7 @@ class authorizenet_cof extends authorizenet_cim
         // this module is entirely dependent on the authorizenet_cim module.  if that is not enabled.  neither is this.
         $this->enabled = ((MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS == 'True') ? true : false);
         if ($this->enabled == true) {
-            $this->description = MODULE_PAYMENT_SAVED_CC_TEXT_DESCRIPTION; // Descriptive Info about module in Admin
+            $this->description = MODULE_PAYMENT_SAVED_CC_TEXT_DESCRIPTION . ' version ' . $this->version; // Descriptive Info about module in Admin
             $this->sort_order = 1; // Sort Order of this payment option on the customer payment page
         } else {
             $this->title .= ' <span class="alert">(to enable; enable authorizenet CIM module)</span>';
