@@ -23,3 +23,9 @@ i have done everything that i think necessary to protect cardholder data.  if yo
 currently this module will log all FAILED transactions to cim_response.log in the logs directory.  to see all transactions in that log file, one can set the key MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING to true; OR create a new constant called DEBUG_CIM and set that to true.  both of these do the same thing.  they will log all transaction responses to the cim_response.log; as well as make use of the ZC logger to create a ZC type log.
 
 i am working on changing the prefix of those ZC logs to be cimDEBUG as opposed to myDEBUG but am currently having a little difficulty with that.
+
+# notes on new changes / not previously documented
+card_update is available you need to integrate it with your template.  it works fine with responsive_classic but i am not a styling guy, and making it look pretty with every template it not my thing.  to make it easily accessible, one would add a link on tpl_account_default.php
+
+separated a void window from a refund window based on transaction status
+
