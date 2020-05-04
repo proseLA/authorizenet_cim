@@ -27,12 +27,23 @@
     define('DELETE_VOID_NOTE', 'This payment is unsettled.  You can void the payment, or wait until after settlement (less than 24 hours), to issue a refund.');
     define('HEADER_DELETE_PO', 'Delete Purchase Order');
     define('HEADER_DELETE_REFUND', 'Delete Refund');
+
+    define('DELETE_CARDS', 'Are you sure you want to delete all the stored credit cards for: ');
     
     define('HEADER_ORDER_ID', 'Order #');
     define('HEADER_PAYMENT_UID', 'Payment UID #');
     define('HEADER_REFUND_UID', 'Refund UID #');
 
-    define('TEXT_REFUND_AMOUNT', 'Amount:');
+    define('HEADER_CAPTURE_FUNDS', 'Get the Money!<br />Capture Funds');
+    define('CAPTURE_NOTE', 'Leave Blank to Capture Full Amount');
+    define('WARN_CAPTURE_PAYMENT', 'Are you sure you want to capture these funds?');
+    define('HEADER_CAPTURE_DONE', 'Capture was Successful!');
+    define('HEADER_CAPTURE_FAIL', 'There was a Problem with the Capture');
+
+    define('CAPTURE_BAD_STATUS', 'According to authorize.net, this payment is not in proper status for capture!');
+    define('CAPTURE_NOT_MATCH', 'The order payment does not match the the order posted from the form');
+
+    define('TEXT_AMOUNT', 'Amount:');
     define('TEXT_NO_MINUS', ' * No minus sign');
     
     define('BUTTON_SUBMIT', 'Submit');
@@ -41,6 +52,9 @@
     define('BUTTON_MODIFY', 'Modify');
     define('BUTTON_ADD_NEW', 'Add Another');
     define('BUTTON_ADD_PAYMENT', 'Add Payment');
+    define('BUTTON_DELETE_CARDS', 'Delete Credit Cards');
+    define('BUTTON_CAPTURE', 'Capture');
+    define('BUTTON_REFUND', 'Refund');
     
     define('WARN_DELETE_PAYMENT', 'Are you sure you want to refund/void this payment?<p>This action cannot be undone!');
 

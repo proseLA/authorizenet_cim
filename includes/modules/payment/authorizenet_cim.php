@@ -24,7 +24,7 @@ class authorizenet_cim extends base
         
         var $code, $title, $description, $enabled, $authorize = '';
         
-        var $version = '2.01';
+        var $version = '2.0.1';
         var $params = array();
         var $success = false;
         var $error = true;
@@ -157,6 +157,9 @@ class authorizenet_cim extends base
               'id' => $this->code,
               'module' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CATALOG_TITLE,
               'fields' => array(
+                  /*array(
+                      'field' => '<div class="apple-pay-button apple-pay-button-white"></div>',
+                  ), */
                 array(
                   'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CREDIT_CARD_OWNER,
                   'field' => zen_draw_input_field('authorizenet_cim_cc_owner',
@@ -349,7 +352,7 @@ class authorizenet_cim extends base
               'MODULE_PAYMENT_AUTHORIZENET_CIM_LOGIN',
               'MODULE_PAYMENT_AUTHORIZENET_CIM_TXNKEY',
               'MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE',
-                //'MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE',
+                'MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE',
                 //'MODULE_PAYMENT_AUTHORIZENET_CIM_STORE_DATA',
                 //'MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_CUSTOMER',
                 //'MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_MERCHANT',
@@ -401,7 +404,7 @@ class authorizenet_cim extends base
             if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE')) {
                 $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Transaction Mode (test => sandbox)', 'MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE', 'Test', 'Transaction mode used for processing orders', '6', '6', 'zen_cfg_select_option(array(\'Test\', \'Production\'), ', now())");
             }
-            //if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE')) $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Authorization Type', 'MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE', 'Authorize', 'Do you want submitted credit card transactions to be authorized only, or authorized and captured?', '6', '7', 'zen_cfg_select_option(array(\'Authorize\', \'Authorize+Capture\'), ', now())");
+            if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE')) $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Authorization Type', 'MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE', 'Authorize', 'Do you want submitted credit card transactions to be authorized only, or authorized and captured?', '6', '7', 'zen_cfg_select_option(array(\'Authorize\', \'Authorize+Capture\'), ', now())");
             //if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_STORE_DATA')) $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Enable Database Storage', 'MODULE_PAYMENT_AUTHORIZENET_CIM_STORE_DATA', 'True', 'Do you want to save the gateway communications data to the database?', '6', '8', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
             //if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_CUSTOMER')) $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Customer Notifications', 'MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_CUSTOMER', 'False', 'Should Authorize.Net email a receipt to the customer?', '6', '9', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
             //if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_MERCHANT')) $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Merchant Notifications', 'MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_MERCHANT', 'False', 'Should Authorize.Net email a receipt to the merchant?', '6', '10', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
@@ -953,7 +956,11 @@ class authorizenet_cim extends base
             $profileToCharge->setPaymentProfile($paymentProfile);
         
             $transactionRequestType = new AnetAPI\TransactionRequestType();
-            $transactionRequestType->setTransactionType("authCaptureTransaction");
+            if (MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE == 'Authorize') {
+                $transactionRequestType->setTransactionType("authOnlyTransaction");
+            } else {
+                 $transactionRequestType->setTransactionType("authCaptureTransaction");
+            }
             $transactionRequestType->setAmount(number_format($order->info['total'], 2, '.', ''));
             $transactionRequestType->setProfile($profileToCharge);
         
@@ -1144,7 +1151,7 @@ class authorizenet_cim extends base
                         $this->insertRefund($refund->fields['payment_id'], $ordersID, $tresponse->getTransId(),
                           $refund->fields['payment_name'], $refund->fields['transaction_id'], $refund_amount, 'REF',
                           $tresponse->getMessages()[0]->getCode());
-                        $this->update_payment($ordersID, $refund->fields['transaction_id'], $refund_amount);
+                        $this->updatePaymentForRefund($ordersID, $refund->fields['transaction_id'], $refund_amount);
                         $update_status = $this->checkZeroBalance($ordersID);
                         if ($update_status) {
                             $this->updateOrderInfo($ordersID, MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID);
@@ -1198,7 +1205,7 @@ class authorizenet_cim extends base
                         $this->insertRefund($refund->fields['payment_id'], $ordersID, $tresponse->getTransId(),
                           $refund->fields['payment_name'],
                           $refund->fields['transaction_id'], $refund_amount, 'VOID', $tresponse->getAuthCode());
-                        $this->update_payment($ordersID, $refund->fields['transaction_id'], $refund_amount);
+                        $this->updatePaymentForRefund($ordersID, $refund->fields['transaction_id'], $refund_amount);
                         $this->updateOrderInfo($ordersID, MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID);
                         $error = false;
                         $logData = " Transaction Response code : " . $tresponse->getResponseCode() . "\n";
@@ -1293,14 +1300,75 @@ class authorizenet_cim extends base
         
             return $response;
         }
+
+    function capturePreviouslyAuthorizedAmount($transactionid, $amount)
+    {
+
+        $transactionRequestType = new AnetAPI\TransactionRequestType();
+        $transactionRequestType->setTransactionType("priorAuthCaptureTransaction");
+        $transactionRequestType->setRefTransId($transactionid);
+        $transactionRequestType->setAmount($amount);
+
+
+        $request = new AnetAPI\CreateTransactionRequest();
+        $request->setMerchantAuthentication($this->merchantCredentials());
+        $request->setTransactionRequest($transactionRequestType);
+
+        $controller = new AnetController\CreateTransactionController($request);
+        $response = $this->getControllerResponse($controller);
+
+        $error = true;
+        if ($response != null) {
+            if ($response->getMessages()->getResultCode() == "Ok") {
+                $tresponse = $response->getTransactionResponse();
+
+                if ($tresponse != null && $tresponse->getMessages() != null) {
+                    $error = false;
+                    $logData = " Transaction Response code : " . $tresponse->getResponseCode() . "\n";
+                    $logData .= "Successful." . "\n";
+                    $logData .= "Capture Previously Authorized Amount, Trans ID : " . $tresponse->getRefTransId() . "\n";
+                    $logData .= " Code : " . $tresponse->getMessages()[0]->getCode() . "\n";
+                    $logData .= " Description : " . $tresponse->getMessages()[0]->getDescription() . "\n";
+                    $this->capturePayment($transactionid, $amount);
+                } else {
+                    $logData = "Transaction Failed \n";
+                    if ($tresponse->getErrors() != null) {
+                        $logData .= " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
+                        $logData .= " Error message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
+                    }
+                }
+            } else {
+                $logData = "Transaction Failed \n";
+                $tresponse = $response->getTransactionResponse();
+                if ($tresponse != null && $tresponse->getErrors() != null) {
+                    $logData .= " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
+                    $logData .= " Error message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
+                } else {
+                    $logData .= " Error code  : " . $response->getMessages()->getMessage()[0]->getCode() . "\n";
+                    $logData .= " Error message : " . $response->getMessages()->getMessage()[0]->getText() . "\n";
+                }
+            }
+        } else {
+            $logData = "No response returned \n";
+        }
+        $this->logError($logData, $error);
+
+        return $error;
+    }
     
         // functions for updating some aspect of the zen-cart database.
     
         function insertPayment($transID, $name, $total, $type, $profileID, $approval, $custID)
         {
             global $db;
-            $sql = "insert into " . TABLE_CIM_PAYMENTS . " ( payment_name, payment_amount, payment_type, date_posted, last_modified,  transaction_id, payment_profile_id, approval_code, customers_id)
-VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :approval_code, :custID)";
+            $sql = "insert into " . TABLE_CIM_PAYMENTS . " ( payment_name, payment_amount, payment_type, date_posted, last_modified,  transaction_id, payment_profile_id, approval_code, customers_id, status)
+VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :approval_code, :custID, :status)";
+
+            if (MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE == 'Authorize') {
+                $status = 'A';
+            } else {
+                $status = 'C';
+            }
         
             $sql = $db->bindVars($sql, ':transID', $transID, 'string');
             $sql = $db->bindVars($sql, ':nameFull', $name, 'string');
@@ -1309,6 +1377,7 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
             $sql = $db->bindVars($sql, ':paymentProfileID', $profileID, 'string');
             $sql = $db->bindVars($sql, ':approval_code', $approval, 'string');
             $sql = $db->bindVars($sql, ':custID', $custID, 'string');
+            $sql = $db->bindVars($sql, ':status', $status, 'string');
             $db->Execute($sql);
         }
     
@@ -1327,7 +1396,7 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
             $db->Execute($sql);
         }
     
-        function update_payment($ordersID, $transID, $amount)
+        function updatePaymentForRefund($ordersID, $transID, $amount)
         {
             global $db;
             $sql = "update " . TABLE_CIM_PAYMENTS . " set refund_amount = (refund_amount + :amount) where transaction_id = :transID and orders_id = :orderID";
@@ -1336,6 +1405,15 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
             $sql = $db->bindVars($sql, ':amount', $amount, 'noquotestring');
             $db->Execute($sql);
         }
+
+    function capturePayment($transID, $amount)
+    {
+        global $db;
+        $sql = "update " . TABLE_CIM_PAYMENTS . " set payment_amount = :amount, status = 'C' where transaction_id = :transID and status ='A'";
+        $sql = $db->bindVars($sql, ':transID', trim($transID), 'string');
+        $sql = $db->bindVars($sql, ':amount', $amount, 'noquotestring');
+        $db->Execute($sql);
+    }
     
         function updateDefaultCustomerBillto($id)
         {
@@ -1584,6 +1662,10 @@ CREATE TABLE `" . TABLE_CUSTOMERS_CIM_PROFILE . "` (
 )";
             $db->Execute($sql);
         }
+
+        $fieldOkay1 = (method_exists($sniffer, 'field_type')) ? $sniffer->field_exists(TABLE_CIM_PAYMENTS, 'status') : false;
+        if ($fieldOkay1 !== true) {
+            $db->Execute("ALTER TABLE " . TABLE_CIM_PAYMENTS . " ADD `status` enum('A','C') NOT NULL DEFAULT 'C' AFTER `payment_type`");
+        }
     }
-    
-    }
+}

@@ -14,24 +14,35 @@ require 'includes/application_top.php';
 require_once DIR_WS_CLASSES . 'authnet_order.php';
 require_once DIR_FS_CATALOG . DIR_WS_LANGUAGES . $_SESSION['language'] . '/modules/payment/authorizenet_cim.php';
 require_once DIR_FS_CATALOG_MODULES . 'payment/' . 'authorizenet_cim.php';
+require_once DIR_WS_CLASSES . 'currencies.php';
+$currencies = new currencies();
+
 $authnet_cim = new authorizenet_cim();
 
 $authnet_cim->checkLogName();
 
-$oID = (int)$_GET['oID'];
-$action = (isset($_GET['action']) ? $_GET['action'] : '');
+$oID = isset($_GET['oID']) ? (int)$_GET['oID'] : (int)$_POST['oID'];
+$action = (isset($_GET['action']) ? $_GET['action'] : $_POST['action']);
 
 $authnet_order = new authnet_order($oID);
 
-if ($_GET['process'] == '1') {
+if (isset($_POST['oID'])) {
     switch ($action) {
         case 'refund':
-            $affected_rows = 0;
-            $refund_amt = abs(round((float)($_GET['refund_amount']), 2));
+            $refund_amt = abs(round((float)($_POST['amount']), 2));
             $_SESSION['refund_status'] = $authnet_cim->doCimRefund($oID, $refund_amt);
-            $affected_rows++;
             zen_redirect(zen_href_link(FILENAME_AUTHNET_PAYMENTS,
-                'oID=' . $oID . '&affected_rows=' . $affected_rows . '&action=refund_done', 'SSL'));
+                'oID=' . $oID . '&action=refund_capture_done', 'SSL'));
+            break;
+        case 'capture':
+            if ($_POST['payment_id'] != $authnet_order->payment[0]['index']) {
+                $_SESSION['capture_error_status'] = true;
+                $messageStack->add_session(CAPTURE_NOT_MATCH, 'error');
+                zen_redirect(zen_href_link(FILENAME_AUTHNET_PAYMENTS, 'oID=' . $oID . '&action=refund_capture_done', 'SSL'));
+            }
+            $amount =  ((int) $_POST['amount'] == 0) ?  $amount = $authnet_order->payment[0]['amount'] : (int) $_POST['amount'];
+            $_SESSION['capture_error_status'] = $authnet_cim->capturePreviouslyAuthorizedAmount($authnet_order->payment[0]['number'], $amount);
+            zen_redirect(zen_href_link(FILENAME_AUTHNET_PAYMENTS, 'oID=' . $oID . '&action=refund_capture_done', 'SSL'));
             break;
         default:
             throw new \Exception('Unexpected value');  // END case 'delete'
@@ -56,6 +67,7 @@ if ($_GET['process'] == '1') {
                 window.opener.focus();
                 self.close();
             }
+
             //-->
         </script>
     </head>
@@ -74,18 +86,16 @@ if ($_GET['process'] == '1') {
     <?php
     switch ($action) {
         case 'refund':
-            //$index = $_GET['index'];
             $index = $authnet_order->payment[0]['index'];
-            $details = $authnet_cim->getTransactionDetails($authnet_order->payment[0]['number']);
 
             $voidPayment = false;
-            if (strpos($details->getTransaction()->getTransactionStatus(), 'Pending') !== false) {
+            $status = $authnet_cim->getTransactionDetails($authnet_order->payment[0]['number'])->getTransaction()->getTransactionStatus();
+            if (strpos($status, 'Pending') !== false) {
                 $voidPayment = true;
             }
 
-            echo zen_draw_form('delete', FILENAME_AUTHNET_PAYMENTS, '', 'get', '', true);
+            echo zen_draw_form('delete', FILENAME_AUTHNET_PAYMENTS, '', 'post', '', true);
             echo zen_draw_hidden_field('action', $action);
-            echo zen_draw_hidden_field('process', 1);
             echo zen_draw_hidden_field('oID', $oID);
             echo zen_draw_hidden_field('payment_id', $index);
             ?>
@@ -115,7 +125,7 @@ if ($_GET['process'] == '1') {
                         <td align="center"><?= zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
                     </tr>
                     <tr>
-                        <td align="center"><?= TEXT_REFUND_AMOUNT . '  ' . zen_draw_input_field('refund_amount', '',
+                        <td align="center"><?= TEXT_AMOUNT . '  ' . zen_draw_input_field('amount', '',
                                 'size="8"') . '<span class="alert">' . TEXT_NO_MINUS . '</span>'; ?></td>
                     </tr>
                 <?php
@@ -135,20 +145,84 @@ if ($_GET['process'] == '1') {
             </form>
             <?php
             break;  // END case
-        case 'refund_done':
-            $affected_rows = $_GET['affected_rows'];
+        case 'capture':
+            $index = $authnet_order->payment[0]['index'];
+
+            $captureFunds = false;
+            $status = $authnet_cim->getTransactionDetails($authnet_order->payment[0]['number'])->getTransaction()->getTransactionStatus();
+            if (strpos($status, 'authorizedPendingCapture') !== false) {
+                $captureFunds = true;
+            } else {
+                $_SESSION['capture_error_status'] = true;
+                $messageStack->add_session(CAPTURE_BAD_STATUS, 'error');
+                zen_redirect(zen_href_link(FILENAME_AUTHNET_PAYMENTS, 'oID=' . $oID . '&action=refund_capture_done',
+                    'SSL'));
+            }
+
+            echo zen_draw_form('capture', FILENAME_AUTHNET_PAYMENTS, '', 'post', '', true);
+            echo zen_draw_hidden_field('action', $action);
+            echo zen_draw_hidden_field('oID', $oID);
+            echo zen_draw_hidden_field('payment_id', $index);
+            ?>
+            <table class="table table-condensed table-borderless">
+                <tr>
+                    <td align="center"
+                        class="pageHeading"><?= HEADER_CAPTURE_FUNDS; ?></td>
+                </tr>
+                <tr>
+                    <td align="center" class="main">
+                        <strong><?= HEADER_ORDER_ID . $authnet_order->oID . '<br />' . HEADER_PAYMENT_UID . $index; ?></strong>
+                    </td>
+                </tr>
+
+                    <tr>
+                        <td align="center" class="main"><?= CAPTURE_NOTE; ?>
+                        <br />
+                        <span class="pageHeading  "><?= $currencies->format($authnet_order->payment[0]['amount']); ?></span> </td>
+                    </tr>
+                    <tr>
+                        <td align="center"><?= zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
+                    </tr>
+                    <tr>
+                        <td align="center"><?= TEXT_AMOUNT . '  ' . zen_draw_input_field('amount', '', 'size="8"') ; ?></td>
+                    </tr>
+                <tr>
+                    <td align="center"><?= zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
+                </tr>
+                <tr class="alert alert-danger">
+                    <td align="center" class="alert-info"><?= WARN_CAPTURE_PAYMENT; ?>
+                        <p><input type="button" class="btn btn-info" value="<?= BUTTON_CANCEL; ?>"
+                                  onclick="returnParent()">
+                            <input type="submit" class="btn btn-warning" value="<?= BUTTON_SUBMIT; ?>"
+                                   onclick="document.delete.submit();this.disabled=true"></td>
+                </tr>
+            </table>
+            </form>
+            <?php
+            break;  // END case
+        case 'refund_capture_done':
+            $affected_rows = 1;
             if (!$_SESSION['refund_status']) {
                 $page_header = HEADER_REFUND_FAIL;
                 $affected_rows = 0;
             } else {
                 $page_header = HEADER_REFUND_DONE;
             }
+            unset($_SESSION['refund_status']);
+            if (isset($_SESSION['capture_error_status'])) {
+                if ($_SESSION['capture_error_status']) {
+                    $page_header = HEADER_CAPTURE_FAIL;
+                    $affected_rows = 0;
+                } else {
+                    $page_header = HEADER_CAPTURE_DONE;
+                }
+                unset($_SESSION['capture_error_status']);
+            }
             ?>
             <div class="alert alert-info">
-
                 <h2><?= $page_header; ?></h2>
                 <?= sprintf(TEXT_DELETE_CONFIRM, $affected_rows); ?>
-                <input type="button" class="btn btn-success"
+                <input type="button" class="btn btn-success "
                        value="<?= BUTTON_DELETE_CONFIRM; ?>"
                        onclick="returnParent()"></td>
             </div>
@@ -156,12 +230,12 @@ if ($_GET['process'] == '1') {
             break;  // END case
         case 'clearCards':
             ?>
-            <div class="alert alert-danger">Are you sure you want to delete all the stored credit cards for:<br/>
+            <div class="alert alert-danger"><?= DELETE_CARDS; ?><br/>
                 <h2><?= zen_customers_name($_GET['cID']) . '?'; ?></h2>
                 <a href=<?= zen_href_link(FILENAME_AUTHNET_PAYMENTS,
                     'cID=' . (int)$_GET['cID'] . '&action=clearCards_confirm', 'SSL'); ?>   class="btn btn-danger"
                 role="button" id="cards_btn" class="btn btn-danger
-                btn-margin">Delete Credit Cards</a>
+                btn-margin"><?= BUTTON_DELETE_CARDS; ?></a>
             </div>
             <?php
             break;
