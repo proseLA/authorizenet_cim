@@ -1409,7 +1409,7 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
     function capturePayment($transID, $amount)
     {
         global $db;
-        $sql = "update " . TABLE_CIM_PAYMENTS . " set payment_amount = :amount, status = 'C' where transaction_id = :transID and status ='A'";
+        $sql = "update " . TABLE_CIM_PAYMENTS . " set payment_amount = :amount, status = 'C', last_modified = now() where transaction_id = :transID and status ='A'";
         $sql = $db->bindVars($sql, ':transID', trim($transID), 'string');
         $sql = $db->bindVars($sql, ':amount', $amount, 'noquotestring');
         $db->Execute($sql);
@@ -1576,6 +1576,7 @@ VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :a
   `approval_code` varchar(10) DEFAULT NULL,
   `customers_id` int(11) NOT NULL,
   `payment_type` varchar(20) NOT NULL DEFAULT '',
+  `status` enum('A','C') NOT NULL DEFAULT 'C',
   `date_posted` datetime DEFAULT NULL,
   `last_modified` datetime DEFAULT NULL,
   PRIMARY KEY (`payment_id`),
@@ -1663,7 +1664,7 @@ CREATE TABLE `" . TABLE_CUSTOMERS_CIM_PROFILE . "` (
             $db->Execute($sql);
         }
 
-        $fieldOkay1 = (method_exists($sniffer, 'field_type')) ? $sniffer->field_exists(TABLE_CIM_PAYMENTS, 'status') : false;
+        $fieldOkay1 = (method_exists($sniffer, 'field_exists')) ? $sniffer->field_exists(TABLE_CIM_PAYMENTS, 'status') : false;
         if ($fieldOkay1 !== true) {
             $db->Execute("ALTER TABLE " . TABLE_CIM_PAYMENTS . " ADD `status` enum('A','C') NOT NULL DEFAULT 'C' AFTER `payment_type`");
         }
