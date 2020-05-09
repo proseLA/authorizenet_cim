@@ -100,10 +100,11 @@
         </li>
         <li>If you need help with FTPing the files up to your server, or an FTP client, go to the zen-cart forum.</li>
         <li>Go to Admin -> Modules -> Payment and you will see 2 new payment modules</li>
+        <li>Please if you do not have a authorize.net account and need one, use the link listed there.  It benefits me and the zen-cart team.</li>
         <li>Enable authorizenet_cim, enter your API login ID and transaction key. Select Test mode or Production Mode.
             And you are off and running.
         </li>
-        <li>Card on File transactions are automatically enabled when authorizenet_cim gets enabled.</li>
+        <li>Card on File transactions are automatically enabled when authorizenet_cim gets enabled.  CVV is automatically turned on for COF.  See notes below on v2.01 for more information.</li>
         <li>I like using liveMode for validation even when in the test environment. That way you are validating test
             credit cards.
         </li>
@@ -123,35 +124,42 @@
         </li>
         <li>There are no additional fields added to any zen-cart tables</li>
         <li>There are 5 new tables that are part of this module.</li>
-        <li>Transactions are currently ONLY authorize/capture.</li>
+        <li>Transactions are currently ONLY authorize/capture.  This could change if there is demand for it.</li>
         <li>There is a very visible button on the admin for refunding all or part of an order.</li>
-        <li>If you try refunding prior to settling, the transaction will automatically void.</li>
-        <li>Read what is on the pop-up window when doing refunds.  It explains a lot.</li>
+        <li>If you try refunding prior to settling, the module displays the void window.  At that point, only a void is available.</li>
+        <li>Read what is on the pop-up window when doing refunds/voids.  It explains a lot.</li>
         <li>This module will log all FAILED transactions to cim_response.log in the logs directory. To see all
             transactions (including successful transactions) in that log file, one can set the key
             MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING to true; OR create a new constant called DEBUG_CIM and set that to
             true. both of these do the same thing.
         </li>
         <li>Once debug is on, this module will create ZC style debug logs with all response data.</li>
-        <li>There is NO option to store responses in a table or to be emailed responses.  Your log files are all we got.</li>
+        <li>There is NO option to store responses in a table or to be emailed responses.  The log files are it.</li>
         <li>PCI-DSS is legal document. I am not a lawyer. I offer no opinion on this module as to how it effects your
             PCI-DSS status.
         </li>
         <li>I have done everything that i think necessary to protect cardholder data. if you think this module violates
-            any tenet of PCI-DSS, feel free to open an issue with <a href="https://github.com/proseLA/authorizenet_cim/" target="_blank">me on github.</a>  The code is there for anyone to see.  I take protection of cardholder data seriously.
+            any tenet of PCI-DSS, feel free to open an issue with <a href="https://github.com/proseLA/authorizenet_cim/" target="_blank">me on github.</a>  The code is there for anyone to see.  I take protection of cardholder data SERIOUSLY.
         </li>
         <li>CIM looks to be now included with all authorize.net accounts.</li>
         <li>This module has been tested for zen-cart v1.5.6 and v1.5.7-alpha.</li>
         <li>Refunds must be issued within 120 days of the transaction. This is inherent in the system from
             authorize.net.
         </li>
-        <li>I have tested this module for compatibility with OPC (One Page Checkout).</li>
+        <li>I have tested this module for compatibility with OPC (One Page Checkout).  It works.</li>
         <li>There is no warranty, express and/or implied, that this module will work or is well suited for your
             particular application.
         </li>
-        <li>Support for this module is on the zen-cart forum. Once approved there will be a support page for all
-            questions.
+        <li>Support for this module is on the zen-cart forum.
         </li>
+        <li>Admins can delete all cards on file for any customer.  There is a button for it on the customer page.</li>
+        <li>There is an option for customers to add, update, and delete credit cards from within their account.  Styling has been done to match responsive_classic and one would need to add a link to ->  index.php?main_page=card_update.  I am not the styling expert.</li>
+        <br />
+        <H2>Notes on minor update version 2.01</H2>
+        <li>I have done some cleanup on the admin side</li>
+        <li>The refund window is now separate from a void window.  Voids can only be done on unsettled transactions.  As currently, this module is ONLY authorize/capture; there is no opportunity to capture for less than the original amount.</li>
+        <li>I have made modifications to the CVV code as described in <a href="https://github.com/proseLA/authorizenet_cim/issues/21">this issue.</a>  The CVV code needs to be in sync with the settings on your authorize dashboard.  My opinion is to require the CVV for the new card; but not for the card on file.  But you can set it up for one or both or neither.  You just need to ensure that you have it in sync with your dashboard.</li>
+        <li>Addressed <a href="https://github.com/proseLA/authorizenet_cim/issues/20">order total not having the correct decimal places.</a>  I thought this issue worthy of warranting a minor update.</li>
     </div>
 </section>
 <!-- Contact Section -->
@@ -159,10 +167,10 @@
     <div class="row">
         <div class="col-lg-8 col-lg-offset-2">
             <h2>Contact Me</h2>
-            <p>I am around.... or <a href="https://www.zen-cart.com/member.php?17577-carlwhat">perhaps I'm here.</a></p>
-            <p>projects -at- rossroberts.com
+            <p>I am around.... <a href="https://www.zen-cart.com/member.php?17577-carlwhat">on the forum.</a> or here</p>
+            <p>pr -at- rossroberts.com
             </p>
-            <p><a href="https://www.paypal.me/carlwhat">Feel free to send money!</a> </p>
+            <p><a href="https://www.paypal.me/carlwhat">Contributions are fine.</a> <br> NBL. (Nothing but love!)</p>
             <ul class="list-inline banner-social-buttons">
                 <li>
                     <a href="https://twitter.com/pRoseLA" class="btn btn-default btn-lg"><i
