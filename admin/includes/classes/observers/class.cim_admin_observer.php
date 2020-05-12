@@ -7,7 +7,7 @@
     released under GPU
     https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
 
-   04/2020  project: authorizenet_cim; file: class.cim_admin_observer.php; version 2.0
+   04/2020  project: authorizenet_cim; file: class.cim_admin_observer.php; version 2.1
 */
     
     if (!defined('IS_ADMIN_FLAG') || IS_ADMIN_FLAG !== true) {

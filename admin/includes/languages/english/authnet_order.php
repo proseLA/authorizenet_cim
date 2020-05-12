@@ -7,7 +7,7 @@
     released under GPU
     https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
 
-   04/2020  project: authorizenet_cim; file: authnet_order.php; version 2.0
+   04/2020  project: authorizenet_cim; file: authnet_order.php; version 2.1
 */
 
     define('TEXT_CIM_DATA', 'Authorizenet CIM Payments');
