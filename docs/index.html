@@ -124,7 +124,7 @@
         </li>
         <li>There are no additional fields added to any zen-cart tables</li>
         <li>There are 5 new tables that are part of this module.</li>
-        <li>Transactions are currently ONLY authorize/capture.  This could change if there is demand for it.</li>
+        <li>Transactions are now authorize or authorize/capture.  Authorize only transactions add a capture button on the admin side.</li>
         <li>There is a very visible button on the admin for refunding all or part of an order.</li>
         <li>If you try refunding prior to settling, the module displays the void window.  At that point, only a void is available.</li>
         <li>Read what is on the pop-up window when doing refunds/voids.  It explains a lot.</li>
@@ -155,7 +155,11 @@
         <li>Admins can delete all cards on file for any customer.  There is a button for it on the customer page.</li>
         <li>There is an option for customers to add, update, and delete credit cards from within their account.  Styling has been done to match responsive_classic and one would need to add a link to ->  index.php?main_page=card_update.  I am not the styling expert.</li>
         <br />
-        <H2>Notes on minor update version 2.01</H2>
+        <H2>Notes on Version 2.1.0</H2>
+        <li>Added separate authorize and capture transactions.  If transaction is NOT captured, a capture button is added on the admin side.</li>
+        <li>Bug fixes on admin side pop-up window.</li>
+        <br />
+        <H2>Notes on Version 2.0.1</H2>
         <li>I have done some cleanup on the admin side</li>
         <li>The refund window is now separate from a void window.  Voids can only be done on unsettled transactions.  As currently, this module is ONLY authorize/capture; there is no opportunity to capture for less than the original amount.</li>
         <li>I have made modifications to the CVV code as described in <a href="https://github.com/proseLA/authorizenet_cim/issues/21">this issue.</a>  The CVV code needs to be in sync with the settings on your authorize dashboard.  My opinion is to require the CVV for the new card; but not for the card on file.  But you can set it up for one or both or neither.  You just need to ensure that you have it in sync with your dashboard.</li>
