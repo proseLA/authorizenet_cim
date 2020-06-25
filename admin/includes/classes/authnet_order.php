@@ -141,7 +141,8 @@
         {
             echo '&nbsp;<a href="javascript:cimpopupWindow(\'' .
               zen_href_link(FILENAME_AUTHNET_PAYMENTS,
-                'oID=' . $this->oID . '&payment_mode=' . $payment_mode . '&index=' . $index . '&action=refund',
+//                'oID=' . $this->oID . '&payment_mode=' . $payment_mode . '&index=' . $index . '&action=refund',
+                'oID=' . $this->oID . '&payment_mode=' . $payment_mode . '&action=refund',
                 'NONSSL') . '\', \'scrollbars=yes,resizable=yes,width=100,height=1000,screenX=150,screenY=100,top=100,left=150\')"' .
               'class="btn btn-danger btn-sm" role="button" >' . BUTTON_REFUND . '</a>';
         }

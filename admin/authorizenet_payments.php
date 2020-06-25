@@ -97,7 +97,7 @@ if (isset($_POST['oID'])) {
             echo zen_draw_form('delete', FILENAME_AUTHNET_PAYMENTS, '', 'post', '', true);
             echo zen_draw_hidden_field('action', $action);
             echo zen_draw_hidden_field('oID', $oID);
-            echo zen_draw_hidden_field('payment_id', $index);
+            //echo zen_draw_hidden_field('payment_id', $index);
             ?>
             <table class="table table-condensed table-borderless">
                 <tr>
