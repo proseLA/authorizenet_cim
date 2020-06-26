@@ -100,7 +100,7 @@
         </li>
         <li>If you need help with FTPing the files up to your server, or an FTP client, go to the zen-cart forum.</li>
         <li>Go to Admin -> Modules -> Payment and you will see 2 new payment modules</li>
-        <li>Please if you do not have a authorize.net account and need one, use the link listed there.  It benefits me and the zen-cart team.</li>
+        <li><b>PLEASE PLEASE PLEASE,</b> even if you already have an authorize.net account, create a new one using the link here.  In this way, you can keep the transactions made using this NEW module separate from your old way of taking transactions.  In addition, creating an account here benefits me (allowing me to do additional development) and the zen-cart team.</li>
         <li>Enable authorizenet_cim, enter your API login ID and transaction key. Select Test mode or Production Mode.
             And you are off and running.
         </li>
@@ -138,11 +138,17 @@
         <li>PCI-DSS is legal document. I am not a lawyer. I offer no opinion on this module as to how it effects your
             PCI-DSS status.
         </li>
-        <li>I have done everything that i think necessary to protect cardholder data. if you think this module violates
+        <li>I have done everything that i think necessary to protect cardholder data. If you think this module violates
             any tenet of PCI-DSS, feel free to open an issue with <a href="https://github.com/proseLA/authorizenet_cim/" target="_blank">me on github.</a>  The code is there for anyone to see.  I take protection of cardholder data SERIOUSLY.
         </li>
         <li>CIM looks to be now included with all authorize.net accounts.</li>
-        <li>This module has been tested for zen-cart v1.5.6 and v1.5.7-alpha.</li>
+        <li>This module has been tested for zen-cart v1.5.6 and v1.5.7.</li>
+        <li>If you are using v1.5.6a, make sure you add the following 2 lines of code to the file YOUR_ADMIN/includes/footer.php (I included the closing footer line for reference):</li>
+<pre>
+    &lt;/footer&gt;
+    &lt;?php
+    $zco_notifier->notify('NOTIFY_ADMIN_FOOTER_END');
+    </pre>
         <li>Refunds must be issued within 120 days of the transaction. This is inherent in the system from
             authorize.net.
         </li>
@@ -154,6 +160,10 @@
         </li>
         <li>Admins can delete all cards on file for any customer.  There is a button for it on the customer page.</li>
         <li>There is an option for customers to add, update, and delete credit cards from within their account.  Styling has been done to match responsive_classic and one would need to add a link to ->  index.php?main_page=card_update.  I am not the styling expert.</li>
+        <br />
+        <H2>Notes on Version 2.1.1</H2>
+        <li>Added order information => invoice number and description.</li>
+        <li>More bug fixes and code cleanup on admin side.</li>
         <br />
         <H2>Notes on Version 2.1.0</H2>
         <li>Added separate authorize and capture transactions.  If transaction is NOT captured, a capture button is added on the admin side.</li>
