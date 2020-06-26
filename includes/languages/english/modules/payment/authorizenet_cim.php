@@ -7,7 +7,7 @@
     released under GPU
     https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
 
-   04/2020  project: authorizenet_cim; file: authorizenet_cim.php; version 2.0
+   04/2020  project: authorizenet_cim; file: authorizenet_cim.php; version 2.1.1
 */
 
 define('MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_ADMIN_TITLE',
@@ -19,7 +19,7 @@ if (defined('MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS') and MODULE_PAYMENT_AUTHORI
 } else {
     define('MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS', false);
     define('MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_DESCRIPTION',
-        '<br /><div class="alert alert-info"><a target="_blank" href="http://reseller.authorize.net/application/?resellerId=111066">Click Here to Sign Up for an Account</a><br /><br /><a target="_blank" href="https://account.authorize.net/">Authorize.net Merchant Area</a><br /><br /><strong>Requirements:</strong><hr />*<strong>Authorize.net Account</strong> (use link above to signup)<br />*<strong>CURL is required </strong>and MUST be compiled with SSL support into PHP by your hosting company<br />*<strong>Authorize.net api login ID and transaction key</strong> are available from your Merchant Area</div>');
+        '<br /><strong>PLEASE, PLEASE, PLEASE </strong>use the below link to create your NEW merchant account.  You can keep your transactions separate from any previous authorize.net module as well as benefit me and the ZC team.<br><br><div class="alert alert-info"><a target="_blank" href="http://reseller.authorize.net/application/?resellerId=111066">Click Here to Sign Up for an Account</a><br /><br /><a target="_blank" href="https://account.authorize.net/">Authorize.net Merchant Area</a><br /><br /><strong>Requirements:</strong><hr />*<strong>Authorize.net Account</strong> (use link above to signup)<br />*<strong>CURL is required </strong>and MUST be compiled with SSL support into PHP by your hosting company<br />*<strong>Authorize.net api login ID and transaction key</strong> are available from your Merchant Area</div>');
 }
 define('MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_ERROR_CURL_NOT_FOUND',
     'CURL functions not found - required for Authorize.net CIM payment module');

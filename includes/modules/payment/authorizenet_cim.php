@@ -7,7 +7,7 @@
     released under GPU
     https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
 
-   04/2020  project: authorizenet_cim; file: authorizenet_cim.php; version 2.1
+   04/2020  project: authorizenet_cim; file: authorizenet_cim.php; version 2.1.1
 */
     
     if (!file_exists($sdk_loader = DIR_FS_CATALOG . 'includes/modules/payment/authorizenet/authorizenet-sdk/autoload.php')) {
@@ -24,7 +24,7 @@ class authorizenet_cim extends base
         
         var $code, $title, $description, $enabled, $authorize = '';
         
-        var $version = '2.1.0';
+        var $version = '2.1.1';
         var $params = array();
         var $success = false;
         var $error = true;
@@ -963,11 +963,20 @@ class authorizenet_cim extends base
             }
             $transactionRequestType->setAmount(number_format($order->info['total'], 2, '.', ''));
             $transactionRequestType->setProfile($profileToCharge);
-        
+
+            $invoice_description = '';
             if (count($order->products) > 0) {
-                foreach (array_slice($order->products, 0, 30) as $items) {
-                    $lineItem1 = new AnetAPI\LineItemType();
-                    $lineItem1->setItemId(zen_get_prid($items['id']));
+	            $first_item = TRUE;
+	            foreach (array_slice($order->products, 0, 30) as $items) {
+		            $lineItem1 = new AnetAPI\LineItemType();
+		            $lineItem1->setItemId(zen_get_prid($items['id']));
+		            if (!$first_item) {
+			            $invoice_description .= ' + ';
+		            }
+		            $first_item = FALSE;
+		            $invoice_description .= preg_replace('/[^a-z0-9_ ]/i', '',
+			            preg_replace('/&nbsp;/', ' ', $items['name']));
+		            $invoice_description .= ' (qty: ' . $items['qty'] . ')';
                     $lineItem1->setName(substr(preg_replace('/[^a-z0-9_ ]/i', '',
                       preg_replace('/&nbsp;/', ' ', $items['name'])), 0, 30));
                     //$lineItem1->setDescription("Here's the first line item");
@@ -977,6 +986,11 @@ class authorizenet_cim extends base
                     $transactionRequestType->addToLineItems($lineItem1);
                 }
             }
+
+	        $authorize_order = new AnetAPI\OrderType();
+	        $authorize_order->setInvoiceNumber($this->nextOrderNumber($order->info));
+	        $authorize_order->setDescription($invoice_description);
+	        $transactionRequestType->setOrder($authorize_order);
         
             $request = new AnetAPI\CreateTransactionRequest();
             $request->setMerchantAuthentication($this->merchantCredentials());
