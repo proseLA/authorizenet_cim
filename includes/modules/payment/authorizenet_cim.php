@@ -16,10 +16,10 @@
     
     require $sdk_loader;
 
-use net\authorize\api\contract\v1 as AnetAPI;
-use net\authorize\api\controller as AnetController;
+	use net\authorize\api\contract\v1 as AnetAPI;
+	use net\authorize\api\controller as AnetController;
 
-class authorizenet_cim extends base
+	class authorizenet_cim extends base
     {
         
         var $code, $title, $description, $enabled, $authorize = '';
@@ -943,107 +943,107 @@ class authorizenet_cim extends base
             $this->logError($logData, $error);
             return $logData;
         }
-    
-        function chargeCustomerProfile($profileid, $paymentprofileid)
-        {
-            global $order;
-        
-            $profileToCharge = new AnetAPI\CustomerProfilePaymentType();
-            $profileToCharge->setCustomerProfileId($profileid);
-            $paymentProfile = new AnetAPI\PaymentProfileType();
-            $paymentProfile->setPaymentProfileId($paymentprofileid);
-            $paymentProfile->setCardCode($_POST['cc_cvv']);
-            $profileToCharge->setPaymentProfile($paymentProfile);
-        
-            $transactionRequestType = new AnetAPI\TransactionRequestType();
-            if (MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE == 'Authorize') {
-                $transactionRequestType->setTransactionType("authOnlyTransaction");
-            } else {
-                 $transactionRequestType->setTransactionType("authCaptureTransaction");
-            }
-            $transactionRequestType->setAmount(number_format($order->info['total'], 2, '.', ''));
-            $transactionRequestType->setProfile($profileToCharge);
 
-            $invoice_description = '';
-            if (count($order->products) > 0) {
-	            $first_item = TRUE;
-	            foreach (array_slice($order->products, 0, 30) as $items) {
-		            $lineItem1 = new AnetAPI\LineItemType();
-		            $lineItem1->setItemId(zen_get_prid($items['id']));
-		            if (!$first_item) {
-			            $invoice_description .= ' + ';
-		            }
-		            $first_item = FALSE;
-		            $invoice_description .= preg_replace('/[^a-z0-9_ ]/i', '',
-			            preg_replace('/&nbsp;/', ' ', $items['name']));
-		            $invoice_description .= ' (qty: ' . $items['qty'] . ')';
-                    $lineItem1->setName(substr(preg_replace('/[^a-z0-9_ ]/i', '',
-                      preg_replace('/&nbsp;/', ' ', $items['name'])), 0, 30));
-                    //$lineItem1->setDescription("Here's the first line item");
-                    $lineItem1->setQuantity($items['qty']);
-                    $lineItem1->setUnitPrice($items['final_price']);
-                    $lineItem1->getTaxable($order->info['tax'] == 0 ? false : true);
-                    $transactionRequestType->addToLineItems($lineItem1);
-                }
-            }
+		function chargeCustomerProfile($profileid, $paymentprofileid)
+		{
+			global $order;
 
-	        $authorize_order = new AnetAPI\OrderType();
-	        $authorize_order->setInvoiceNumber($this->nextOrderNumber($order->info));
-	        $authorize_order->setDescription($invoice_description);
-	        $transactionRequestType->setOrder($authorize_order);
-        
-            $request = new AnetAPI\CreateTransactionRequest();
-            $request->setMerchantAuthentication($this->merchantCredentials());
-            $request->setRefId($this->nextOrderNumber($order->info));
-            $request->setTransactionRequest($transactionRequestType);
-            $controller = new AnetController\CreateTransactionController($request);
-            $response = $this->getControllerResponse($controller);
-        
-            $error = true;
-            if ($response != null) {
-                if ($response->getMessages()->getResultCode() == "Ok") {
-                    $tresponse = $response->getTransactionResponse();
-                
-                    if ($tresponse != null && $tresponse->getMessages() != null) {
-                        $error = false;
-                        $logData = "Transaction Response code : " . $tresponse->getResponseCode() . "\n";
-                        $logData .= " Charge Customer Profile APPROVED  :" . "\n";
-                        $logData .= " Charge Customer Profile AUTH CODE : " . $tresponse->getAuthCode() . "\n";
-                        $this->approvalCode = $tresponse->getAuthCode();
-                        $logData .= " Charge Customer Profile TRANS ID  : " . $tresponse->getTransId() . "\n";
-                        $this->transID = $tresponse->getTransId();
-                        $logData .= " Code : " . $tresponse->getMessages()[0]->getCode() . "\n";
-                        $logData .= " Description : " . $tresponse->getMessages()[0]->getDescription() . "\n";
-                    
-                        $this->insertPayment($tresponse->getTransId(),
-                          $order->billing['firstname'] . ' ' . $order->billing['lastname'],
-                          $order->info['total'], $this->code, $this->params['customerPaymentProfileId'],
-                          $tresponse->getAuthCode(),
-                          (isset($order->customer['id']) ? $order->customer['id'] : $_SESSION['customer_id']));
-                    } else {
-                        $logData = "Transaction Failed \n";
-                        if ($tresponse->getErrors() != null) {
-                            $logData .= " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
-                            $logData .= " Error message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
-                        }
-                    }
-                } else {
-                    $logData = "Transaction Failed \n";
-                    $tresponse = $response->getTransactionResponse();
-                    if ($tresponse != null && $tresponse->getErrors() != null) {
-                        $logData .= " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
-                        $logData .= " Error message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
-                    } else {
-                        $logData .= " Error code  : " . $response->getMessages()->getMessage()[0]->getCode() . "\n";
-                        $logData .= " Error message : " . $response->getMessages()->getMessage()[0]->getText() . "\n";
-                    }
-                }
-            } else {
-                $logData = "No response returned \n";
-            }
-            $this->logError($logData, $error);
-            return $response;
-        }
+			$profileToCharge = new AnetAPI\CustomerProfilePaymentType();
+			$profileToCharge->setCustomerProfileId($profileid);
+			$paymentProfile = new AnetAPI\PaymentProfileType();
+			$paymentProfile->setPaymentProfileId($paymentprofileid);
+			$paymentProfile->setCardCode($_POST['cc_cvv']);
+			$profileToCharge->setPaymentProfile($paymentProfile);
+
+			$transactionRequestType = new AnetAPI\TransactionRequestType();
+			if (MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE == 'Authorize') {
+				$transactionRequestType->setTransactionType("authOnlyTransaction");
+			} else {
+				$transactionRequestType->setTransactionType("authCaptureTransaction");
+			}
+			$transactionRequestType->setAmount(number_format($order->info['total'], 2, '.', ''));
+			$transactionRequestType->setProfile($profileToCharge);
+
+			$invoice_description = '';
+			if (count($order->products) > 0) {
+				$first_item = true;
+				foreach (array_slice($order->products, 0, 30) as $items) {
+					$lineItem1 = new AnetAPI\LineItemType();
+					$lineItem1->setItemId(zen_get_prid($items['id']));
+					if (!$first_item) {
+						$invoice_description .= ' + ';
+					}
+					$first_item = false;
+					$invoice_description .= preg_replace('/[^a-z0-9_ ]/i', '',
+						preg_replace('/&nbsp;/', ' ', $items['name']));
+					$invoice_description .= ' (qty: ' . $items['qty'] . ')';
+					$lineItem1->setName(substr(preg_replace('/[^a-z0-9_ ]/i', '',
+						preg_replace('/&nbsp;/', ' ', $items['name'])), 0, 30));
+					//$lineItem1->setDescription("Here's the first line item");
+					$lineItem1->setQuantity($items['qty']);
+					$lineItem1->setUnitPrice($items['final_price']);
+					$lineItem1->getTaxable($order->info['tax'] == 0 ? false : true);
+					$transactionRequestType->addToLineItems($lineItem1);
+				}
+			}
+
+			$authorize_order = new AnetAPI\OrderType();
+			$authorize_order->setInvoiceNumber($this->nextOrderNumber($order->info));
+			$authorize_order->setDescription($invoice_description);
+			$transactionRequestType->setOrder($authorize_order);
+
+			$request = new AnetAPI\CreateTransactionRequest();
+			$request->setMerchantAuthentication($this->merchantCredentials());
+			$request->setRefId($this->nextOrderNumber($order->info));
+			$request->setTransactionRequest($transactionRequestType);
+			$controller = new AnetController\CreateTransactionController($request);
+			$response = $this->getControllerResponse($controller);
+
+			$error = true;
+			if ($response != null) {
+				if ($response->getMessages()->getResultCode() == "Ok") {
+					$tresponse = $response->getTransactionResponse();
+
+					if ($tresponse != null && $tresponse->getMessages() != null) {
+						$error = false;
+						$logData = "Transaction Response code : " . $tresponse->getResponseCode() . "\n";
+						$logData .= " Charge Customer Profile APPROVED  :" . "\n";
+						$logData .= " Charge Customer Profile AUTH CODE : " . $tresponse->getAuthCode() . "\n";
+						$this->approvalCode = $tresponse->getAuthCode();
+						$logData .= " Charge Customer Profile TRANS ID  : " . $tresponse->getTransId() . "\n";
+						$this->transID = $tresponse->getTransId();
+						$logData .= " Code : " . $tresponse->getMessages()[0]->getCode() . "\n";
+						$logData .= " Description : " . $tresponse->getMessages()[0]->getDescription() . "\n";
+
+						$this->insertPayment($tresponse->getTransId(),
+							$order->billing['firstname'] . ' ' . $order->billing['lastname'],
+							$order->info['total'], $this->code, $this->params['customerPaymentProfileId'],
+							$tresponse->getAuthCode(),
+							(isset($order->customer['id']) ? $order->customer['id'] : $_SESSION['customer_id']));
+					} else {
+						$logData = "Transaction Failed \n";
+						if ($tresponse->getErrors() != null) {
+							$logData .= " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
+							$logData .= " Error message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
+						}
+					}
+				} else {
+					$logData = "Transaction Failed \n";
+					$tresponse = $response->getTransactionResponse();
+					if ($tresponse != null && $tresponse->getErrors() != null) {
+						$logData .= " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
+						$logData .= " Error message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
+					} else {
+						$logData .= " Error code  : " . $response->getMessages()->getMessage()[0]->getCode() . "\n";
+						$logData .= " Error message : " . $response->getMessages()->getMessage()[0]->getText() . "\n";
+					}
+				}
+			} else {
+				$logData = "No response returned \n";
+			}
+			$this->logError($logData, $error);
+			return $response;
+		}
     
         function updateCustomerPaymentProfile($customerProfileId, $customerPaymentProfileId)
         {
