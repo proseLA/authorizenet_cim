@@ -16,7 +16,7 @@
     define('CIM_AMOUNT', 'Amount');
     define('CIM_TYPE', 'Payment Type');
     define('CIM_POSTED', 'Date Posted');
-    define('CIM_MODIFIED', 'Last Modified');
+    define('CIM_MODIFIED', 'Date Captured');
     define('CIM_ACTION', 'Action');
     define('CIM_APPROVAL', 'Code');
 

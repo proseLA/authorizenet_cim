@@ -47,6 +47,7 @@
                                 <th scope="col"><?= CIM_AMOUNT; ?></th>
                                 <th scope="col"><?= CIM_TYPE; ?></th>
                                 <th scope="col"><?= CIM_POSTED; ?></th>
+                                <th scope="col"><?= CIM_MODIFIED; ?></th>
                                 <th scope="col"><?= CIM_APPROVAL; ?></th>
                                 <th scope="col"><?= CIM_ACTION; ?></th>
                             </tr>
@@ -62,6 +63,7 @@
                                             <th scope="row"><?= $currencies->format($authnet->payment[$a]['amount']); ?></td>
                                             <td ><?= $authnet->full_type($authnet->payment[$a]['type']); ?></td>
                                             <td ><?= zen_datetime_short($authnet->payment[$a]['posted']); ?></td>
+                                            <td ><?= zen_datetime_short($authnet->payment[$a]['captured']); ?></td>
                                             <td ><?= $authnet->payment[$a]['approval_code']; ?></td>
                                             <td ><?php
                                                     $date = new DateTime($authnet->payment[$a]['posted']);
@@ -84,6 +86,7 @@
                                                         <th scope="row"><?= '-' . $currencies->format($authnet->refund[$b]['amount']); ?></td>
                                                         <td ><?= $authnet->full_type($authnet->refund[$b]['type']); ?></td>
                                                         <td ><?= zen_datetime_short($authnet->refund[$b]['posted']); ?></td>
+                                                        <td ></td>
                                                         <td ><?= $authnet->refund[$b]['approval_code']; ?></td>
                                                         <td > </td>
                                                     </tr>

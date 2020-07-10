@@ -1375,15 +1375,18 @@ class authorizenet_cim extends base
         {
             global $db;
             $sql = "insert into " . TABLE_CIM_PAYMENTS . " ( payment_name, payment_amount, payment_type, date_posted, last_modified,  transaction_id, payment_profile_id, approval_code, customers_id, status)
-VALUES (:nameFull, :amount, :type, now(), now(), :transID, :paymentProfileID, :approval_code, :custID, :status)";
+VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :approval_code, :custID, :status)";
 
             if (MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE == 'Authorize') {
                 $status = 'A';
+                $mod_date = null;
             } else {
                 $status = 'C';
+                $mod_date = 'now()';
             }
         
             $sql = $db->bindVars($sql, ':transID', $transID, 'string');
+	        $sql = $db->bindVars($sql, ':mod', $mod_date, 'date');
             $sql = $db->bindVars($sql, ':nameFull', $name, 'string');
             $sql = $db->bindVars($sql, ':amount', $total, 'noquotestring');
             $sql = $db->bindVars($sql, ':type', $type, 'string');

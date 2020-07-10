@@ -72,17 +72,18 @@
 
             if (zen_not_null($payments_query->fields['orders_id'])) {
                 while (!$payments_query->EOF) {
-                    $this->payment[] = array(
-                        'index' => $payments_query->fields['payment_id'],
-                        'number' => $payments_query->fields['transaction_id'],
-                        'name' => $payments_query->fields['payment_name'],
-                        'amount' => $payments_query->fields['payment_amount'],
-                        'refund_amount' => $payments_query->fields['refund_amount'],
-                        'type' => $payments_query->fields['payment_type'],
-                        'posted' => $payments_query->fields['date_posted'],
-                        'approval_code' => $payments_query->fields['approval_code'],
-                        'status' => $payments_query->fields['status'],
-                    );
+	                $this->payment[] = array(
+		                'index' => $payments_query->fields['payment_id'],
+		                'number' => $payments_query->fields['transaction_id'],
+		                'name' => $payments_query->fields['payment_name'],
+		                'amount' => $payments_query->fields['payment_amount'],
+		                'refund_amount' => $payments_query->fields['refund_amount'],
+		                'type' => $payments_query->fields['payment_type'],
+		                'posted' => $payments_query->fields['date_posted'],
+		                'captured' => $payments_query->fields['last_modified'],
+		                'approval_code' => $payments_query->fields['approval_code'],
+		                'status' => $payments_query->fields['status'],
+	                );
                     $payments_query->MoveNext();
                 }
             } else {
