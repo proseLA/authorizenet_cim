@@ -68,7 +68,7 @@
                                                     $now = new DateTime();
                                                     ((($authnet->payment[$a]['amount'] > $authnet->payment[$a]['refund_amount']) &&  $date->diff($now)->format("%d") < 120) ? $authnet->button_refund('payment',
                                                       $authnet->payment[$a]['index']) : "");
-                                                    ($authnet->payment[$a]['status'] == 'A') ? $authnet->button_capture($authnet->payment[$a]['index']) : "";
+                                                    ($authnet->payment[$a]['status'] == 'A' && ($authnet->payment[$a]['amount'] - $authnet->payment[$a]['refund_amount']) > 0) ? $authnet->button_capture($authnet->payment[$a]['index']) : "";
 
                                                     ?></td>
                                         </tr>
