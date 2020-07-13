@@ -12,19 +12,41 @@
 
 require 'includes/application_top.php';
 require_once DIR_WS_CLASSES . 'authnet_order.php';
-require_once DIR_FS_CATALOG . DIR_WS_LANGUAGES . $_SESSION['language'] . '/modules/payment/authorizenet_cim.php';
-require_once DIR_FS_CATALOG_MODULES . 'payment/' . 'authorizenet_cim.php';
+require_once DIR_FS_CATALOG . DIR_WS_LANGUAGES . $_SESSION['language'] . '/modules/payment/authorizenet_cof.php';
+require_once DIR_FS_CATALOG_MODULES . 'payment/' . 'authorizenet_cof.php';
 require_once DIR_WS_CLASSES . 'currencies.php';
 $currencies = new currencies();
 
-$authnet_cim = new authorizenet_cim();
+$authnet_cim = new authorizenet_cof();
 
 $authnet_cim->checkLogName();
+
+$action_array_index_not_necessary = ['refund_capture_done', 'more_money_done', 'more_money'];
 
 $oID = isset($_GET['oID']) ? (int)$_GET['oID'] : (int)$_POST['oID'];
 $action = (isset($_GET['action']) ? $_GET['action'] : $_POST['action']);
 
+$index_necessary = true;
+
+if (in_array($action, $action_array_index_not_necessary)) {
+    $index_necessary = false;
+}
+
 $authnet_order = new authnet_order($oID);
+
+$cim_payment_index = (isset($_POST['payment_id']) ? $_POST['payment_id'] : $_GET['index']);
+
+// the following takes the index from CIM PAYMENTS table, and returns the array index for the payment.
+$index = $authnet_order->getPaymentIndex($cim_payment_index);
+
+if (!isset($index) && $index_necessary) {
+    trigger_error('Payment index not part of this order! Order: ' . $oID . ' Payment Index: ' . $_GET['index']);
+	// echo "-------->" .  . "<---------\n";
+	new dBug($_GET);
+	new dBug($_POST);
+	die(__FILE__ . ':' . __LINE__);
+	die(__FILE__ . ':' . __LINE__);
+}
 
 if (isset($_POST['oID'])) {
     switch ($action) {
@@ -35,14 +57,29 @@ if (isset($_POST['oID'])) {
                 'oID=' . $oID . '&action=refund_capture_done', 'SSL'));
             break;
         case 'capture':
-            if ($_POST['payment_id'] != $authnet_order->payment[0]['index']) {
+            if ($_POST['payment_id'] != $authnet_order->payment[$index]['index']) {
                 $_SESSION['capture_error_status'] = true;
                 $messageStack->add_session(CAPTURE_NOT_MATCH, 'error');
                 zen_redirect(zen_href_link(FILENAME_AUTHNET_PAYMENTS, 'oID=' . $oID . '&action=refund_capture_done', 'SSL'));
             }
-            $amount =  ((int) $_POST['amount'] == 0) ?  $amount = $authnet_order->payment[0]['amount'] : (int) $_POST['amount'];
-            $_SESSION['capture_error_status'] = $authnet_cim->capturePreviouslyAuthorizedAmount($authnet_order->payment[0]['number'], $amount);
+            $amount =  ((int) $_POST['amount'] == 0) ?  $amount = $authnet_order->payment[$index]['amount'] : (int) $_POST['amount'];
+            $_SESSION['capture_error_status'] = $authnet_cim->capturePreviouslyAuthorizedAmount($authnet_order->payment[$index]['number'], $amount);
             zen_redirect(zen_href_link(FILENAME_AUTHNET_PAYMENTS, 'oID=' . $oID . '&action=refund_capture_done', 'SSL'));
+            break;
+        case 'more_money':
+            if ($authnet_order->balance_due == 0 || (int)$_POST['amount'] == 0) {
+	            $_SESSION['more_money_error'] = true;
+	            $messageStack->add_session(((int)$_POST['amount'] == 0 ? MORE_MONEY_POST_ERROR : MORE_MONEY_ERROR), 'error');
+	            zen_redirect(zen_href_link(FILENAME_AUTHNET_PAYMENTS, 'oID=' . $oID . '&action=more_money_done', 'SSL'));
+            }
+            $customer_profile = $authnet_cim->getCustomerProfile($authnet_order->cID);
+	        $last_index = sizeof($authnet_order->payment) -1;
+
+            $new_charge = $authnet_cim->chargeCustomerProfile($customer_profile,$authnet_order->payment[$last_index]['payment_profile_id'], true);
+
+	        zen_redirect(zen_href_link(FILENAME_AUTHNET_PAYMENTS, 'oID=' . $oID . '&action=more_money_done', 'SSL'));
+	        break;
+
             break;
         default:
             throw new \Exception('Unexpected value');  // END case 'delete'
@@ -86,10 +123,8 @@ if (isset($_POST['oID'])) {
     <?php
     switch ($action) {
         case 'refund':
-            $index = $authnet_order->payment[0]['index'];
-
             $voidPayment = false;
-            $status = $authnet_cim->getTransactionDetails($authnet_order->payment[0]['number'])->getTransaction()->getTransactionStatus();
+            $status = $authnet_cim->getTransactionDetails($authnet_order->payment[$index]['number'])->getTransaction()->getTransactionStatus();
             if (strpos($status, 'Pending') !== false) {
                 $voidPayment = true;
             }
@@ -97,7 +132,7 @@ if (isset($_POST['oID'])) {
             echo zen_draw_form('delete', FILENAME_AUTHNET_PAYMENTS, '', 'post', '', true);
             echo zen_draw_hidden_field('action', $action);
             echo zen_draw_hidden_field('oID', $oID);
-            //echo zen_draw_hidden_field('payment_id', $index);
+            echo zen_draw_hidden_field('payment_id', $authnet_order->payment[$index]['index']);
             ?>
             <table class="table table-condensed table-borderless">
                 <tr>
@@ -106,7 +141,7 @@ if (isset($_POST['oID'])) {
                 </tr>
                 <tr>
                     <td align="center" class="main">
-                        <strong><?= HEADER_ORDER_ID . $authnet_order->oID . '<br />' . HEADER_PAYMENT_UID . $index; ?></strong>
+                        <strong><?= HEADER_ORDER_ID . $authnet_order->oID . '<br />' . HEADER_PAYMENT_UID . $cim_payment_index; ?></strong>
                     </td>
                 </tr>
                 <?php
@@ -146,10 +181,8 @@ if (isset($_POST['oID'])) {
             <?php
             break;  // END case
         case 'capture':
-            $index = $authnet_order->payment[0]['index'];
-
             $captureFunds = false;
-            $status = $authnet_cim->getTransactionDetails($authnet_order->payment[0]['number'])->getTransaction()->getTransactionStatus();
+            $status = $authnet_cim->getTransactionDetails($authnet_order->payment[$index]['number'])->getTransaction()->getTransactionStatus();
             if (strpos($status, 'authorizedPendingCapture') !== false) {
                 $captureFunds = true;
             } else {
@@ -162,7 +195,7 @@ if (isset($_POST['oID'])) {
             echo zen_draw_form('capture', FILENAME_AUTHNET_PAYMENTS, '', 'post', '', true);
             echo zen_draw_hidden_field('action', $action);
             echo zen_draw_hidden_field('oID', $oID);
-            echo zen_draw_hidden_field('payment_id', $index);
+            echo zen_draw_hidden_field('payment_id', $authnet_order->payment[$index]['index']);
             ?>
             <table class="table table-condensed table-borderless">
                 <tr>
@@ -171,14 +204,14 @@ if (isset($_POST['oID'])) {
                 </tr>
                 <tr>
                     <td align="center" class="main">
-                        <strong><?= HEADER_ORDER_ID . $authnet_order->oID . '<br />' . HEADER_PAYMENT_UID . $index; ?></strong>
+                        <strong><?= HEADER_ORDER_ID . $authnet_order->oID . '<br />' . HEADER_PAYMENT_UID . $cim_payment_index; ?></strong>
                     </td>
                 </tr>
 
                     <tr>
                         <td align="center" class="main"><?= CAPTURE_NOTE; ?>
                         <br />
-                        <span class="pageHeading  "><?= $currencies->format($authnet_order->payment[0]['amount']); ?></span> </td>
+                        <span class="pageHeading  "><?= $currencies->format($authnet_order->payment[$index]['amount']); ?></span> </td>
                     </tr>
                     <tr>
                         <td align="center"><?= zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
@@ -228,6 +261,36 @@ if (isset($_POST['oID'])) {
             </div>
             <?php
             break;  // END case
+	    case 'more_money_done':
+		    $affected_rows = 1;
+		    if ($_SESSION['more_money_error']) {
+			    $page_header = HEADER_MORE_MONEY_FAIL;
+			    $affected_rows = 0;
+		    } else {
+			    $page_header = HEADER_MORE_MONEY_DONE;
+		    }
+		    unset($_SESSION['more_money_error']);
+		    /*
+		    if (isset($_SESSION['capture_error_status'])) {
+			    if ($_SESSION['capture_error_status']) {
+				    $page_header = HEADER_CAPTURE_FAIL;
+				    $affected_rows = 0;
+			    } else {
+				    $page_header = HEADER_CAPTURE_DONE;
+			    }
+			    unset($_SESSION['capture_error_status']);
+		    }
+		    */
+		    ?>
+            <div class="alert alert-info">
+                <h2><?= $page_header; ?></h2>
+			    <?= sprintf(TEXT_DELETE_CONFIRM, $affected_rows); ?>
+                <input type="button" class="btn btn-success "
+                       value="<?= BUTTON_DELETE_CONFIRM; ?>"
+                       onclick="returnParent()"></td>
+            </div>
+		    <?php
+		    break;  // END case
         case 'clearCards':
             ?>
             <div class="alert alert-danger"><?= DELETE_CARDS; ?><br/>
@@ -253,6 +316,48 @@ if (isset($_POST['oID'])) {
             </div>
             <?php
             break;
+	    case 'more_money':
+
+		    echo zen_draw_form('delete', FILENAME_AUTHNET_PAYMENTS, '', 'post', '', true);
+		    echo zen_draw_hidden_field('action', $action);
+		    echo zen_draw_hidden_field('oID', $oID);
+		    //echo zen_draw_hidden_field('payment_id', $index);
+		    ?>
+            <table class="table table-condensed table-borderless">
+                <tr>
+                    <td align="center"
+                        class="pageHeading"><?= HEADER_MORE_MONEY; ?></td>
+                </tr>
+                <tr>
+                    <td align="center" class="main">
+                        <strong><?= HEADER_ORDER_ID . $authnet_order->oID; ?></strong>
+                    </td>
+                </tr>
+
+                <tr>
+                    <td align="center"><?= zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
+                </tr>
+                <tr>
+                    <td align="center"><?= TEXT_AMOUNT . '  ' . zen_draw_input_field('amount', '',
+				            'size="8"') . '<br><br><span class="alert">' . CURRENT_TOTAL . $currencies->format($authnet_order->order_total) . '</span>'; ?></td>
+                </tr>
+                <tr>
+                    <td align="center"><?= CHARGE_DESCRIPTION . '  ' . zen_draw_input_field('charge_description', '', 'size="30"'); ?></td>
+                </tr>
+                <tr>
+                    <td align="center"><?= zen_draw_separator('pixel_trans.gif', '1', '10'); ?></td>
+                </tr>
+                <tr class="alert alert-danger">
+                    <td align="center" class="warningText"><?= WARN_MORE_MONEY; ?><br>
+                        <p><input type="button" class="btn btn-info" value="<?= BUTTON_CANCEL; ?>"
+                                  onclick="returnParent()">
+                            <input type="submit" class="btn btn-warning" value="<?= BUTTON_SUBMIT; ?>"
+                                   onclick="document.delete.submit();this.disabled=true"></td>
+                </tr>
+            </table>
+            </form>
+		    <?php
+		    break;  // END case
     }
 }// END else
 ?>

@@ -34,12 +34,24 @@
                     $currencies = new currencies();
                     
                     $authnet = new authnet_order($p1);
+	                if ($authnet->payment) {
                     ?>
                     <div class="panel panel-default " style="width: 60%">
                         <table class="table table-hover table-bordered">
                             <thead>
                             <tr>
-                                <th colspan="2"><?= TEXT_CIM_DATA ?></td>
+                                <th colspan="2"><?= TEXT_CIM_DATA ?></th>
+	                            <?php
+		                            $last_index = sizeof($authnet->payment) - 1;
+		                            if ($authnet->payment[$last_index]['amount'] == $authnet->payment[$last_index]['refund_amount']) {
+			                            /*echo $last_index . "<-------->" . $authnet->payment[$last_index]['amount'] . "<---------\n";
+			                            new dBug($authnet->payment);
+			                            die(__FILE__ . ':' . __LINE__); */
+			                            ?>
+                                        <th colspan="2"><?= $authnet->button_new_funds($authnet->payment[$last_index]['index']) ?></th>
+			                            <?php
+		                            }
+	                            ?>
                             </tr>
                             <tr class="dataTableHeadingRow">
                                 <th scope="col"><?= CIM_NUMBER; ?></th>
@@ -54,7 +66,6 @@
                             </thead>
                             <tbody>
                             <?php
-                                if ($authnet->payment) {
                                     for ($a = 0; $a < sizeof($authnet->payment); $a++) {
                                         ?>
                                         <tr class="bg-success">
@@ -95,12 +106,13 @@
                                             }  // END for($b = 0; $b < sizeof($authnet->refund); $b++)
                                         }  // END if ($authnet->refund)
                                     }  // END for($a = 0; $a < sizeof($payment); $a++)
-                                }  // END if ($authnet->payment)
+
                             ?>
                             </tbody>
                         </table>
                     </div>
                 <?php
+	                }  // END if ($authnet->payment)
                     break;
                 case 'NOTIFY_ADMIN_FOOTER_END':
                     ?>

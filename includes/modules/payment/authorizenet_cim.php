@@ -194,7 +194,7 @@ class authorizenet_cim extends base
             }
             $selection['fields'][] = array(
               'title' => 'Keep Card on File',
-              'field' => zen_draw_checkbox_field('authorizenet_cim_save', $save_cc,
+              'field' => zen_draw_checkbox_field('authorizenet_cim_save', '',
                 '' . ' id="' . $this->code . '-save"' . $onFocus),
               'tag' => $this->code . '-save'
             );
@@ -300,7 +300,7 @@ class authorizenet_cim extends base
          */
         function before_process()
         {
-            global $response, $db, $order, $messageStack, $customerID;
+            global $order, $customerID;
         
             $order->info['cc_number'] = str_pad(substr($_POST['cc_number'], -4), strlen($_POST['cc_number']), "X",
               STR_PAD_LEFT);
@@ -334,8 +334,7 @@ class authorizenet_cim extends base
         {
             global $insert_id, $customerID;
         
-            $this->updateOrderAndPayment($customerID, $this->transID, $insert_id, $this->approvalCode,
-              $this->params['customerPaymentProfileId'], $this->order_status);
+            $this->updateOrderAndPayment($customerID, $this->transID, $insert_id, $this->approvalCode,$this->order_status);
         
         }
     
@@ -368,11 +367,10 @@ class authorizenet_cim extends base
     
         function get_error()
         {
-            $error = array(
-              'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_ERROR,
-              'error' => stripslashes(urldecode($_GET['error']))
-            );
-            return $error;
+	        return array(
+	          'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_ERROR,
+	          'error' => stripslashes(urldecode($_GET['error']))
+	        );
         }
     
         function check()
@@ -771,6 +769,31 @@ class authorizenet_cim extends base
             }
             return $customerProfileId;
         }
+
+	function getCustomerID($customerProfileId)
+	{
+		global $db;
+		$sql = "SELECT customers_id FROM " . TABLE_CUSTOMERS_CIM_PROFILE . " WHERE customers_customerProfileId = :custProfId ";
+		$sql = $db->bindVars($sql, ':custProfId', $customerProfileId, 'string');
+		$check_customer = $db->Execute($sql);
+
+		if ($check_customer->fields['customers_id'] != 0) {
+			$customerId = $check_customer->fields['customers_id'];
+		} else {
+			$customerId = 0;
+		}
+		return $customerId;
+	}
+
+	function getPaymentName($order_id)
+	{
+		global $db;
+		$sql = "SELECT payment_name FROM " . TABLE_CIM_PAYMENTS . " WHERE orders_id = :orderId ORDER BY payment_id desc LIMIT 1";
+		$sql = $db->bindVars($sql, ':orderId', $order_id, 'string');
+		$paymentName  = $db->Execute($sql);
+
+		return $paymentName->fields['payment_name'];
+	}
     
         function merchantCredentials()
         {
@@ -944,10 +967,10 @@ class authorizenet_cim extends base
             return $logData;
         }
     
-        function chargeCustomerProfile($profileid, $paymentprofileid)
+        function chargeCustomerProfile($profileid, $paymentprofileid, $new_auth = false)
         {
             global $order;
-        
+
             $profileToCharge = new AnetAPI\CustomerProfilePaymentType();
             $profileToCharge->setCustomerProfileId($profileid);
             $paymentProfile = new AnetAPI\PaymentProfileType();
@@ -961,11 +984,21 @@ class authorizenet_cim extends base
             } else {
                  $transactionRequestType->setTransactionType("authCaptureTransaction");
             }
-            $transactionRequestType->setAmount(number_format($order->info['total'], 2, '.', ''));
+            if (!$new_auth) {
+	            $charge_amount = (number_format($order->info['total'], 2, '.', ''));
+	            $invoice_number = $this->nextOrderNumber($order->info);
+	            $full_name = $order->billing['firstname'] . ' ' . $order->billing['lastname'];
+            } else {
+	            $charge_amount = (number_format($_POST['amount'], 2, '.', ''));
+	            $invoice_number = (int)$_POST['oID'];
+	            $full_name = $this->getPaymentName($_POST['oID']);
+            }
+	        $transactionRequestType->setAmount($charge_amount);
             $transactionRequestType->setProfile($profileToCharge);
 
 	        $invoice_description = '';
-            if (count($order->products) > 0) {
+
+            if (isset($order->products) && count($order->products) > 0) {
 	            $first_item = true;
                 foreach (array_slice($order->products, 0, 30) as $items) {
                     $lineItem1 = new AnetAPI\LineItemType();
@@ -981,19 +1014,21 @@ class authorizenet_cim extends base
                     //$lineItem1->setDescription("Here's the first line item");
                     $lineItem1->setQuantity($items['qty']);
                     $lineItem1->setUnitPrice($items['final_price']);
-                    $lineItem1->getTaxable($order->info['tax'] == 0 ? false : true);
+                    $lineItem1->setTaxable($order->info['tax'] == 0 ? false : true);
                     $transactionRequestType->addToLineItems($lineItem1);
                 }
+            } else {
+            	$invoice_description = $_POST['charge_description'];
             }
 
 	        $authorize_order = new AnetAPI\OrderType();
-	        $authorize_order->setInvoiceNumber($this->nextOrderNumber($order->info));
+	        $authorize_order->setInvoiceNumber($invoice_number);
 	        $authorize_order->setDescription($invoice_description);
 	        $transactionRequestType->setOrder($authorize_order);
         
             $request = new AnetAPI\CreateTransactionRequest();
             $request->setMerchantAuthentication($this->merchantCredentials());
-            $request->setRefId($this->nextOrderNumber($order->info));
+            $request->setRefId($invoice_number);
             $request->setTransactionRequest($transactionRequestType);
             $controller = new AnetController\CreateTransactionController($request);
             $response = $this->getControllerResponse($controller);
@@ -1013,12 +1048,17 @@ class authorizenet_cim extends base
                         $this->transID = $tresponse->getTransId();
                         $logData .= " Code : " . $tresponse->getMessages()[0]->getCode() . "\n";
                         $logData .= " Description : " . $tresponse->getMessages()[0]->getDescription() . "\n";
-                    
+
+                        $cust_id = isset($order->customer['id']) ? $order->customer['id'] : $_SESSION['customer_id'];
+	                    if ($cust_id == '') {
+		                    $cust_id = $this->getCustomerID($profileid);
+	                    }
+
                         $this->insertPayment($tresponse->getTransId(),
-                          $order->billing['firstname'] . ' ' . $order->billing['lastname'],
-                          $order->info['total'], $this->code, $this->params['customerPaymentProfileId'],
+                          $full_name,
+                          $charge_amount, $this->code, $paymentprofileid,
                           $tresponse->getAuthCode(),
-                          (isset($order->customer['id']) ? $order->customer['id'] : $_SESSION['customer_id']));
+                          $cust_id, $invoice_number);
                     } else {
                         $logData = "Transaction Failed \n";
                         if ($tresponse->getErrors() != null) {
@@ -1027,15 +1067,7 @@ class authorizenet_cim extends base
                         }
                     }
                 } else {
-                    $logData = "Transaction Failed \n";
-                    $tresponse = $response->getTransactionResponse();
-                    if ($tresponse != null && $tresponse->getErrors() != null) {
-                        $logData .= " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
-                        $logData .= " Error message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
-                    } else {
-                        $logData .= " Error code  : " . $response->getMessages()->getMessage()[0]->getCode() . "\n";
-                        $logData .= " Error message : " . $response->getMessages()->getMessage()[0]->getText() . "\n";
-                    }
+                	$logData = $this->failedTransaction($response);
                 }
             } else {
                 $logData = "No response returned \n";
@@ -1043,11 +1075,22 @@ class authorizenet_cim extends base
             $this->logError($logData, $error);
             return $response;
         }
+
+        function failedTransaction($response) {
+	        $logData = "Transaction Failed \n";
+	        $tresponse = $response->getTransactionResponse();
+	        if ($tresponse != null && $tresponse->getErrors() != null) {
+		        $logData .= " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
+		        $logData .= " Error message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
+	        } else {
+		        $logData .= " Error code  : " . $response->getMessages()->getMessage()[0]->getCode() . "\n";
+		        $logData .= " Error message : " . $response->getMessages()->getMessage()[0]->getText() . "\n";
+	        }
+	        return $logData;
+        }
     
         function updateCustomerPaymentProfile($customerProfileId, $customerPaymentProfileId)
         {
-            global $order, $customer_id;
-        
             //for card_update
             $exp_date = $this->convertExpDate($_POST['cc_year'], $_POST['cc_month']);
         
@@ -1178,15 +1221,7 @@ class authorizenet_cim extends base
                         }
                     }
                 } else {
-                    $logData = "Transaction Failed \n";
-                    $tresponse = $response->getTransactionResponse();
-                    if ($tresponse != null && $tresponse->getErrors() != null) {
-                        $logData .= " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
-                        $logData .= " Error message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
-                    } else {
-                        $logData .= " Error code  : " . $response->getMessages()->getMessage()[0]->getCode() . "\n";
-                        $logData .= " Error message : " . $response->getMessages()->getMessage()[0]->getText() . "\n";
-                    }
+                	$logData = $this->failedTransaction($response);
                 }
             } else {
                 $logData = "No response returned \n";
@@ -1240,7 +1275,7 @@ class authorizenet_cim extends base
                     $tresponse = $response->getTransactionResponse();
                     if ($tresponse != null && $tresponse->getErrors() != null) {
                         $logData .= " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
-                        $message = $tresponse->getErrors()[0]->getErrorText() . "\n";
+                        $logData .=  " Error message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
                     } else {
                         $logData .= " Error code  : " . $response->getMessages()->getMessage()[0]->getCode() . "\n";
                         $logData .= " Error message : " . $response->getMessages()->getMessage()[0]->getText() . "\n";
@@ -1351,15 +1386,7 @@ class authorizenet_cim extends base
                     }
                 }
             } else {
-                $logData = "Transaction Failed \n";
-                $tresponse = $response->getTransactionResponse();
-                if ($tresponse != null && $tresponse->getErrors() != null) {
-                    $logData .= " Error code  : " . $tresponse->getErrors()[0]->getErrorCode() . "\n";
-                    $logData .= " Error message : " . $tresponse->getErrors()[0]->getErrorText() . "\n";
-                } else {
-                    $logData .= " Error code  : " . $response->getMessages()->getMessage()[0]->getCode() . "\n";
-                    $logData .= " Error message : " . $response->getMessages()->getMessage()[0]->getText() . "\n";
-                }
+            	$logData = $this->failedTransaction($response);
             }
         } else {
             $logData = "No response returned \n";
@@ -1371,11 +1398,11 @@ class authorizenet_cim extends base
     
         // functions for updating some aspect of the zen-cart database.
     
-        function insertPayment($transID, $name, $total, $type, $profileID, $approval, $custID)
+        function insertPayment($transID, $name, $total, $type, $profileID, $approval, $custID, $ordersID)
         {
             global $db;
-            $sql = "insert into " . TABLE_CIM_PAYMENTS . " ( payment_name, payment_amount, payment_type, date_posted, last_modified,  transaction_id, payment_profile_id, approval_code, customers_id, status)
-VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :approval_code, :custID, :status)";
+            $sql = "insert into " . TABLE_CIM_PAYMENTS . " ( payment_name, payment_amount, payment_type, date_posted, last_modified,  transaction_id, payment_profile_id, approval_code, customers_id, status, orders_id)
+VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :approval_code, :custID, :status, :ordersID)";
 
             if (MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE == 'Authorize') {
                 $status = 'A';
@@ -1394,6 +1421,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
             $sql = $db->bindVars($sql, ':approval_code', $approval, 'string');
             $sql = $db->bindVars($sql, ':custID', $custID, 'string');
             $sql = $db->bindVars($sql, ':status', $status, 'string');
+	        $sql = $db->bindVars($sql, ':ordersID', $ordersID, 'string');
             $db->Execute($sql);
         }
     
@@ -1440,14 +1468,14 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
                 $sql = "UPDATE " . TABLE_CUSTOMERS . " SET customers_default_address_id = :addID WHERE customers_id = :custID";
                 $sql = $db->bindVars($sql, ":addID", $id, 'integer');
                 $sql = $db->bindVars($sql, ":custID", $customer_id, 'integer');
-                $action = $db->Execute($sql);
+                $db->Execute($sql);
 
                 $zco_notifier->notify('NOTIFY_MODULE_ADDRESS_BOOK_UPDATED_PRIMARY_CUSTOMER_RECORD',
                     array('address_id' => $id, 'customers_id' => $customer_id));
             }
         }
     
-        function updateOrderAndPayment($customerID, $transID, $insertID, $approval, $payment_profile_id, $status)
+        function updateOrderAndPayment($customerID, $transID, $insertID, $approval, $status)
         {
             global $db;
         
@@ -1542,18 +1570,19 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
         function saveCCToken($custId, $payment_profile, $lastfour, $exp_date, $save)
         {
             global $db;
-        
-            //$insert_date = '20' . substr($exp_date,2,2) .'-'. substr($exp_date,0,2);
-            $sql = "INSERT " . TABLE_CUSTOMERS_CC . "
+
+            if (!zen_in_guest_checkout()) {
+	            $sql = "INSERT " . TABLE_CUSTOMERS_CC . "
 	        (customers_id, payment_profile_id, last_four, exp_date, enabled, card_last_modified)
 	        values (:custID,  :profID, :lastFour, :expDate, :save, now())";
-            $sql = $db->bindVars($sql, ':custID', $custId, 'integer');
-            $sql = $db->bindVars($sql, ':profID', $payment_profile, 'integer');
-            $sql = $db->bindVars($sql, ':lastFour', $lastfour, 'string');
-            $sql = $db->bindVars($sql, ':expDate', $exp_date, 'string');
-            $sql = $db->bindVars($sql, ':save', $save, 'string');
-        
-            $db->Execute($sql);
+	            $sql = $db->bindVars($sql, ':custID', $custId, 'integer');
+	            $sql = $db->bindVars($sql, ':profID', $payment_profile, 'integer');
+	            $sql = $db->bindVars($sql, ':lastFour', $lastfour, 'string');
+	            $sql = $db->bindVars($sql, ':expDate', $exp_date, 'string');
+	            $sql = $db->bindVars($sql, ':save', $save, 'string');
+
+	            $db->Execute($sql);
+            }
         }
     
         function updateCustomer($customerID, $profileID)

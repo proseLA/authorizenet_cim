@@ -83,6 +83,7 @@
 		                'captured' => $payments_query->fields['last_modified'],
 		                'approval_code' => $payments_query->fields['approval_code'],
 		                'status' => $payments_query->fields['status'],
+		                'payment_profile_id' => $payments_query->fields['payment_profile_id'],
 	                );
                     $payments_query->MoveNext();
                 }
@@ -143,7 +144,7 @@
             echo '&nbsp;<a href="javascript:cimpopupWindow(\'' .
               zen_href_link(FILENAME_AUTHNET_PAYMENTS,
 //                'oID=' . $this->oID . '&payment_mode=' . $payment_mode . '&index=' . $index . '&action=refund',
-                'oID=' . $this->oID . '&payment_mode=' . $payment_mode . '&action=refund',
+                'oID=' . $this->oID . '&payment_mode=' . $payment_mode . '&action=refund'. '&index=' . $index,
                 'NONSSL') . '\', \'scrollbars=yes,resizable=yes,width=100,height=1000,screenX=150,screenY=100,top=100,left=150\')"' .
               'class="btn btn-danger btn-sm" role="button" >' . BUTTON_REFUND . '</a>';
         }
@@ -156,6 +157,15 @@
                     'NONSSL') . '\', \'scrollbars=yes,resizable=yes,width=100,height=1000,screenX=150,screenY=100,top=100,left=150\')"' .
                 'class="btn btn-success btn-sm" role="button" >'. BUTTON_CAPTURE . '</a>';
         }
+
+	    function button_new_funds($index)
+	    {
+		    echo '&nbsp;<a href="javascript:cimpopupWindow(\'' .
+			    zen_href_link(FILENAME_AUTHNET_PAYMENTS,
+				    'oID=' . $this->oID . '&index=' . $index . '&action=more_money',
+				    'NONSSL') . '\', \'scrollbars=yes,resizable=yes,width=100,height=1000,screenX=150,screenY=100,top=100,left=150\')"' .
+			    'class="btn btn-primary btn-sm" role="button" >'. BUTTON_NEW_FUNDS . '</a>';
+	    }
         // translates payment type codes into full text
         function full_type($code)
         {
@@ -165,5 +175,17 @@
                 $full_text = $code;
             }
             return $full_text;
+        }
+        function getPaymentIndex($index) {
+        	//$return = false;
+	        $last_index = sizeof($this->payment) -1;
+	        for ($i = $last_index; $i > -1; $i--) {
+		        //echo '***>' . $i . '<---->' . $this->payment[$i]['index'] . "<-----\N";
+		        if ($index == $this->payment[$i]['index']) {
+		        	$return = $i;
+		        	break;
+		        }
+	        }
+	        return $return;
         }
     }
