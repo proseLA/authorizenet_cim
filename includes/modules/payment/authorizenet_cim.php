@@ -1059,6 +1059,9 @@ class authorizenet_cim extends base
                           $charge_amount, $this->code, $paymentprofileid,
                           $tresponse->getAuthCode(),
                           $cust_id, $invoice_number);
+	                    if ($new_auth) {
+		                    $this->updateOrderAndPayment($cust_id, $tresponse->getTransId(), $invoice_number, $tresponse->getAuthCode(), $this->order_status);
+	                    }
                     } else {
                         $logData = "Transaction Failed \n";
                         if ($tresponse->getErrors() != null) {
