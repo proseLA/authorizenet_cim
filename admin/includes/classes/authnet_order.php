@@ -188,4 +188,8 @@
 	        }
 	        return $return;
         }
+
+        function num_2_dec($number) {
+	        return abs(round((float)$number, 2));
+        }
     }

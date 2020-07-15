@@ -49,9 +49,10 @@ if (!isset($index) && $index_necessary) {
 }
 
 if (isset($_POST['oID'])) {
+    $post_amount = $authnet_order->num_2_dec($_POST['amount']);
     switch ($action) {
         case 'refund':
-            $refund_amt = abs(round((float)($_POST['amount']), 2));
+            $refund_amt = $post_amount;
             $_SESSION['refund_status'] = $authnet_cim->doCimRefund($oID, $refund_amt);
             zen_redirect(zen_href_link(FILENAME_AUTHNET_PAYMENTS,
                 'oID=' . $oID . '&action=refund_capture_done', 'SSL'));
@@ -62,15 +63,18 @@ if (isset($_POST['oID'])) {
                 $messageStack->add_session(CAPTURE_NOT_MATCH, 'error');
                 zen_redirect(zen_href_link(FILENAME_AUTHNET_PAYMENTS, 'oID=' . $oID . '&action=refund_capture_done', 'SSL'));
             }
-            $amount =  ((int) $_POST['amount'] == 0) ?  $amount = $authnet_order->payment[$index]['amount'] : (int) $_POST['amount'];
+            $amount =  ($post_amount == 0) ?  $amount = $authnet_order->payment[$index]['amount'] : $post_amount;
             $_SESSION['capture_error_status'] = $authnet_cim->capturePreviouslyAuthorizedAmount($authnet_order->payment[$index]['number'], $amount);
             zen_redirect(zen_href_link(FILENAME_AUTHNET_PAYMENTS, 'oID=' . $oID . '&action=refund_capture_done', 'SSL'));
             break;
         case 'more_money':
-            if ($authnet_order->balance_due == 0 || (int)$_POST['amount'] == 0) {
+            if ($authnet_order->balance_due == 0) {
 	            $_SESSION['more_money_error'] = true;
-	            $messageStack->add_session(((int)$_POST['amount'] == 0 ? MORE_MONEY_POST_ERROR : MORE_MONEY_ERROR), 'error');
+	            $messageStack->add_session(MORE_MONEY_ERROR, 'error');
 	            zen_redirect(zen_href_link(FILENAME_AUTHNET_PAYMENTS, 'oID=' . $oID . '&action=more_money_done', 'SSL'));
+            }
+            if ($post_amount == 0 ) {
+	            $_POST['amount'] = $authnet_order->num_2_dec($authnet_order->balance_due);
             }
             $customer_profile = $authnet_cim->getCustomerProfile($authnet_order->cID);
 	        $last_index = sizeof($authnet_order->payment) -1;
@@ -254,7 +258,7 @@ if (isset($_POST['oID'])) {
             ?>
             <div class="alert alert-info">
                 <h2><?= $page_header; ?></h2>
-                <?= sprintf(TEXT_DELETE_CONFIRM, $affected_rows); ?>
+                <?php // sprintf(TEXT_DELETE_CONFIRM, $affected_rows); ?>
                 <input type="button" class="btn btn-success "
                        value="<?= BUTTON_DELETE_CONFIRM; ?>"
                        onclick="returnParent()"></td>
@@ -284,7 +288,7 @@ if (isset($_POST['oID'])) {
 		    ?>
             <div class="alert alert-info">
                 <h2><?= $page_header; ?></h2>
-			    <?= sprintf(TEXT_DELETE_CONFIRM, $affected_rows); ?>
+			    <?php // sprintf(TEXT_DELETE_CONFIRM, $affected_rows); ?>
                 <input type="button" class="btn btn-success "
                        value="<?= BUTTON_DELETE_CONFIRM; ?>"
                        onclick="returnParent()"></td>

@@ -43,7 +43,7 @@
                                 <th colspan="2"><?= TEXT_CIM_DATA ?></th>
 	                            <?php
 		                            $last_index = sizeof($authnet->payment) - 1;
-		                            if ($authnet->payment[$last_index]['amount'] == $authnet->payment[$last_index]['refund_amount']) {
+		                            if ($authnet->payment[$last_index]['amount'] == $authnet->payment[$last_index]['refund_amount'] && isset($authnet->payment[$last_index]['payment_profile_id']) && !empty($authnet->payment[$last_index]['payment_profile_id'])) {
 			                            /*echo $last_index . "<-------->" . $authnet->payment[$last_index]['amount'] . "<---------\n";
 			                            new dBug($authnet->payment);
 			                            die(__FILE__ . ':' . __LINE__); */

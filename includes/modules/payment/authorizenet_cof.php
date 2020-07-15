@@ -139,7 +139,7 @@ class authorizenet_cof extends authorizenet_cim
 
     function before_process()
     {
-        global $messageStack, $customerID;
+        global $messageStack, $customerID, $order;
 
         $customerID = $_SESSION['customer_id'];
 
@@ -151,6 +151,10 @@ class authorizenet_cof extends authorizenet_cim
             trigger_error('the card index does not correspond to the right customer!');
             zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
         }
+
+	    $order->info['cc_number'] = str_pad($valid_payment_profile['last_four'], CC_NUMBER_MIN_LENGTH, "X",
+		    STR_PAD_LEFT);
+	    $order->info['cc_expires'] = substr($valid_payment_profile['exp_date'], -2) . substr($valid_payment_profile['exp_date'],2,2);
 
         $customerProfileId = $this->getCustomerProfile($customerID);
         $this->setParameter('customerProfileId', $customerProfileId);

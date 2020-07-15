@@ -302,7 +302,7 @@ class authorizenet_cim extends base
         {
             global $order, $customerID;
         
-            $order->info['cc_number'] = str_pad(substr($_POST['cc_number'], -4), strlen($_POST['cc_number']), "X",
+            $order->info['cc_number'] = str_pad(substr($_POST['cc_number'], -4), CC_NUMBER_MIN_LENGTH, "X",
               STR_PAD_LEFT);
             $order->info['cc_expires'] = $_POST['cc_expires'];
             $order->info['cc_type'] = $_POST['cc_type'];
@@ -697,7 +697,7 @@ class authorizenet_cim extends base
         {
             global $db;
         
-            $sql = "SELECT cust.customers_customerProfileId, cim.*, ord.order_total FROM " . TABLE_CIM_PAYMENTS . " cim
+            $sql = "SELECT cust.customers_customerProfileId, cim.*, ord.order_total, ord.cc_number FROM " . TABLE_CIM_PAYMENTS . " cim
             left join " . TABLE_CUSTOMERS_CIM_PROFILE . " cust on cim.customers_id = cust.customers_id
             left join " . TABLE_ORDERS . " ord on cim.orders_id = ord.orders_id
             where cim.orders_id = :orderID and ((cim.payment_amount - cim.refund_amount) > 0) order by cim.payment_id desc limit 1";
@@ -1053,6 +1053,10 @@ class authorizenet_cim extends base
 	                    if ($cust_id == '') {
 		                    $cust_id = $this->getCustomerID($profileid);
 	                    }
+	                    if (zen_in_guest_checkout()) {
+	                    	$this->deleteCustomerPaymentProfile($profileid, $paymentprofileid);
+	                    	$paymentprofileid = '';
+	                    }
 
                         $this->insertPayment($tresponse->getTransId(),
                           $full_name,
@@ -1174,17 +1178,32 @@ class authorizenet_cim extends base
     
         function refundTransaction($ordersID, $refund, $refund_amount)
         {
-            $profileToCharge = new AnetAPI\CustomerProfilePaymentType();
-            $profileToCharge->setCustomerProfileId($refund->fields['customers_customerProfileId']);
-            $paymentProfile = new AnetAPI\PaymentProfileType();
-            $paymentProfile->setPaymentProfileId($refund->fields['payment_profile_id']);
-            $profileToCharge->setPaymentProfile($paymentProfile);
-        
+        	$guest = false;
+        	if (isset($refund->fields['payment_profile_id']) && !empty($refund->fields['payment_profile_id'])) {
+		        $profileToCharge = new AnetAPI\CustomerProfilePaymentType();
+		        $profileToCharge->setCustomerProfileId($refund->fields['customers_customerProfileId']);
+		        $paymentProfile = new AnetAPI\PaymentProfileType();
+		        $paymentProfile->setPaymentProfileId($refund->fields['payment_profile_id']);
+		        $profileToCharge->setPaymentProfile($paymentProfile);
+	        } else {
+		        // Create the refund payment data for a guest checkout
+		        $guest = true;
+		        $creditCard = new AnetAPI\CreditCardType();
+		        $creditCard->setCardNumber(substr($refund->fields['cc_number'], -4));
+		        $creditCard->setExpirationDate("XXXX");
+		        $paymentOne = new AnetAPI\PaymentType();
+		        $paymentOne->setCreditCard($creditCard);
+	        }
+
             //create a transaction
             $transactionRequest = new AnetAPI\TransactionRequestType();
             $transactionRequest->setTransactionType("refundTransaction");
             $transactionRequest->setAmount($refund_amount);
-            $transactionRequest->setProfile($profileToCharge);
+            if ($guest) {
+	            $transactionRequest->setPayment($paymentOne);
+            } else {
+	            $transactionRequest->setProfile($profileToCharge);
+            }
             $transactionRequest->setRefTransId($refund->fields['transaction_id']);
         
         
@@ -1414,7 +1433,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
                 $status = 'C';
                 $mod_date = 'now()';
             }
-        
+
             $sql = $db->bindVars($sql, ':transID', $transID, 'string');
 	        $sql = $db->bindVars($sql, ':mod', $mod_date, 'date');
             $sql = $db->bindVars($sql, ':nameFull', $name, 'string');
