@@ -43,7 +43,7 @@
                                 <th colspan="2"><?= TEXT_CIM_DATA ?></th>
 	                            <?php
 		                            $last_index = sizeof($authnet->payment) - 1;
-		                            if (in_array(MODULE_PAYMENT_AUTHORIZENET_CIM_ALLOW_MORE, array('True','TRUE','true')) && $authnet->balance_due > 0 && !empty($authnet->payment[$last_index]['payment_profile_id'])) {
+		                            if (in_array(MODULE_PAYMENT_AUTHORIZENET_CIM_ALLOW_MORE, array('True','TRUE','true')) && $authnet->balance_due > 0 && !empty($authnet->payment[$last_index]['payment_profile_id']) && +$authnet->payment[$last_index]['payment_profile_id'] !== 0) {
 			                            ?>
                                         <th colspan="2"><?= $authnet->button_new_funds($authnet->payment[$last_index]['index']) ?></th>
 			                            <?php

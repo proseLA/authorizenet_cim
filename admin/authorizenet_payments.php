@@ -51,7 +51,7 @@ if (isset($_POST['oID'])) {
     switch ($action) {
         case 'refund':
             $refund_amt = $post_amount;
-            $_SESSION['refund_status'] = $authnet_cim->doCimRefund($oID, $refund_amt);
+            $_SESSION['refund_status'] = $authnet_cim->doCimRefund($oID, $refund_amt, $cim_payment_index);
             zen_redirect(zen_href_link(FILENAME_AUTHNET_PAYMENTS,
                 'oID=' . $oID . '&action=refund_capture_done', 'SSL'));
             break;
@@ -77,8 +77,12 @@ if (isset($_POST['oID'])) {
             $customer_profile = $authnet_cim->getCustomerProfile($authnet_order->cID);
 	        $last_index = sizeof($authnet_order->payment) -1;
 
-            $new_charge = $authnet_cim->chargeCustomerProfile($customer_profile,$authnet_order->payment[$last_index]['payment_profile_id'], true);
+	        $new_charge_error = $authnet_cim->adminCharge($customer_profile,
+		        $authnet_order->payment[$last_index]['payment_profile_id'], true);
 
+	        if ($new_charge_error) {
+		        $_SESSION['more_money_error'] = true;
+	        }
 	        zen_redirect(zen_href_link(FILENAME_AUTHNET_PAYMENTS, 'oID=' . $oID . '&action=more_money_done', 'SSL'));
 	        break;
 
@@ -123,6 +127,7 @@ if (isset($_POST['oID'])) {
     ?>
     <div class="alert ">
     <?php
+    $alert_class = "alert-info";
     switch ($action) {
         case 'refund':
             $voidPayment = false;
@@ -236,27 +241,26 @@ if (isset($_POST['oID'])) {
             <?php
             break;  // END case
         case 'refund_capture_done':
-            $affected_rows = 1;
             if (!$_SESSION['refund_status']) {
                 $page_header = HEADER_REFUND_FAIL;
-                $affected_rows = 0;
+	            $alert_class = "alert-warning";
             } else {
                 $page_header = HEADER_REFUND_DONE;
             }
             unset($_SESSION['refund_status']);
-            if (isset($_SESSION['capture_error_status'])) {
-                if ($_SESSION['capture_error_status']) {
-                    $page_header = HEADER_CAPTURE_FAIL;
-                    $affected_rows = 0;
-                } else {
-                    $page_header = HEADER_CAPTURE_DONE;
-                }
+	        if (isset($_SESSION['capture_error_status'])) {
+		        if ($_SESSION['capture_error_status']) {
+			        $page_header = HEADER_CAPTURE_FAIL;
+			        $alert_class = "alert-warning";
+		        } else {
+			        $page_header = HEADER_CAPTURE_DONE;
+			        $alert_class = "alert-info";
+		        }
                 unset($_SESSION['capture_error_status']);
             }
             ?>
-            <div class="alert alert-info">
+            <div class="alert <?= $alert_class; ?>">
                 <h2><?= $page_header; ?></h2>
-                <?php // sprintf(TEXT_DELETE_CONFIRM, $affected_rows); ?>
                 <input type="button" class="btn btn-success "
                        value="<?= BUTTON_DELETE_CONFIRM; ?>"
                        onclick="returnParent()"></td>
@@ -264,24 +268,23 @@ if (isset($_POST['oID'])) {
             <?php
             break;  // END case
 	    case 'more_money_done':
-		    $affected_rows = 1;
 		    if (isset($_SESSION['more_money_error']) && $_SESSION['more_money_error']) {
 			    $page_header = HEADER_MORE_MONEY_FAIL;
-			    $affected_rows = 0;
+			    $alert_class = "alert-warning";
 		    } else {
 			    $page_header = HEADER_MORE_MONEY_DONE;
 		    }
 
 		    if (isset($_SESSION['payment_index_error']) && $_SESSION['payment_index_error']) {
 		        $page_header = HEADER_PAYMENT_INDEX_ERROR;
+			    $alert_class = "alert-warning";
 		    }
 		    unset($_SESSION['payment_index_error']);
 		    unset($_SESSION['more_money_error']);
 
 		    ?>
-            <div class="alert alert-info">
+            <div class="alert <?= $alert_class; ?>">
                 <h2><?= $page_header; ?></h2>
-			    <?php // sprintf(TEXT_DELETE_CONFIRM, $affected_rows); ?>
                 <input type="button" class="btn btn-success "
                        value="<?= BUTTON_DELETE_CONFIRM; ?>"
                        onclick="returnParent()"></td>

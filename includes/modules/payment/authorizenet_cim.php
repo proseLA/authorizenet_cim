@@ -16,10 +16,10 @@
     
     require $sdk_loader;
 
-use net\authorize\api\contract\v1 as AnetAPI;
-use net\authorize\api\controller as AnetController;
+	use net\authorize\api\contract\v1 as AnetAPI;
+	use net\authorize\api\controller as AnetController;
 
-class authorizenet_cim extends base
+	class authorizenet_cim extends base
     {
 
         var $code, $title, $description, $enabled, $authorize = '';
@@ -192,12 +192,14 @@ class authorizenet_cim extends base
                   'tag' => $this->code . '-cc-cvv'
                 );
             }
-            $selection['fields'][] = array(
-              'title' => 'Keep Card on File',
-              'field' => zen_draw_checkbox_field('authorizenet_cim_save', '',
-                '' . ' id="' . $this->code . '-save"' . $onFocus),
-              'tag' => $this->code . '-save'
-            );
+            if (!zen_in_guest_checkout()) {
+	            $selection['fields'][] = array(
+		            'title' => 'Keep Card on File',
+		            'field' => zen_draw_checkbox_field('authorizenet_cim_save', '',
+			            '' . ' id="' . $this->code . '-save"' . $onFocus),
+		            'tag' => $this->code . '-save'
+	            );
+            }
         
             return $selection;
         }
@@ -476,8 +478,10 @@ class authorizenet_cim extends base
         function addErrorsMessageStack($type)
         {
             global $messageStack;
-        
-            if (isset($this->errorMessages) && (!empty($this->errorMessages))) {
+
+	        $return_error = false;
+	        if (isset($this->errorMessages) && (!empty($this->errorMessages))) {
+		        $return_error = true;
                 foreach ($this->errorMessages as $error) {
                     if (!defined('IS_ADMIN_FLAG') || IS_ADMIN_FLAG !== true) {
                         $messageStack->add_session(FILENAME_CHECKOUT_PAYMENT, $type . ': ' . $error, 'error');
@@ -489,6 +493,7 @@ class authorizenet_cim extends base
                     zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
                 }
             }
+            return $return_error;
         }
     
         function convertExpDate($year, $month)
@@ -697,15 +702,16 @@ class authorizenet_cim extends base
             }
         }
     
-        function doCimRefund($ordersID, $refund_amount)
+        function doCimRefund($ordersID, $refund_amount, $payment_index)
         {
             global $db;
         
             $sql = "SELECT cust.customers_customerProfileId, cim.*, ord.order_total, ord.cc_number FROM " . TABLE_CIM_PAYMENTS . " cim
             left join " . TABLE_CUSTOMERS_CIM_PROFILE . " cust on cim.customers_id = cust.customers_id
             left join " . TABLE_ORDERS . " ord on cim.orders_id = ord.orders_id
-            where cim.orders_id = :orderID and ((cim.payment_amount - cim.refund_amount) > 0) order by cim.payment_id desc limit 1";
+            where cim.orders_id = :orderID and cim.payment_id = :paymentIndex";
             $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
+	        $sql = $db->bindVars($sql, ':paymentIndex', $payment_index, 'integer');
             $refund = $db->Execute($sql);
         
             $max_refund = $refund->fields['payment_amount'];
@@ -970,6 +976,12 @@ class authorizenet_cim extends base
             $this->logError($logData, $error);
             return $logData;
         }
+
+        function adminCharge($profileid, $paymentprofileid, $new_auth) {
+        	$this->chargeCustomerProfile($profileid, $paymentprofileid, $new_auth);
+	        $error = $this->addErrorsMessageStack('Admin:');
+	        return $error;
+        }
     
         function chargeCustomerProfile($profileid, $paymentprofileid, $new_auth = false)
         {
@@ -997,7 +1009,7 @@ class authorizenet_cim extends base
 	            $invoice_number = (int)$_POST['oID'];
 	            $full_name = $this->getPaymentName($_POST['oID']);
             }
-	        $transactionRequestType->setAmount($charge_amount);
+	        $transactionRequestType->setAmount(number_format($charge_amount, 2, '.', '') . "");
             $transactionRequestType->setProfile($profileToCharge);
 
 	        $invoice_description = '';
@@ -1083,6 +1095,13 @@ class authorizenet_cim extends base
             } else {
                 $logData = "No response returned \n";
             }
+            /**-/
+	        echo "-------->" . $response->getMessages()->getResultCode() . "<---------\n";
+	        new dBug($logData);
+	        new dBug($tresponse);
+	        echo "--ERR------>" . $error . "<---------\n";
+	        //die(__FILE__ . ':' . __LINE__);
+            /**/
             $this->logError($logData, $error);
             return $response;
         }
@@ -1200,21 +1219,25 @@ class authorizenet_cim extends base
 	        }
 
             //create a transaction
-            $transactionRequest = new AnetAPI\TransactionRequestType();
-            $transactionRequest->setTransactionType("refundTransaction");
-            $transactionRequest->setAmount($refund_amount);
+            $transactionRequestType = new AnetAPI\TransactionRequestType();
+            $transactionRequestType->setTransactionType("refundTransaction");
+            $transactionRequestType->setAmount(number_format($refund_amount, 2, '.', '') . "");
             if ($guest) {
-	            $transactionRequest->setPayment($paymentOne);
+	            $transactionRequestType->setPayment($paymentOne);
             } else {
-	            $transactionRequest->setProfile($profileToCharge);
+	            $transactionRequestType->setProfile($profileToCharge);
             }
-            $transactionRequest->setRefTransId($refund->fields['transaction_id']);
+            $transactionRequestType->setRefTransId($refund->fields['transaction_id']);
+
+	        $authorize_order = new AnetAPI\OrderType();
+	        $authorize_order->setInvoiceNumber($ordersID);
+	        $transactionRequestType->setOrder($authorize_order);
         
         
             $request = new AnetAPI\CreateTransactionRequest();
             $request->setMerchantAuthentication($this->merchantCredentials());
             $request->setRefId($ordersID);
-            $request->setTransactionRequest($transactionRequest);
+            $request->setTransactionRequest($transactionRequestType);
             $controller = new AnetController\CreateTransactionController($request);
             $response = $this->getControllerResponse($controller);
         
@@ -1381,7 +1404,7 @@ class authorizenet_cim extends base
         $transactionRequestType = new AnetAPI\TransactionRequestType();
         $transactionRequestType->setTransactionType("priorAuthCaptureTransaction");
         $transactionRequestType->setRefTransId($transactionid);
-        $transactionRequestType->setAmount($amount);
+        $transactionRequestType->setAmount(number_format($amount, 2, '.', '') . "");
 
 
         $request = new AnetAPI\CreateTransactionRequest();
