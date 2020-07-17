@@ -7,7 +7,7 @@
     released under GPU
     https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
 
-   04/2020  project: authorizenet_cim; file: authorizenet_cim.php; version 2.1.1
+   04/2020  project: authorizenet_cim; file: authorizenet_cim.php; version 2.2.0
 */
     
     if (!file_exists($sdk_loader = DIR_FS_CATALOG . 'includes/modules/payment/authorizenet/authorizenet-sdk/autoload.php')) {
@@ -24,7 +24,7 @@
 
         var $code, $title, $description, $enabled, $authorize = '';
         
-        var $version = '2.1.1';
+        var $version = '2.2.0';
         var $params = array();
         var $success = false;
         var $error = true;
