@@ -1095,13 +1095,6 @@
             } else {
                 $logData = "No response returned \n";
             }
-            /**-/
-	        echo "-------->" . $response->getMessages()->getResultCode() . "<---------\n";
-	        new dBug($logData);
-	        new dBug($tresponse);
-	        echo "--ERR------>" . $error . "<---------\n";
-	        //die(__FILE__ . ':' . __LINE__);
-            /**/
             $this->logError($logData, $error);
             return $response;
         }
@@ -1400,7 +1393,6 @@
 
     function capturePreviouslyAuthorizedAmount($transactionid, $amount)
     {
-
         $transactionRequestType = new AnetAPI\TransactionRequestType();
         $transactionRequestType->setTransactionType("priorAuthCaptureTransaction");
         $transactionRequestType->setRefTransId($transactionid);
@@ -1441,6 +1433,8 @@
             $logData = "No response returned \n";
         }
         $this->logError($logData, $error);
+
+        $this->addErrorsMessageStack('Admin');
 
         return $error;
     }
