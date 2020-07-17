@@ -36,16 +36,14 @@ $authnet_order = new authnet_order($oID);
 
 $cim_payment_index = (isset($_POST['payment_id']) ? $_POST['payment_id'] : $_GET['index']);
 
-// the following takes the index from CIM PAYMENTS table, and returns the array index for the payment.
+// the following takes the index/key/payments_id from CIM PAYMENTS table, and returns the array index for the payment; ie it gives you the index for $authnet_order->payment[$index]
 $index = $authnet_order->getPaymentIndex($cim_payment_index);
 
 if (!isset($index) && $index_necessary) {
-    trigger_error('Payment index not part of this order! Order: ' . $oID . ' Payment Index: ' . $_GET['index']);
-	// echo "-------->" .  . "<---------\n";
-	new dBug($_GET);
-	new dBug($_POST);
-	die(__FILE__ . ':' . __LINE__);
-	die(__FILE__ . ':' . __LINE__);
+    trigger_error('Payment index not part of this order! Order: ' . $oID . ' Payment Index: ' . $cim_payment_index);
+	$_SESSION['payment_index_error'] = true;
+	$messageStack->add_session(PAYMENT_INDEX_ERROR, 'error');
+	zen_redirect(zen_href_link(FILENAME_AUTHNET_PAYMENTS, 'oID=' . $oID . '&action=more_money_done', 'SSL'));
 }
 
 if (isset($_POST['oID'])) {
@@ -267,24 +265,19 @@ if (isset($_POST['oID'])) {
             break;  // END case
 	    case 'more_money_done':
 		    $affected_rows = 1;
-		    if ($_SESSION['more_money_error']) {
+		    if (isset($_SESSION['more_money_error']) && $_SESSION['more_money_error']) {
 			    $page_header = HEADER_MORE_MONEY_FAIL;
 			    $affected_rows = 0;
 		    } else {
 			    $page_header = HEADER_MORE_MONEY_DONE;
 		    }
-		    unset($_SESSION['more_money_error']);
-		    /*
-		    if (isset($_SESSION['capture_error_status'])) {
-			    if ($_SESSION['capture_error_status']) {
-				    $page_header = HEADER_CAPTURE_FAIL;
-				    $affected_rows = 0;
-			    } else {
-				    $page_header = HEADER_CAPTURE_DONE;
-			    }
-			    unset($_SESSION['capture_error_status']);
+
+		    if (isset($_SESSION['payment_index_error']) && $_SESSION['payment_index_error']) {
+		        $page_header = HEADER_PAYMENT_INDEX_ERROR;
 		    }
-		    */
+		    unset($_SESSION['payment_index_error']);
+		    unset($_SESSION['more_money_error']);
+
 		    ?>
             <div class="alert alert-info">
                 <h2><?= $page_header; ?></h2>
@@ -343,7 +336,7 @@ if (isset($_POST['oID'])) {
                 </tr>
                 <tr>
                     <td align="center"><?= TEXT_AMOUNT . '  ' . zen_draw_input_field('amount', '',
-				            'size="8"') . '<br><br><span class="alert">' . CURRENT_TOTAL . $currencies->format($authnet_order->order_total) . '</span>'; ?></td>
+				            'size="8"') . '<br><br><span class="alert">' . CURRENT_TOTAL . $currencies->format($authnet_order->order_total) . '<br>' . CURRENT_BALANCE . $currencies->format($authnet_order->balance_due) . '<br>' . LEAVE_BLANK . '<br></span>'; ?></td>
                 </tr>
                 <tr>
                     <td align="center"><?= CHARGE_DESCRIPTION . '  ' . zen_draw_input_field('charge_description', '', 'size="30"'); ?></td>

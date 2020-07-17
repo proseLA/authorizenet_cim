@@ -362,6 +362,7 @@ class authorizenet_cim extends base
               'MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID',
               'MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID',
               'MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING',
+	            'MODULE_PAYMENT_AUTHORIZENET_CIM_ALLOW_MORE',
             );
         }
     
@@ -427,6 +428,9 @@ class authorizenet_cim extends base
             if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING')) {
                 $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Debug Mode', 'MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING', 'False', 'Would you like to enable debug mode?  Failed transactions will always be logged in the cim_response.log file in your ZC logs directory.', '6', '17', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
             }
+	        if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_ALLOW_MORE')) {
+		        $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('New Auths', 'MODULE_PAYMENT_AUTHORIZENET_CIM_ALLOW_MORE', 'False', 'Would you like to allow new authorizations for non guest orders on admin when there is a balance due?', '6', '17', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
+	        }
         
             $this->tableCheckup();
         }

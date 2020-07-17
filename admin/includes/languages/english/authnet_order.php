@@ -50,6 +50,10 @@
     define('TEXT_NO_MINUS', ' * No minus sign');
 	define('CURRENT_TOTAL', 'Current Order Total: ');
 	define('CHARGE_DESCRIPTION', 'Charge Description: ');
+
+	define('CURRENT_BALANCE', 'Balance Due: ');
+
+	define('LEAVE_BLANK', 'Leave blank to get current balance due on order.');
     
     define('BUTTON_SUBMIT', 'Submit');
     define('BUTTON_CANCEL', 'Cancel');
@@ -71,6 +75,9 @@
 
 	define('HEADER_MORE_MONEY_DONE', 'New Authorization Successful!');
 	define('HEADER_MORE_MONEY_FAIL', 'New Authorization Failed!');
+	define('HEADER_PAYMENT_INDEX_ERROR', 'Problem: Index not Part of Order!');
+
+	define('PAYMENT_INDEX_ERROR', 'Payment Index Error.  Log File generated.');
 
     define('TEXT_DELETE_CONFIRM', 'The operation is complete.<p><strong>%s</strong> line(s) affected in the process.<br/>');
     define('BUTTON_DELETE_CONFIRM', 'Return');

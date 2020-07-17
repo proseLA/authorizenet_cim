@@ -43,10 +43,7 @@
                                 <th colspan="2"><?= TEXT_CIM_DATA ?></th>
 	                            <?php
 		                            $last_index = sizeof($authnet->payment) - 1;
-		                            if ($authnet->payment[$last_index]['amount'] == $authnet->payment[$last_index]['refund_amount'] && isset($authnet->payment[$last_index]['payment_profile_id']) && !empty($authnet->payment[$last_index]['payment_profile_id'])) {
-			                            /*echo $last_index . "<-------->" . $authnet->payment[$last_index]['amount'] . "<---------\n";
-			                            new dBug($authnet->payment);
-			                            die(__FILE__ . ':' . __LINE__); */
+		                            if (in_array(MODULE_PAYMENT_AUTHORIZENET_CIM_ALLOW_MORE, array('True','TRUE','true')) && $authnet->balance_due > 0 && !empty($authnet->payment[$last_index]['payment_profile_id'])) {
 			                            ?>
                                         <th colspan="2"><?= $authnet->button_new_funds($authnet->payment[$last_index]['index']) ?></th>
 			                            <?php
@@ -108,6 +105,12 @@
                                     }  // END for($a = 0; $a < sizeof($payment); $a++)
 
                             ?>
+                            <tfoot>
+                            <tf>
+                                <td class="ot-shipping-Text">Amount Applied: <?= $currencies->format($authnet->amount_applied); ?>  Amount Due: <?= $currencies->format($authnet->balance_due); ?>
+                                    </td>
+                            </tf>
+                            </tfoot>
                             </tbody>
                         </table>
                     </div>
