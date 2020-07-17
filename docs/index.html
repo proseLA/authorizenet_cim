@@ -109,8 +109,9 @@
             credit cards.
         </li>
         <li>Debugging is done via the selection of Debug Mode or by creating a new constant called DEBUG_CIM and setting
-            it to boolean true
+            it to boolean true.
         </li>
+        <li>If you are updating from a previous version, you can just copy these files and replace the old files.</li>
     </div>
 
 
@@ -161,6 +162,18 @@
         <li>Admins can delete all cards on file for any customer.  There is a button for it on the customer page.</li>
         <li>There is an option for customers to add, update, and delete credit cards from within their account.  Styling has been done to match responsive_classic and one would need to add a link to ->  index.php?main_page=card_update.  I am not the styling expert.</li>
         <br />
+        <h2>Notes on Version 2.2.0</h2>
+        <li>Added ability to get new authorization when there is a balance due on admin side.</li>
+        <li>New authorization is configurable by admin; so this feature can be turned off.</li>
+        <li>Added ability to have multiple auths per order!</li>
+        <li>Fixed storage problems associated with credit card storage for guest accounts.</li>
+        <li>Last modified date in payments table now contains capture date of auth.</li>
+        <li>Added totals to payments data.</li>
+        <li>Code is now ready for php 7.4.</li>
+        <li>CVV form field length is better in standard checkout.  In OPC, one needs to add some CSS to that page.</li>
+        <li>Added invoice number to refunds for better tracking on authorize.net dashboard.</li>
+        <li>More code cleanup and bug fixes.</li>
+        <br>
         <H2>Notes on Version 2.1.1</H2>
         <li>Added order information => invoice number and description.</li>
         <li>More bug fixes and code cleanup on admin side.</li>
