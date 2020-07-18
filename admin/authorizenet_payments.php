@@ -26,6 +26,8 @@
 	$oID = isset($_GET['oID']) ? (int)$_GET['oID'] : (int)$_POST['oID'];
 	$action = (isset($_GET['action']) ? $_GET['action'] : $_POST['action']);
 
+
+
 	$index_necessary = true;
 
 	if (in_array($action, $action_array_index_not_necessary)) {
@@ -38,6 +40,10 @@
 
 // the following takes the index/key/payments_id from CIM PAYMENTS table, and returns the array index for the payment; ie it gives you the index for $authnet_order->payment[$index]
 	$index = $authnet_order->getPaymentIndex($cim_payment_index);
+
+	//echo "-------->" .  . "<---------<br>";
+	new dBug($_POST);
+	die(__FILE__ . ':' . __LINE__);
 
 	if (!isset($index) && $index_necessary) {
 		trigger_error('Payment index not part of this order! Order: ' . $oID . ' Payment Index: ' . $cim_payment_index);

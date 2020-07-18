@@ -164,7 +164,7 @@
 				zen_href_link(FILENAME_AUTHNET_PAYMENTS,
 					'oID=' . $this->oID . '&index=' . $index . '&action=more_money',
 					'NONSSL') . '\', \'scrollbars=yes,resizable=yes,width=100,height=1000,screenX=150,screenY=100,top=100,left=150\')"' .
-				'class="btn btn-primary btn-sm" role="button" >' . BUTTON_NEW_FUNDS . '</a>';
+				'class="btn btn-primary btn-sm" role="button" type="submit">' . BUTTON_NEW_FUNDS . '</a>';
 		}
 
 		// translates payment type codes into full text
@@ -190,6 +190,20 @@
 				}
 			}
 			return $return;
+		}
+
+		function getCustCardIndex($payment_profile_id) {
+			global $db;
+			$sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . " WHERE  payment_profile_id = :ppID";
+			if (!$all) {
+				$sql .= " and enabled = 'Y'";
+			}
+			$sql = $db->bindVars($sql, ':ppID', $payment_profile_id, 'integer');
+			$cardIndex = $db->Execute($sql);
+			if ($cardIndex->RecordCount() == 1) {
+				return $cardIndex->fields['index_id'];
+			}
+			return false;
 		}
 
 		function num_2_dec($number)

@@ -33,6 +33,10 @@
 					require_once DIR_WS_CLASSES . 'currencies.php';
 					$currencies = new currencies();
 
+					require_once DIR_FS_CATALOG . DIR_WS_LANGUAGES . $_SESSION['language'] . '/modules/payment/authorizenet_cof.php';
+					require_once DIR_FS_CATALOG_MODULES . 'payment/' . 'authorizenet_cof.php';
+					$cof = new authorizenet_cof();
+
 					$authnet = new authnet_order($p1);
 					if ($authnet->payment) {
 						?>
@@ -50,7 +54,36 @@
 											)) && $authnet->balance_due > 0 && !empty($authnet->payment[$last_index]['payment_profile_id']) && +$authnet->payment[$last_index]['payment_profile_id'] !== 0) {
 											?>
                                             <th colspan="2"><?= $authnet->button_new_funds($authnet->payment[$last_index]['index']) ?></th>
+
 											<?php
+												//echo "-------->" . $authnet->getCustCardIndex($authnet->payment[$last_index]['payment_profile_id']) . "<---------<br>";
+												//new dBug($authnet->payment);
+												//new dBug($cof);
+												$cc_index = $authnet->getCustCardIndex($authnet->payment[$last_index]['payment_profile_id']);
+												$cards = $cof->getCustomerCards($authnet->cID, true);
+
+												if (count($cards) > 1) {
+
+												$key = array_search($cc_index, array_column($cards, 'id'));
+
+												if (!$key) {
+												    $cards[] = array('id' => '0', 'text' => 'Card not in file');
+													$cc_index = 0;
+												}
+											?>
+                                            <th colspan="2">
+                                    <div class="">
+		                                <?php
+			                                zen_draw_form('selection', '', 'ccindex=' . $cc_index, 'get',
+				                                'class="form-horizontal"');
+			                                echo zen_draw_pull_down_menu('ccindex', $cards, $cc_index,
+				                                 'class="btn btn-info"');
+		                                ?>
+                                    </form>
+                                    </div>
+                                    </th>
+                                        <?php
+                                                }
 										}
 									?>
                                 </tr>
