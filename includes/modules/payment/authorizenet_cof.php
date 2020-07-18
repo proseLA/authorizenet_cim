@@ -56,30 +56,12 @@ class authorizenet_cof extends authorizenet_cim
 
     function selection()
     {
-        global $db;
-
-        $today = getdate();
         $onFocus = ' onfocus="methodSelect(\'pmt-' . $this->code . '\')"';
-        $cc_test = $today['year'] . '-' . str_pad($today['mon'], 2, 0, STR_PAD_LEFT);
-        $enabled = " and enabled = 'Y' ";
-        if (($_SESSION['emp_admin_login'] == true)) {
-            $enabled = '';
-        }
-        $sql = "Select * from " . TABLE_CUSTOMERS_CC . " where exp_date >= '" . $cc_test . " ' and customers_id = :custID " . $enabled . " order by index_id desc";
-
-        $sql = $db->bindVars($sql, ':custID', $_SESSION['customer_id'], 'integer');
-        $card_on_file = $db->Execute($sql);
-
-        $cards = array();
-
-        while (!$card_on_file->EOF) {
-            $_SESSION['saved_cc'] = 'yes';
-            $cards[] = array(
-                'id' => $card_on_file->fields['index_id'],
-                'text' => 'Card ending in ' . $card_on_file->fields['last_four']
-            );
-            $card_on_file->MoveNext();
-        }
+	    $all = false;
+	    if ((isset($_SESSION['emp_admin_login']) && $_SESSION['emp_admin_login'] == true)) {
+		    $all = true;
+	    }
+	    $cards = $this->getCustomerCards($_SESSION['customer_id'], $all);
 
         $selection = array(
             'id' => $this->code,
@@ -101,14 +83,34 @@ class authorizenet_cof extends authorizenet_cim
             );
         }
 
-        if (!empty($cards)) {
-            return $selection;
-        } else {
-            return false;
-        }
+	    if (!empty($cards)) {
+		    $_SESSION['saved_cc'] = 'yes';
+		    return $selection;
+	    } else {
+		    return false;
+	    }
     }
 
-    function pre_confirmation_check()
+    function getCustomerCards($customerID, $all = false)
+    {
+	    $cards_on_file =  parent::getCustomerCards($customerID, $all);
+	    $today = getdate();
+	    $cc_test = $today['year'] . '-' . str_pad($today['mon'], 2, 0, STR_PAD_LEFT);
+	    $cards = [];
+
+	    while (!$cards_on_file->EOF) {
+	    	if ($cards_on_file->fields['exp_date'] >= $cc_test) {
+			    $cards[] = array(
+				    'id' => $cards_on_file->fields['index_id'],
+				    'text' => 'Card ending in ' . $cards_on_file->fields['last_four']
+			    );
+		    }
+		    $cards_on_file->MoveNext();
+	    }
+	    return $cards;
+    }
+
+	function pre_confirmation_check()
     {
         global $messageStack;
         //$_SESSION['saved_cc_index'] = $_POST['saved_cc_index'];
