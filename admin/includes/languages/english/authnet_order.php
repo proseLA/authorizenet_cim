@@ -20,6 +20,8 @@
 	define('CIM_ACTION', 'Action');
 	define('CIM_APPROVAL', 'Code');
 
+	define('LAST_CARD', 'Last Card Used: ');
+
 	define('HEADER_DELETE_PAYMENT', 'Refund Payment');
 	define('HEADER_VOID_PAYMENT', 'Void Payment');
 	define('DELETE_PAYMENT_NOTE',

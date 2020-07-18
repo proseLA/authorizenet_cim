@@ -45,42 +45,49 @@
                                 <thead>
                                 <tr>
                                     <th colspan="2"><?= TEXT_CIM_DATA ?></th>
-									<?php
-										$last_index = sizeof($authnet->payment) - 1;
-										if (in_array(MODULE_PAYMENT_AUTHORIZENET_CIM_ALLOW_MORE, array(
-												'True',
-												'TRUE',
-												'true'
-											)) && $authnet->balance_due > 0 && !empty($authnet->payment[$last_index]['payment_profile_id']) && +$authnet->payment[$last_index]['payment_profile_id'] !== 0) {
-											?>
+	                                <?php
+		                                $last_index = sizeof($authnet->payment) - 1;
+		                                if (in_array(MODULE_PAYMENT_AUTHORIZENET_CIM_ALLOW_MORE, array(
+				                                'True',
+				                                'TRUE',
+				                                'true'
+			                                )) && $authnet->balance_due > 0 && !empty($authnet->payment[$last_index]['payment_profile_id']) && +$authnet->payment[$last_index]['payment_profile_id'] !== 0) {
+			                                ?>
                                             <th colspan="2"><?= $authnet->button_new_funds($authnet->payment[$last_index]['index']) ?></th>
 
 											<?php
-												//echo "-------->" . $authnet->getCustCardIndex($authnet->payment[$last_index]['payment_profile_id']) . "<---------<br>";
-												//new dBug($authnet->payment);
-												//new dBug($cof);
-												$cc_index = $authnet->getCustCardIndex($authnet->payment[$last_index]['payment_profile_id']);
-												$cards = $cof->getCustomerCards($authnet->cID, true);
+											$cards = $cof->getCustomerCards($authnet->cID, true);
+											$key = false;
 
-												if (count($cards) > 1) {
+											if (count($cards) > 1) {
+												if (isset($_POST['ccindex'])) {
+													$cc_index = $_POST['ccindex'];
+													$key = array_search($cc_index, array_column($cards, 'id'));
+												}
 
-												$key = array_search($cc_index, array_column($cards, 'id'));
 
-												if (!$key) {
-												    $cards[] = array('id' => '0', 'text' => 'Card not in file');
+												if ($key === false && (string)$key != '0') {
+													$cc_index = $authnet->getCustCardIndex($authnet->payment[$last_index]['payment_profile_id'],
+														true);
+													$key = array_search($cc_index, array_column($cards, 'id'));
+												}
+
+												if (!$key && (string)$key != '0') {
+													$cards[] = array('id' => '0', 'text' => 'Card not in file');
 													$cc_index = 0;
 												}
-											?>
+												?>
                                             <th colspan="2">
-                                    <div class="">
+
 		                                <?php
-			                                zen_draw_form('selection', '', 'ccindex=' . $cc_index, 'get',
-				                                'class="form-horizontal"');
+			                                echo zen_draw_form('selection', FILENAME_ORDERS,  zen_get_all_get_params(), 'post', 'class="form-horizontal"');
+			                                echo zen_draw_label(LAST_CARD, 'ccindex',
+				                                'class="control-label" style="margin-right: 15px;"');
 			                                echo zen_draw_pull_down_menu('ccindex', $cards, $cc_index,
-				                                 'class="btn btn-info"');
+				                                 'onChange="this.form.submit()" class="btn btn-info"');
 		                                ?>
                                     </form>
-                                    </div>
+
                                     </th>
                                         <?php
                                                 }

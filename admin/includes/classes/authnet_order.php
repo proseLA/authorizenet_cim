@@ -162,7 +162,7 @@
 		{
 			echo '&nbsp;<a href="javascript:cimpopupWindow(\'' .
 				zen_href_link(FILENAME_AUTHNET_PAYMENTS,
-					'oID=' . $this->oID . '&index=' . $index . '&action=more_money',
+					'oID=' . $this->oID . '&index=' . $index . '&action=more_money&ccindex=' . $_POST['ccindex'],
 					'NONSSL') . '\', \'scrollbars=yes,resizable=yes,width=100,height=1000,screenX=150,screenY=100,top=100,left=150\')"' .
 				'class="btn btn-primary btn-sm" role="button" type="submit">' . BUTTON_NEW_FUNDS . '</a>';
 		}
@@ -192,7 +192,7 @@
 			return $return;
 		}
 
-		function getCustCardIndex($payment_profile_id) {
+		function getCustCardIndex($payment_profile_id, $all = false) {
 			global $db;
 			$sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . " WHERE  payment_profile_id = :ppID";
 			if (!$all) {

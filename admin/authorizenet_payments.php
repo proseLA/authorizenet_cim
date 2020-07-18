@@ -41,10 +41,6 @@
 // the following takes the index/key/payments_id from CIM PAYMENTS table, and returns the array index for the payment; ie it gives you the index for $authnet_order->payment[$index]
 	$index = $authnet_order->getPaymentIndex($cim_payment_index);
 
-	//echo "-------->" .  . "<---------<br>";
-	new dBug($_POST);
-	die(__FILE__ . ':' . __LINE__);
-
 	if (!isset($index) && $index_necessary) {
 		trigger_error('Payment index not part of this order! Order: ' . $oID . ' Payment Index: ' . $cim_payment_index);
 		$_SESSION['payment_index_error'] = true;
@@ -87,8 +83,17 @@
 				$customer_profile = $authnet_cim->getCustomerProfile($authnet_order->cID);
 				$last_index = sizeof($authnet_order->payment) - 1;
 
-				$new_charge_error = $authnet_cim->adminCharge($customer_profile,
-					$authnet_order->payment[$last_index]['payment_profile_id'], true);
+				$profile_to_charge = $authnet_order->payment[$last_index]['payment_profile_id'];
+
+				if (isset($_POST['ccIndex']) and !$_POST['ccIndex'] == 0) {
+				    $profile = $authnet_cim->getCustomerPaymentProfile($authnet_order->cID, '', $_POST['ccIndex']);
+                }
+
+				if ($profile['profile'] != false) {
+				    $profile_to_charge = $profile['profile'];
+                }
+
+				$new_charge_error = $authnet_cim->adminCharge($customer_profile, $profile_to_charge, true);
 
 				if ($new_charge_error) {
 					$_SESSION['more_money_error'] = true;
@@ -334,6 +339,7 @@
 				echo zen_draw_form('delete', FILENAME_AUTHNET_PAYMENTS, '', 'post', '', true);
 				echo zen_draw_hidden_field('action', $action);
 				echo zen_draw_hidden_field('oID', $oID);
+				echo zen_draw_hidden_field('ccIndex', $_GET['ccindex']);
 				//echo zen_draw_hidden_field('payment_id', $index);
 				?>
                 <table class="table table-condensed table-borderless">

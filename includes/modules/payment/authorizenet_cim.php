@@ -505,14 +505,21 @@
             }
         }
     
-        function getCustomerPaymentProfile($customer_id, $last_four)
+        function getCustomerPaymentProfile($customer_id, $last_four, $index_id = 0)
         {
             global $db;
-        
-            $sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . "
+
+	        if ($index_id == 0) {
+		        $sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . "
             WHERE customers_id = :custId and last_four = :last4 order by index_id desc limit 1";
+		        $sql = $db->bindVars($sql, ':last4', $last_four, 'string');
+	        } else {
+		        $sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . "
+            WHERE customers_id = :custId and index_id = :index order by index_id desc limit 1";
+		        $sql = $db->bindVars($sql, ':index', $index_id, 'integer');
+	        }
             $sql = $db->bindVars($sql, ':custId', $customer_id, 'string');
-            $sql = $db->bindVars($sql, ':last4', $last_four, 'string');
+
             $check_customer_cc = $db->Execute($sql);
         
             if ($check_customer_cc->fields['payment_profile_id'] !== 0) {
