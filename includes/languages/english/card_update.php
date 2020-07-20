@@ -29,6 +29,6 @@ define('CARD_UPDATE_AUTHORIZENET_CIM_TEXT_JS_CC_CVV',
 define('CARD_UPDATE_AUTHORIZENET_CIM_TEXT_ERROR', 'Credit Card Error!');
 
 define('CARD_UPDATE_ERROR', 'Error updating information.');
-define('CARD_UPDATE_OK', 'Succesfully updated information.');
+define('CARD_UPDATE_OK', 'Successfully updated information.');
 
 define('FILENAME_CARD_UPDATE', 'card_update');
