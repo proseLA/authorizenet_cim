@@ -135,7 +135,7 @@
 			}
 
 			// subtract from the order total to get the balance due
-			$this->balance_due = $this->order_total - $this->amount_applied;
+			$this->balance_due = $this->num_2_dec($this->order_total - $this->amount_applied);
 
 		}   // END function start
 
