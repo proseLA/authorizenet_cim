@@ -21,12 +21,10 @@
 
 	$authnet_cim->checkLogName();
 
-	$action_array_index_not_necessary = ['refund_capture_done', 'more_money_done', 'more_money'];
+	$action_array_index_not_necessary = ['refund_capture_done', 'more_money_done', 'more_money', 'clearCards'];
 
 	$oID = isset($_GET['oID']) ? (int)$_GET['oID'] : (int)$_POST['oID'];
 	$action = (isset($_GET['action']) ? $_GET['action'] : $_POST['action']);
-
-
 
 	$index_necessary = true;
 
@@ -38,8 +36,13 @@
 
 	$cim_payment_index = (isset($_POST['payment_id']) ? $_POST['payment_id'] : $_GET['index']);
 
+	if (is_null($cim_payment_index)) {
+		$index = null;
+	} else {
+
 // the following takes the index/key/payments_id from CIM PAYMENTS table, and returns the array index for the payment; ie it gives you the index for $authnet_order->payment[$index]
-	$index = $authnet_order->getPaymentIndex($cim_payment_index);
+		$index = $authnet_order->getPaymentIndex($cim_payment_index);
+	}
 
 	if (!isset($index) && $index_necessary) {
 		trigger_error('Payment index not part of this order! Order: ' . $oID . ' Payment Index: ' . $cim_payment_index);
