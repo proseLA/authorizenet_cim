@@ -21,7 +21,13 @@
 
 	$authnet_cim->checkLogName();
 
-	$action_array_index_not_necessary = ['refund_capture_done', 'more_money_done', 'more_money', 'clearCards'];
+	$action_array_index_not_necessary = [
+		'refund_capture_done',
+		'more_money_done',
+		'more_money',
+		'clearCards',
+		'clearCards_confirm',
+	];
 
 	$oID = isset($_GET['oID']) ? (int)$_GET['oID'] : (int)$_POST['oID'];
 	$action = (isset($_GET['action']) ? $_GET['action'] : $_POST['action']);
