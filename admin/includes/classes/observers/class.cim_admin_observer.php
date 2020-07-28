@@ -7,7 +7,7 @@
 		released under GPU
 		https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
 
-	   04/2020  project: authorizenet_cim; file: class.cim_admin_observer.php; version 2.2.0
+	   04/2020  project: authorizenet_cim; file: class.cim_admin_observer.php; version 2.2.1
 	*/
 
 	if (!defined('IS_ADMIN_FLAG') || IS_ADMIN_FLAG !== true) {
@@ -45,14 +45,14 @@
                                 <thead>
                                 <tr>
                                     <th colspan="2"><?= TEXT_CIM_DATA ?></th>
-	                                <?php
-		                                $last_index = sizeof($authnet->payment) - 1;
-		                                if (in_array(MODULE_PAYMENT_AUTHORIZENET_CIM_ALLOW_MORE, array(
-				                                'True',
-				                                'TRUE',
-				                                'true'
-			                                )) && $authnet->balance_due > 0 && !empty($authnet->payment[$last_index]['payment_profile_id']) && +$authnet->payment[$last_index]['payment_profile_id'] !== 0) {
-			                                ?>
+									<?php
+										$last_index = sizeof($authnet->payment) - 1;
+										if (in_array(MODULE_PAYMENT_AUTHORIZENET_CIM_ALLOW_MORE, array(
+												'True',
+												'TRUE',
+												'true'
+											)) && $authnet->balance_due > 0 && !empty($authnet->payment[$last_index]['payment_profile_id']) && +$authnet->payment[$last_index]['payment_profile_id'] !== 0) {
+											?>
                                             <th colspan="2"><?= $authnet->button_new_funds($authnet->payment[$last_index]['index']) ?></th>
 
 											<?php
@@ -77,20 +77,20 @@
 													$cc_index = 0;
 												}
 												?>
-                                            <th colspan="2">
+                                                <th colspan="2">
 
-		                                <?php
-			                                echo zen_draw_form('selection', FILENAME_ORDERS,  zen_get_all_get_params(), 'post', 'class="form-horizontal"');
-			                                echo zen_draw_label(LAST_CARD, 'ccindex',
-				                                'class="control-label" style="margin-right: 15px;"');
-			                                echo zen_draw_pull_down_menu('ccindex', $cards, $cc_index,
-				                                 'onChange="this.form.submit()" class="btn btn-info"');
-		                                ?>
-                                    </form>
+													<?php
+														echo zen_draw_form('selection', FILENAME_ORDERS,  zen_get_all_get_params(), 'post', 'class="form-horizontal"');
+														echo zen_draw_label(LAST_CARD, 'ccindex',
+															'class="control-label" style="margin-right: 15px;"');
+														echo zen_draw_pull_down_menu('ccindex', $cards, $cc_index,
+															'onChange="this.form.submit()" class="btn btn-info"');
+													?>
+                                                    </form>
 
-                                    </th>
-                                        <?php
-                                                }
+                                                </th>
+												<?php
+											}
 										}
 									?>
                                 </tr>

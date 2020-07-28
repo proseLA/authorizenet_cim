@@ -7,7 +7,7 @@
 		released under GPU
 		https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
 
-	   04/2020  project: authorizenet_cim; file: authorizenet_payments.php; version 2.2.0
+	   04/2020  project: authorizenet_cim; file: authorizenet_payments.php; version 2.2.1
 	*/
 
 	require 'includes/application_top.php';
@@ -21,13 +21,13 @@
 
 	$authnet_cim->checkLogName();
 
-$action_array_index_not_necessary = [
-    'refund_capture_done',
-    'more_money_done',
-    'more_money',
-    'clearCards',
-    'clearCards_confirm',
-];
+	$action_array_index_not_necessary = [
+		'refund_capture_done',
+		'more_money_done',
+		'more_money',
+		'clearCards',
+		'clearCards_confirm',
+	];
 
 	$oID = isset($_GET['oID']) ? (int)$_GET['oID'] : (int)$_POST['oID'];
 	$action = (isset($_GET['action']) ? $_GET['action'] : $_POST['action']);
@@ -90,22 +90,22 @@ $action_array_index_not_necessary = [
 				if ($post_amount == 0) {
 					$_POST['amount'] = $authnet_order->num_2_dec($authnet_order->balance_due);
 				}
-                if ($_POST['amount'] < 0) {
-                    //should never get here; will result in error from gateway
-                    $_POST = 0;
-                }
+				if ($_POST['amount'] < 0) {
+					//should never get here; will result in error from gateway
+					$_POST = 0;
+				}
 				$customer_profile = $authnet_cim->getCustomerProfile($authnet_order->cID);
 				$last_index = sizeof($authnet_order->payment) - 1;
 
 				$profile_to_charge = $authnet_order->payment[$last_index]['payment_profile_id'];
 
 				if (isset($_POST['ccIndex']) and !$_POST['ccIndex'] == 0) {
-				    $profile = $authnet_cim->getCustomerPaymentProfile($authnet_order->cID, '', $_POST['ccIndex']);
-                }
+					$profile = $authnet_cim->getCustomerPaymentProfile($authnet_order->cID, '', $_POST['ccIndex']);
+				}
 
 				if ($profile['profile'] != false) {
-				    $profile_to_charge = $profile['profile'];
-                }
+					$profile_to_charge = $profile['profile'];
+				}
 
 				$new_charge_error = $authnet_cim->adminCharge($customer_profile, $profile_to_charge, true);
 

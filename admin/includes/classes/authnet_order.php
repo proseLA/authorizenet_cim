@@ -7,7 +7,7 @@
 		released under GPU
 		https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
 
-	   04/2020  project: authorizenet_cim; file: authnet_order.php; version 2.2.0
+	   04/2020  project: authorizenet_cim; file: authnet_order.php; version 2.2.1
 	*/
 
 	class authnet_order
@@ -139,6 +139,11 @@
 
 		}   // END function start
 
+		function num_2_dec($number)
+		{
+			return round((float)$number, 2);
+		}
+
 		function button_refund($payment_mode, $index)
 		{
 			echo '&nbsp;<a href="javascript:cimpopupWindow(\'' .
@@ -158,6 +163,8 @@
 				'class="btn btn-success btn-sm" role="button" >' . BUTTON_CAPTURE . '</a>';
 		}
 
+		// translates payment type codes into full text
+
 		function button_new_funds($index)
 		{
 			echo '&nbsp;<a href="javascript:cimpopupWindow(\'' .
@@ -167,7 +174,6 @@
 				'class="btn btn-primary btn-sm" role="button" type="submit">' . BUTTON_NEW_FUNDS . '</a>';
 		}
 
-		// translates payment type codes into full text
 		function full_type($code)
 		{
 			if (array_key_exists($code, $this->payment_key_array)) {
@@ -192,7 +198,8 @@
 			return $return;
 		}
 
-		function getCustCardIndex($payment_profile_id, $all = false) {
+		function getCustCardIndex($payment_profile_id, $all = false)
+		{
 			global $db;
 			$sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . " WHERE  payment_profile_id = :ppID";
 			if (!$all) {
@@ -204,10 +211,5 @@
 				return $cardIndex->fields['index_id'];
 			}
 			return false;
-		}
-
-		function num_2_dec($number)
-		{
-			return round((float)$number, 2);
 		}
 	}
