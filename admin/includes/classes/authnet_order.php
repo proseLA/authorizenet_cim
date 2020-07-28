@@ -36,7 +36,7 @@
 			// scrape some useful info from the record in the orders table
 			$order_query = $db->Execute("select * from " . TABLE_ORDERS . " where orders_id = '" . $this->oID . "'");
 			$this->cID = $order_query->fields['customers_id'];
-			$this->order_total = $this->num_2_dec($order_query->fields['order_total']);
+			$this->order_total = $order_query->fields['order_total'];
 
 			if (zen_not_null($order_query->fields['date_cancelled'])) {
 				$this->status_date = $order_query->fields['date_cancelled'];
@@ -208,6 +208,6 @@
 
 		function num_2_dec($number)
 		{
-			return abs(round((float)$number, 2));
+			return round((float)$number, 2);
 		}
 	}

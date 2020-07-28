@@ -21,13 +21,13 @@
 
 	$authnet_cim->checkLogName();
 
-	$action_array_index_not_necessary = [
-		'refund_capture_done',
-		'more_money_done',
-		'more_money',
-		'clearCards',
-		'clearCards_confirm',
-	];
+$action_array_index_not_necessary = [
+    'refund_capture_done',
+    'more_money_done',
+    'more_money',
+    'clearCards',
+    'clearCards_confirm',
+];
 
 	$oID = isset($_GET['oID']) ? (int)$_GET['oID'] : (int)$_POST['oID'];
 	$action = (isset($_GET['action']) ? $_GET['action'] : $_POST['action']);
@@ -50,6 +50,7 @@
 		$index = $authnet_order->getPaymentIndex($cim_payment_index);
 	}
 
+
 	if (!isset($index) && $index_necessary) {
 		trigger_error('Payment index not part of this order! Order: ' . $oID . ' Payment Index: ' . $cim_payment_index);
 		$_SESSION['payment_index_error'] = true;
@@ -58,7 +59,7 @@
 	}
 
 	if (isset($_POST['oID'])) {
-		$post_amount = $authnet_order->num_2_dec($_POST['amount']);
+		$post_amount = abs($authnet_order->num_2_dec($_POST['amount']));
 		switch ($action) {
 			case 'refund':
 				$refund_amt = $post_amount;
@@ -89,6 +90,10 @@
 				if ($post_amount == 0) {
 					$_POST['amount'] = $authnet_order->num_2_dec($authnet_order->balance_due);
 				}
+                if ($_POST['amount'] < 0) {
+                    //should never get here; will result in error from gateway
+                    $_POST = 0;
+                }
 				$customer_profile = $authnet_cim->getCustomerProfile($authnet_order->cID);
 				$last_index = sizeof($authnet_order->payment) - 1;
 

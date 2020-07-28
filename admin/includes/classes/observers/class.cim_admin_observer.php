@@ -132,8 +132,7 @@
 											for ($b = 0; $b < sizeof($authnet->refund); $b++) {
 												if ($authnet->refund[$b]['payment'] == $authnet->payment[$a]['index']) {
 													?>
-                                                    <tr class="refundRow bg-danger" onMouseOver="rowOverEffect(this)"
-                                                        onMouseOut="rowOutEffect(this)">
+                                                    <tr class="refundRow bg-danger">
                                                         <th scope="row">
 														<?= $authnet->refund[$b]['number']; ?></td>
                                                         <td><?= $authnet->refund[$b]['name']; ?></td>
@@ -153,12 +152,12 @@
 
 								?>
                                 <tfoot>
-                                <tf>
-                                    <td class="ot-shipping-Text">Amount
+                                <tr >
+                                    <td colspan="4" class="ot-shipping-Text">Amount
                                         Applied: <?= $currencies->format($authnet->amount_applied); ?> Amount
                                         Due: <?= $currencies->format($authnet->balance_due); ?>
                                     </td>
-                                </tf>
+                                </tr>
                                 </tfoot>
                                 </tbody>
                             </table>
