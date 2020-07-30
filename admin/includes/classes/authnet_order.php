@@ -46,7 +46,7 @@
 				$this->status = "completed";
 			} else {
 				$this->status_date = false;
-				$this->status = false;
+				$this->status = $order_query->fields['orders_status'];
 			}
 
 			// build an array to translate the payment_type codes stored in so_payments

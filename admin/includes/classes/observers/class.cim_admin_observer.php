@@ -51,7 +51,7 @@
 												'True',
 												'TRUE',
 												'true'
-											)) && $authnet->balance_due > 0 && !empty($authnet->payment[$last_index]['payment_profile_id']) && +$authnet->payment[$last_index]['payment_profile_id'] !== 0) {
+											)) && $authnet->balance_due > 0 && !empty($authnet->payment[$last_index]['payment_profile_id']) && +$authnet->payment[$last_index]['payment_profile_id'] !== 0 && $authnet->status != 199) {
 											?>
                                             <th colspan="2"><?= $authnet->button_new_funds($authnet->payment[$last_index]['index']) ?></th>
 
