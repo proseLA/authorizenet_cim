@@ -1046,7 +1046,7 @@
 
 	        $authorize_order = new AnetAPI\OrderType();
 	        $authorize_order->setInvoiceNumber($invoice_number);
-	        $authorize_order->setDescription($invoice_description);
+	        $authorize_order->setDescription(substr($invoice_description,0,250));
 	        $transactionRequestType->setOrder($authorize_order);
         
             $request = new AnetAPI\CreateTransactionRequest();
