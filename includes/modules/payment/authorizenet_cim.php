@@ -65,7 +65,8 @@
             $this->description = 'Authorizenet API using CIM: version ' . $this->version . MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_DESCRIPTION;
             $this->form_action_url = zen_href_link(FILENAME_CHECKOUT_PROCESS, '', 'SSL', false);
             $this->order_status = (int)DEFAULT_ORDERS_STATUS_ID;
-            if (defined('MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID') && (int)MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID > 0) {
+            if (defined('MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID') && (int)MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID > 0 &&  (MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE !== 'Authorize')) {
+            	// change status only for capture
                 $this->order_status = (int)MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID;
             }
         
@@ -1123,7 +1124,6 @@
         {
             //for card_update
             $exp_date = $this->convertExpDate($_POST['cc_year'], $_POST['cc_month']);
-        
             $request = new AnetAPI\GetCustomerPaymentProfileRequest();
             $request->setMerchantAuthentication($this->merchantCredentials());
             $request->setCustomerProfileId($customerProfileId);
@@ -1426,6 +1426,7 @@
                     $logData .= " Code : " . $tresponse->getMessages()[0]->getCode() . "\n";
                     $logData .= " Description : " . $tresponse->getMessages()[0]->getDescription() . "\n";
                     $this->capturePayment($transactionid, $amount);
+                    $this->updateOrderInfo($_POST['oID'], MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID);
                 } else {
                     $logData = "Transaction Failed \n";
                     if ($tresponse->getErrors() != null) {
@@ -1535,9 +1536,9 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
             $sql = $db->bindVars($sql, ':transID', $transID, 'string');
             $sql = $db->bindVars($sql, ':insertID', $insertID, 'integer');
             $db->Execute($sql);
-        
-            $this->updateOrderInfo($insertID, $status);
-        
+
+	        $this->updateOrderInfo($insertID, $status);
+
             $sql = "insert into " . TABLE_ORDERS_STATUS_HISTORY . " (comments, orders_id, orders_status_id, date_added) values (:orderComments, :orderID, :orderStatus, now() )";
             $sql = $db->bindVars($sql, ':orderComments',
               'Credit Card payment.  AUTH: ' . $approval . '. TransID: ' . $transID . '.',
