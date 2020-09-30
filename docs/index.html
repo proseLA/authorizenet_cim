@@ -100,7 +100,7 @@
         </li>
         <li>If you need help with FTPing the files up to your server, or an FTP client, go to the zen-cart forum.</li>
         <li>Go to Admin -> Modules -> Payment and you will see 2 new payment modules</li>
-        <li><b>PLEASE PLEASE PLEASE,</b> even if you already have an authorize.net account, create a new one using the link here.  In this way, you can keep the transactions made using this NEW module separate from your old way of taking transactions.  In addition, creating an account here benefits me (allowing me to do additional development) and the zen-cart team.</li>
+        <li><b>PLEASE PLEASE PLEASE,</b> even if you already have an authorize.net account, <a href="http://reseller.authorize.net/application/?resellerId=111066">create a new one using the link here.</a>  In this way, you can keep the transactions made using this NEW module separate from your old way of taking transactions.  In addition, creating an account here benefits me (allowing me to do additional development) and the zen-cart team.</li>
         <li>Enable authorizenet_cim, enter your API login ID and transaction key. Select Test mode or Production Mode.
             And you are off and running.
         </li>
@@ -161,6 +161,9 @@
         </li>
         <li>Admins can delete all cards on file for any customer.  There is a button for it on the customer page.</li>
         <li>There is an option for customers to add, update, and delete credit cards from within their account.  Styling has been done to match responsive_classic and one would need to add a link to ->  index.php?main_page=card_update.  I am not the styling expert.</li>
+        <br />
+        <h2>Notes on Version 2.2.2</h2>
+        <li>Order Status for this module is only updated on <b>capture of funds.</b>  If you are set for Authorize and Capture, then configured completed order status will happen then.  Else status will change to configured completed order status when funds are captured.</li>
         <br />
         <h2>Notes on Version 2.2.1</h2>
         <li>When customer has multiple cards on file, can use any card on file when a balance due on the order.  This feature must be enabled per v2.2.0.</li>
