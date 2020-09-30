@@ -65,7 +65,8 @@
             $this->description = 'Authorizenet API using CIM: version ' . $this->version . MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_DESCRIPTION;
             $this->form_action_url = zen_href_link(FILENAME_CHECKOUT_PROCESS, '', 'SSL', false);
             $this->order_status = (int)DEFAULT_ORDERS_STATUS_ID;
-            if (defined('MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID') && (int)MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID > 0 &&  (MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE !== 'Authorize')) {
+            $pos = stripos($_SERVER['REQUEST_URI'], 'modules');
+            if (defined('MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID') && (int)MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID > 0 &&  (MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE !== 'Authorize' || $pos !== false)) {
             	// change status only for capture
                 $this->order_status = (int)MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID;
             }
@@ -423,7 +424,7 @@
                 $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, use_function, set_function, date_added) values ('Payment Zone', 'MODULE_PAYMENT_AUTHORIZENET_CIM_ZONE', '0', 'If a zone is selected, only enable this payment method for that zone.', '6', '14', 'zen_get_zone_class_title', 'zen_cfg_pull_down_zone_classes(', now())");
             }
             if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID')) {
-                $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Set Completed Order Status', 'MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID', '0', 'Set the status of orders made with this payment module to this value', '6', '15', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now())");
+                $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Set Completed Order Status', 'MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID', '0', 'Set the status of orders made with this payment module to this value.  This status happens AFTER capture of funds.', '6', '15', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now())");
             }
             if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID')) {
                 $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Set Refunded Order Status', 'MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID', '1', 'Set the status of refunded orders to this value (refund amounts must be equal to payment total)', '6', '16', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now())");
