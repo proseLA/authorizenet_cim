@@ -165,7 +165,7 @@
                 array(
                   'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CREDIT_CARD_OWNER,
                   'field' => zen_draw_input_field('authorizenet_cim_cc_owner',
-                    $order->billing['firstname'] . ' ' . $order->billing['lastname'],
+	                  ($order->billing['firstname'] ?? '') . ' ' . ($order->billing['lastname'] ?? ''),
                     'id="' . $this->code . '-cc-owner"' . $onFocus),
                   'tag' => $this->code . '-cc-owner'
                 ),
@@ -197,9 +197,9 @@
             if (!zen_in_guest_checkout()) {
 	            $selection['fields'][] = array(
 		            'title' => 'Keep Card on File',
-		            'field' => zen_draw_checkbox_field('authorizenet_cim_save', '',
-			            '' . ' id="' . $this->code . '-save"' . $onFocus),
-		            'tag' => $this->code . '-save'
+		            'field' => zen_draw_checkbox_field('authorizenet_cim_save', '', true),
+//			            '' . ' id="' . $this->code . '-save"' . $onFocus),
+		            'tag' => $this->code . '-save',
 	            );
             }
         
@@ -215,7 +215,7 @@
             $cc_validation = new cc_validation();
             $result = $cc_validation->validate($_POST['authorizenet_cim_cc_number'],
               $_POST['authorizenet_cim_cc_expires_month'], $_POST['authorizenet_cim_cc_expires_year'],
-              $_POST['authorizenet_cim_cc_cvv']);
+              $_POST['authorizenet_cim_cc_cvv']  ?? '');
             $error = '';
             switch ($result) {
                 case -1:
@@ -288,8 +288,8 @@
               zen_draw_hidden_field('cc_expires', $this->cc_expiry_month . substr($this->cc_expiry_year, -2)) .
               zen_draw_hidden_field('cc_expires_date', $this->cc_expiry_year . "-" . $this->cc_expiry_month) .
               zen_draw_hidden_field('cc_type', $this->cc_card_type) .
-              zen_draw_hidden_field('payment', $_POST['payment']) .
-              zen_draw_hidden_field('cc_save', $_POST['authorizenet_cim_save']) .
+              zen_draw_hidden_field('payment', $_POST['payment'] ?? '') .
+              zen_draw_hidden_field('cc_save', $_POST['authorizenet_cim_save'] ?? '') .
               zen_draw_hidden_field('cc_number', $this->cc_card_number);
             if (MODULE_PAYMENT_AUTHORIZENET_CIM_USE_CVV == 'True') {
                 $process_button_string .= zen_draw_hidden_field('cc_cvv', $_POST['authorizenet_cim_cc_cvv']);
@@ -524,7 +524,7 @@
 
             $check_customer_cc = $db->Execute($sql);
         
-            if ($check_customer_cc->fields['payment_profile_id'] !== 0) {
+            if (!$check_customer_cc->EOF) {
                 $paymentProfileId = $check_customer_cc->fields['payment_profile_id'];
                 $exp_date = $check_customer_cc->fields['exp_date'];
             } else {
@@ -552,11 +552,13 @@
                     return;
                 }
             }
+	        $billto = new AnetAPI\CustomerAddressType();
+
+	        if (!empty($order->billing ?? '')) {
             // from checkout or getAddressInfo above
-            $billto = new AnetAPI\CustomerAddressType();
             $billto->setFirstName($order->billing['firstname']);
             $billto->setLastName($order->billing['lastname']);
-            $billto->setCompany($order->billing['company']);
+		        $billto->setCompany($order->billing['company'] ?? '');
             $billto->setAddress($order->billing['street_address']);
             $billto->setCity($order->billing['city']);
             $billto->setState($order->billing['state']);
@@ -564,6 +566,7 @@
             $billto->setCountry($order->billing['country']['title']);
             //$billto->setPhoneNumber();
             //$billto->setfaxNumber();
+	        }
             return $billto;
         }
     
@@ -604,6 +607,9 @@
                 $sql = $db->bindVars($sql, ':addBookID', $_POST['address_selection'], 'integer');
                 $address = $db->Execute($sql);
             
+                if ($address->EOF) {
+                	$this->logError('Problem with address. custNo: ' . $customerID . '; adress_book_id: ' . $_POST['address_selection'], true);
+                } else {
                 $return['firstname'] = $address->fields['entry_firstname'];
                 $return['lastname'] = $address->fields['entry_lastname'];
                 $return['company'] = $address->fields['entry_company'];
@@ -612,6 +618,7 @@
                 $return['state'] = ((zen_not_null($address->fields['entry_state'])) ? $address->fields['entry_state'] : $address->fields['zone_name']);
                 $return['postcode'] = $address->fields['entry_postcode'];
                 $return['country']['title'] = $address->fields['countries_name'];
+            }
             }
             return $return;
         }
@@ -704,7 +711,7 @@
     
         function saveCard()
         {
-            if (($_POST['cc_save'] == 'on') || ($_POST['new_cid'] == 'NEW') || isset($_POST['update_cid'])) {
+            if (($_POST['cc_save'] ?? 'off'  == 'on') || ($_POST['new_cid'] ?? '' == 'NEW') || isset($_POST['update_cid'])) {
                 return 'Y';
             } else {
                 return 'N';
@@ -778,10 +785,10 @@
         {
             global $db;
             $sql = "SELECT customers_customerProfileId FROM " . TABLE_CUSTOMERS_CIM_PROFILE . " WHERE customers_id = :custId ";
-            $sql = $db->bindVars($sql, ':custId', $customer_id, 'string');
+            $sql = $db->bindVars($sql, ':custId', $customer_id, 'integer');
             $check_customer = $db->Execute($sql);
 
-            if ($check_customer->fields['customers_customerProfileId'] != 0) {
+            if ((!$check_customer->EOF) && $check_customer->fields['customers_customerProfileId'] != 0) {
                 $customerProfileId = $check_customer->fields['customers_customerProfileId'];
             } else {
                 $customerProfileId = false;
@@ -811,7 +818,16 @@
 		$sql = $db->bindVars($sql, ':orderId', $order_id, 'string');
 		$paymentName  = $db->Execute($sql);
 
-		return $paymentName->fields['payment_name'];
+		if ($paymentName->RecordCount() > 0) {
+			$return =  $paymentName->fields['payment_name'];
+		} else {
+			$sql = "SELECT billing_name FROM " . TABLE_ORDERS . " WHERE orders_id = :orderId LIMIT 1";
+			$sql = $db->bindVars($sql, ':orderId', $order_id, 'string');
+			$orderName = $db->Execute($sql);
+			$return = $orderName->fields['billing_name'];
+		}
+
+		return $return;
 	}
     
         function merchantCredentials()
@@ -907,14 +923,14 @@
             }
         
             // for card_update
-            $exp_date = $this->convertExpDate($_POST['cc_year'], $_POST['cc_month']);
+            $exp_date = $this->convertExpDate($_POST['cc_year'] ?? '', $_POST['cc_month'] ?? '');
         
             // here we are checking to see if the customer already has this card on file.
             // if we have it, return that profile
             $existing_profile = $this->getCustomerPaymentProfile($customerID,
               substr(trim($_POST['cc_number']), -4));
         
-            if (!is_null($existing_profile['profile'])) {
+            if (!is_null($existing_profile['profile']) && $existing_profile['profile']) {
                 if ($existing_profile['exp_date'] !== $exp_date) {
                     $this->updateCustomerPaymentProfile($this->params['customerProfileId'],
                       $existing_profile['profile']);
@@ -927,7 +943,9 @@
             $creditCard = new AnetAPI\CreditCardType();
             $creditCard->setCardNumber($_POST['cc_number']);
             $creditCard->setExpirationDate($exp_date);
-            $creditCard->setCardCode($_POST['cc_cvv']);
+            if (isset($_POST['cc_cvv'])) {
+	            $creditCard->setCardCode($_POST['cc_cvv'] ?? '');
+            }
             $paymentCreditCard = new AnetAPI\PaymentType();
             $paymentCreditCard->setCreditCard($creditCard);
 
@@ -1000,7 +1018,9 @@
             $profileToCharge->setCustomerProfileId($profileid);
             $paymentProfile = new AnetAPI\PaymentProfileType();
             $paymentProfile->setPaymentProfileId($paymentprofileid);
+            if (isset($_POST['cc_cvv'])) {
             $paymentProfile->setCardCode($_POST['cc_cvv']);
+            }
             $profileToCharge->setPaymentProfile($paymentProfile);
         
             $transactionRequestType = new AnetAPI\TransactionRequestType();
@@ -1074,7 +1094,7 @@
                         $logData .= " Code : " . $tresponse->getMessages()[0]->getCode() . "\n";
                         $logData .= " Description : " . $tresponse->getMessages()[0]->getDescription() . "\n";
 
-                        $cust_id = isset($order->customer['id']) ? $order->customer['id'] : $_SESSION['customer_id'];
+                        $cust_id = isset($order->customer['id']) ? $order->customer['id'] : ($_SESSION['customer_id'] ?? '');
 	                    if ($cust_id == '') {
 		                    $cust_id = $this->getCustomerID($profileid);
 	                    }
@@ -1124,7 +1144,7 @@
         function updateCustomerPaymentProfile($customerProfileId, $customerPaymentProfileId)
         {
             //for card_update
-            $exp_date = $this->convertExpDate($_POST['cc_year'], $_POST['cc_month']);
+            $exp_date = $this->convertExpDate($_POST['cc_year'] ?? '', $_POST['cc_month'] ?? '');
             $request = new AnetAPI\GetCustomerPaymentProfileRequest();
             $request->setMerchantAuthentication($this->merchantCredentials());
             $request->setCustomerProfileId($customerProfileId);
@@ -1500,6 +1520,17 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
             $sql = $db->bindVars($sql, ':transID', trim($transID), 'string');
             $sql = $db->bindVars($sql, ':amount', $amount, 'noquotestring');
             $db->Execute($sql);
+            // the following code checks on voids, prior to the capture.  if voided, need to update the CIM_PAYMENT
+	        // record so that the cash report is correct
+
+            $sql = "SELECT * FROM " . TABLE_CIM_PAYMENTS . " where transaction_id = :transID and orders_id = :orderID";
+            $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
+            $sql = $db->bindVars($sql, ':transID', trim($transID), 'string');
+            $check = $db->Execute($sql);
+
+            if ((!$check->EOF) && $check->fields['status'] == 'A') {
+            	$this->capturePayment($transID, $check->fields['payment_amount']);
+            }
         }
 
 	function capturePayment($transID, $amount)
@@ -1592,7 +1623,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
             $sql = $db->bindVars($sql, ':indexID', $cc_index, 'integer');
             $check_customer_cc = $db->Execute($sql);
         
-            if ($check_customer_cc->fields['customers_id'] != $customerID) {
+            if (($check_customer_cc->EOF) || $check_customer_cc->fields['customers_id'] != $customerID) {
                 $return['valid'] = false;
             } else {
                 $return['payment_profile_id'] = $check_customer_cc->fields['payment_profile_id'];
@@ -1635,6 +1666,16 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
 
 	            $db->Execute($sql);
             }
+        }
+
+		function getCustomer()
+		{
+			global $db;
+			$csql = "select * from " . TABLE_CUSTOMERS . "
+        WHERE customers_id = :custID ";
+			$csql = $db->bindVars($csql, ':custID', $_SESSION['customer_id'], 'integer');
+			$user = $db->Execute($csql);
+			return $user;
         }
     
         function updateCustomer($customerID, $profileID)

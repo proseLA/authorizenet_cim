@@ -85,14 +85,3 @@
 	define('TEXT_DELETE_CONFIRM',
 		'The operation is complete.<p><strong>%s</strong> line(s) affected in the process.<br/>');
 	define('BUTTON_DELETE_CONFIRM', 'Return');
-
-	define('EMAIL_SEPARATOR', '------------------------------------------------------');
-	define('EMAIL_TEXT_SUBJECT', 'Order Update');
-	define('EMAIL_TEXT_ORDER_NUMBER', 'Order Number:');
-	define('EMAIL_TEXT_INVOICE_URL', 'Detailed Invoice:');
-	define('EMAIL_TEXT_DATE_ORDERED', 'Date Ordered:');
-	define('EMAIL_TEXT_COMMENTS_UPDATE', "\n" . '<br><strong><em>Comments:</em></strong><br>' . "\n");
-	define('EMAIL_TEXT_STATUS_UPDATED', "\n" . '<br>Your current order status is:  ');
-	define('EMAIL_TEXT_STATUS_LABEL', '<em>%s</em><br><br>' . "\n\n");
-	define('EMAIL_TEXT_STATUS_PLEASE_REPLY',
-		"\n" . '<br>Please reply to this email if you have any questions.<br><br>' . "\n\n");

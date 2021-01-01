@@ -25,7 +25,9 @@
 
 			$this->oID = (int)$orders_id;   // now you have the order_id whenever you need it
 
-			include DIR_FS_CATALOG . DIR_WS_ADMIN . DIR_WS_LANGUAGES . $_SESSION['language'] . '/authnet_order.php';
+			if (IS_ADMIN_FLAG) {
+			include DIR_FS_ADMIN . DIR_WS_LANGUAGES . $_SESSION['language'] . '/authnet_order.php';
+			}
 			$this->start();
 		}
 
@@ -35,19 +37,12 @@
 
 			// scrape some useful info from the record in the orders table
 			$order_query = $db->Execute("select * from " . TABLE_ORDERS . " where orders_id = '" . $this->oID . "'");
+			if ($order_query->EOF) {
+				return;
+			}
 			$this->cID = $order_query->fields['customers_id'];
 			$this->order_total = $this->num_2_dec($order_query->fields['order_total']);
-
-			if (zen_not_null($order_query->fields['date_cancelled'])) {
-				$this->status_date = $order_query->fields['date_cancelled'];
-				$this->status = "cancelled";
-			} elseif (zen_not_null($order_query->fields['date_completed'])) {
-				$this->status_date = $order_query->fields['date_completed'];
-				$this->status = "completed";
-			} else {
-				$this->status_date = false;
-				$this->status = $order_query->fields['orders_status'];
-			}
+			$this->status = $order_query->fields['orders_status'];
 
 			// build an array to translate the payment_type codes stored in so_payments
 			$payment_key_query = $db->Execute("select * from " . TABLE_CIM_PAYMENT_TYPES . "
@@ -70,7 +65,7 @@
                                     where orders_id = '" . $this->oID . "'
                                     order by date_posted asc");
 
-			if (zen_not_null($payments_query->fields['orders_id'])) {
+			if (!$payments_query->EOF) {
 				while (!$payments_query->EOF) {
 					$this->payment[] = array(
 						'index' => $payments_query->fields['payment_id'],
@@ -98,7 +93,7 @@
                                      where orders_id = '" . $this->oID . "'
                                      order by date_posted asc");
 
-				if (zen_not_null($refunds_query->fields['orders_id'])) {
+				if (!$refunds_query->EOF) {
 					while (!$refunds_query->EOF) {
 						$this->refund[] = array(
 							'index' => $refunds_query->fields['refund_id'],
@@ -169,7 +164,7 @@
 		{
 			echo '&nbsp;<a href="javascript:cimpopupWindow(\'' .
 				zen_href_link(FILENAME_AUTHNET_PAYMENTS,
-					'oID=' . $this->oID . '&index=' . $index . '&action=more_money&ccindex=' . $_POST['ccindex'],
+					'oID=' . $this->oID . '&index=' . $index . '&action=more_money&ccindex=' . ($_POST['ccindex'] ?? ''),
 					'NONSSL') . '\', \'scrollbars=yes,resizable=yes,width=100,height=1000,screenX=150,screenY=100,top=100,left=150\')"' .
 				'class="btn btn-primary btn-sm" role="button" type="submit">' . BUTTON_NEW_FUNDS . '</a>';
 		}
@@ -186,7 +181,10 @@
 
 		function getPaymentIndex($index)
 		{
-			//$return = false;
+			$return = 0;
+			if (!is_array($this->payment)) {
+				return 0;
+			}
 			$last_index = sizeof($this->payment) - 1;
 			for ($i = $last_index; $i > -1; $i--) {
 				//echo '***>' . $i . '<---->' . $this->payment[$i]['index'] . "<-----\N";

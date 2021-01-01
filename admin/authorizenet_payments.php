@@ -29,8 +29,11 @@
 		'clearCards_confirm',
 	];
 
-	$oID = isset($_GET['oID']) ? (int)$_GET['oID'] : (int)$_POST['oID'];
-	$action = (isset($_GET['action']) ? $_GET['action'] : $_POST['action']);
+	//$oID = isset($_GET['oID']) ? (int)$_GET['oID'] : (int)$_POST['oID'];
+	//$action = (isset($_GET['action']) ? $_GET['action'] : $_POST['action']);
+
+	$oID = (int)($_REQUEST['oID'] ?? 0);
+	$action = $_REQUEST['action'] ?? '';
 
 	$index_necessary = true;
 
@@ -40,18 +43,19 @@
 
 	$authnet_order = new authnet_order($oID);
 
-	$cim_payment_index = (isset($_POST['payment_id']) ? $_POST['payment_id'] : $_GET['index']);
+	if ($index_necessary) {
 
-	if (is_null($cim_payment_index)) {
-		$index = null;
-	} else {
-
-// the following takes the index/key/payments_id from CIM PAYMENTS table, and returns the array index for the payment; ie it gives you the index for $authnet_order->payment[$index]
-		$index = $authnet_order->getPaymentIndex($cim_payment_index);
+		$cim_payment_index = ($_POST['payment_id'] ?? ($_GET['index'] ?? 0));
+		if (is_null($cim_payment_index)) {
+			$index = null;
+		} else {
+            // the following takes the index/key/payments_id from CIM PAYMENTS table, and returns the array index for the payment; ie it gives you the index for $authnet_order->payment[$index]
+			$index = $authnet_order->getPaymentIndex($cim_payment_index);
+		}
 	}
 
 
-	if (!isset($index) && $index_necessary) {
+	if ((!isset($index) || $index == 0) && $index_necessary && is_null($cim_payment_index)) {
 		trigger_error('Payment index not part of this order! Order: ' . $oID . ' Payment Index: ' . $cim_payment_index);
 		$_SESSION['payment_index_error'] = true;
 		$messageStack->add_session(PAYMENT_INDEX_ERROR, 'error');
@@ -59,7 +63,7 @@
 	}
 
 	if (isset($_POST['oID'])) {
-		$post_amount = abs($authnet_order->num_2_dec($_POST['amount']));
+		$post_amount = abs($authnet_order->num_2_dec($_POST['amount'] ?? 0));
 		switch ($action) {
 			case 'refund':
 				$refund_amt = $post_amount;
@@ -74,7 +78,11 @@
 					zen_redirect(zen_href_link(FILENAME_AUTHNET_PAYMENTS, 'oID=' . $oID . '&action=refund_capture_done',
 						'SSL'));
 				}
-				$amount = ($post_amount == 0) ? $amount = $authnet_order->payment[$index]['amount'] : $post_amount;
+				// balance due should be negative; can not settle for more than amount authorized
+				$amount = ($post_amount == 0) ? $amount = ($authnet_order->balance_due + $authnet_order->payment[$index]['amount']) : $post_amount;
+				if ($amount > $authnet_order->payment[$index]['amount']) {
+					$amount = $authnet_order->payment[$index]['amount'];
+				}
 				$_SESSION['capture_error_status'] = $authnet_cim->capturePreviouslyAuthorizedAmount($authnet_order->payment[$index]['number'],
 					$amount);
 				zen_redirect(zen_href_link(FILENAME_AUTHNET_PAYMENTS, 'oID=' . $oID . '&action=refund_capture_done',
@@ -95,15 +103,19 @@
 					$_POST = 0;
 				}
 				$customer_profile = $authnet_cim->getCustomerProfile($authnet_order->cID);
-				$last_index = sizeof($authnet_order->payment) - 1;
-
-				$profile_to_charge = $authnet_order->payment[$last_index]['payment_profile_id'];
-
-				if (isset($_POST['ccIndex']) and !$_POST['ccIndex'] == 0) {
-					$profile = $authnet_cim->getCustomerPaymentProfile($authnet_order->cID, '', $_POST['ccIndex']);
+				if ($authnet_order->payment) {
+					$last_index = sizeof($authnet_order->payment) - 1;
+				} else {
+					$last_index = 0;
 				}
 
-				if ($profile['profile'] != false) {
+				$profile_to_charge = ($authnet_order->payment[$last_index]['payment_profile_id'] ?? '');
+
+				if (isset($_POST['ccIndex']) && empty($profile_to_charge)) {
+					$profile = $authnet_cim->getCustomerPaymentProfile($authnet_order->cID, '', (int)$_POST['ccIndex']);
+				}
+
+				if (($profile['profile'] ?? false) != false) {
 					$profile_to_charge = $profile['profile'];
 				}
 
@@ -248,7 +260,13 @@
                     <tr>
                         <td align="center" class="main"><?= CAPTURE_NOTE; ?>
                             <br/>
-                            <span class="pageHeading  "><?= $currencies->format($authnet_order->payment[$index]['amount']); ?></span>
+							<?php
+								$display_amount = $authnet_order->payment[$index]['amount'];
+								if (($authnet_order->balance_due + $authnet_order->payment[$index]['amount']) < $authnet_order->payment[$index]['amount']) {
+									$display_amount = $authnet_order->balance_due + $authnet_order->payment[$index]['amount'];
+								}
+							?>
+                            <span class="pageHeading  "><?= $currencies->format($display_amount); ?></span>
                         </td>
                     </tr>
                     <tr>
@@ -273,7 +291,7 @@
 				<?php
 				break;  // END case
 			case 'refund_capture_done':
-				if (!$_SESSION['refund_status']) {
+				if (!($_SESSION['refund_status'] ?? false)) {
 					$page_header = HEADER_REFUND_FAIL;
 					$alert_class = "alert-warning";
 				} else {

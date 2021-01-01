@@ -288,7 +288,7 @@ function check_form(form_name) {
 <?php $new_address = '  check_select("address_selection", "new", "NEW");';
 
         $cc_validation = new cc_validation();
-        $result = $cc_validation->validate($_POST['cc_number'], $_POST['cc_month'], $_POST['cc_year'], '');
+        $result = $cc_validation->validate(($_POST['cc_number'] ?? ''), ($_POST['cc_month'] ??''), ($_POST['cc_year'] ?? ''), '');
         $card_error = false;
         switch ($result) {
             case -1:
