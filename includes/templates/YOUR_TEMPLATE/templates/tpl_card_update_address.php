@@ -7,7 +7,7 @@
     released under GPU
     https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
 
-   04/2020  project: authorizenet_cim; file: tpl_card_update_address.php; version 2.0
+   01/2021  project: authorizenet_cim; file: tpl_card_update_address.php; version 2.2.3
 */
 ?>
 <div class="review_box" id='<?= $div_id; ?>'>
@@ -43,8 +43,8 @@
         ?>
         <div class="address_selection">
             <?= zen_draw_radio_field('address_selection', 'new',
-                ($_POST['address_selection'] == 'new' ? 'selected' : '')); ?>
-            <address>&nbsp;Enter New Address</address>
+                (($_POST['address_selection'] ?? 'nothing') == 'new' ? 'selected' : '')); ?>
+            <address id="percent15">&nbsp;Enter New CC Address</address>
             <div id="show_select">
                 <?php
                 if (IS_ADMIN_FLAG) {

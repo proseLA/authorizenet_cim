@@ -7,8 +7,9 @@
     released under GPU
     https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
 
-   04/2020  project: authorizenet_cim; file: card_update.php; version 2.0
+   01/2021  project: authorizenet_cim; file: card_update.php; version 2.2.3
 */
+define('NAVBAR_TITLE_1', 'My Account');
 define('NAVBAR_TITLE', 'Update Card');
 define('HEADING_TITLE', 'Update Credit Card on Authorize.net');
 
