@@ -7,7 +7,7 @@
     released under GPU
     https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
 
-   04/2020  project: authorizenet_cim; file: authorizenet_cim.php; version 2.2.2
+   01/2021  project: authorizenet_cim; file: authorizenet_cim.php; version 2.2.3
 */
     
     if (!file_exists($sdk_loader = DIR_FS_CATALOG . 'includes/modules/payment/authorizenet/authorizenet-sdk/autoload.php')) {
@@ -24,8 +24,8 @@
 
         var $code, $title, $description, $enabled, $authorize = '';
         
-        var $version = '2.2.2';
-        var $params = array();
+        var $version = '2.2.3';
+        var $params = [];
         var $success = false;
         var $error = true;
         var $response;
@@ -37,7 +37,7 @@
         var $approvalCode;
         var $transID;
     
-        var $errorMessages = array();
+        var $errorMessages = [];
     
         // zen-cart base payment functions
 
@@ -76,7 +76,7 @@
             }
         
             if (!defined('DEBUG_CIM') && ($this->enabled)) {
-                if (in_array(MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING, array('True','TRUE','true'))) {
+                if (in_array(MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING, ['True','TRUE','true'])) {
                     define('DEBUG_CIM', true);
                 } else {
                     define('DEBUG_CIM', false);
@@ -139,68 +139,67 @@
             global $order;
         
             for ($i = 1; $i < 13; $i++) {
-                $expires_month[] = array(
+                $expires_month[] = [
                   'id' => sprintf('%02d', $i),
                   'text' => strftime('%B - (%m)', mktime(0, 0, 0, $i, 1, 2000))
-                );
+                ];
             }
         
             $today = getdate();
             for ($i = $today['year']; $i < $today['year'] + 10; $i++) {
-                $expires_year[] = array(
+                $expires_year[] = [
                   'id' => strftime('%y', mktime(0, 0, 0, 1, 1, $i)),
                   'text' => strftime('%Y', mktime(0, 0, 0, 1, 1, $i))
-                );
+                ];
             }
         
             $onFocus = ' onfocus="methodSelect(\'pmt-' . $this->code . '\')"';
         
-            $selection = array(
+            $selection = [
               'id' => $this->code,
               'module' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CATALOG_TITLE,
-              'fields' => array(
-                  array(
+              'fields' => [
+                  [
                       'field' => '<div class="apple-pay-button apple-pay-button-white"></div>',
-                  ),
-                array(
+                  ],
+                [
                   'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CREDIT_CARD_OWNER,
                   'field' => zen_draw_input_field('authorizenet_cim_cc_owner',
 	                  ($order->billing['firstname'] ?? '') . ' ' . ($order->billing['lastname'] ?? ''),
                     'id="' . $this->code . '-cc-owner"' . $onFocus),
                   'tag' => $this->code . '-cc-owner'
-                ),
-                array(
+                ],
+                [
                   'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CREDIT_CARD_NUMBER,
                   'field' => zen_draw_input_field('authorizenet_cim_cc_number', '',
                     'id="' . $this->code . '-cc-number"' . $onFocus),
                   'tag' => $this->code . '-cc-number'
-                ),
-                array(
+                ],
+                [
                   'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CREDIT_CARD_EXPIRES,
                   'field' => zen_draw_pull_down_menu('authorizenet_cim_cc_expires_month', $expires_month, '',
                       'id="' . $this->code . '-cc-expires-month"' . $onFocus) . '&nbsp;' . zen_draw_pull_down_menu('authorizenet_cim_cc_expires_year',
                       $expires_year, strftime('%y', mktime(0, 0, 0, 1, 1, $today['year'] + 1)),
                       'id="' . $this->code . '-cc-expires-year"' . $onFocus),
                   'tag' => $this->code . '-cc-expires-month'
-                )
-              )
-            );
+                ]
+              ]
+            ];
         
             if (MODULE_PAYMENT_AUTHORIZENET_CIM_USE_CVV == 'True') {
-                $selection['fields'][] = array(
+                $selection['fields'][] = [
                   'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CVV,
                   'field' => zen_draw_input_field('authorizenet_cim_cc_cvv', '',
                       'size="4" maxlength="4" class="cvv_input"' . ' id="' . $this->code . '-cc-cvv"' . $onFocus) . ' ' . '<a href="javascript:popupWindow(\'' . zen_href_link(FILENAME_POPUP_CVV_HELP) . '\')">' . MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_POPUP_CVV_LINK . '</a>',
                   'tag' => $this->code . '-cc-cvv'
-                );
+                ];
             }
             if (!zen_in_guest_checkout()) {
-	            $selection['fields'][] = array(
+	            $selection['fields'][] = [
 		            'title' => 'Keep Card on File',
 		            'field' => zen_draw_checkbox_field('authorizenet_cim_save', '', true),
-//			            '' . ' id="' . $this->code . '-save"' . $onFocus),
-		            'tag' => $this->code . '-save',
-	            );
+		            'tag' => $this->code . '-save'
+	            ];
             }
         
             return $selection;
@@ -250,28 +249,28 @@
          */
         function confirmation()
         {
-            $confirmation = array(
-              'fields' => array(
-                array(
+            $confirmation = [
+              'fields' => [
+                [
                   'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CREDIT_CARD_TYPE,
                   'field' => $this->cc_card_type
-                ),
-                array(
+                ],
+                [
                   'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CREDIT_CARD_OWNER,
                   'field' => $_POST['authorizenet_cim_cc_owner']
-                ),
-                array(
+                ],
+                [
                   'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CREDIT_CARD_NUMBER,
                   'field' => str_repeat('X', strlen($this->cc_card_number) - 12) . '-' . str_repeat('X',
                       4) . '-' . str_repeat('X', 4) . '-' . substr($this->cc_card_number, -4)
-                ),
-                array(
+                ],
+                [
                   'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CREDIT_CARD_EXPIRES,
                   'field' => strftime('%B, %Y', mktime(0, 0, 0, $_POST['authorizenet_cim_cc_expires_month'], 1,
                     '20' . $_POST['authorizenet_cim_cc_expires_year']))
-                ),
-              )
-            );
+                ],
+              ]
+            ];
             return $confirmation;
         }
     
@@ -350,7 +349,7 @@
     
         function keys()
         {
-            return array(
+            return [
               'MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS',
               'MODULE_PAYMENT_AUTHORIZENET_CIM_LOGIN',
               'MODULE_PAYMENT_AUTHORIZENET_CIM_TXNKEY',
@@ -367,15 +366,15 @@
               'MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID',
               'MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING',
 	            'MODULE_PAYMENT_AUTHORIZENET_CIM_ALLOW_MORE',
-            );
+            ];
         }
     
         function get_error()
         {
-	        return array(
+	        return [
 	          'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_ERROR,
 	          'error' => stripslashes(urldecode($_GET['error']))
-	        );
+	        ];
         }
     
         function check()
@@ -524,14 +523,14 @@
 
             $check_customer_cc = $db->Execute($sql);
         
-            if (!$check_customer_cc->EOF) {
+            if (!$check_customer_cc->EOF && $check_customer_cc->fields['payment_profile_id'] != 0) {
                 $paymentProfileId = $check_customer_cc->fields['payment_profile_id'];
                 $exp_date = $check_customer_cc->fields['exp_date'];
             } else {
                 $paymentProfileId = false;
                 $exp_date = false;
             }
-            return array('profile' => $paymentProfileId, 'exp_date' => $exp_date);
+            return ['profile' => $paymentProfileId, 'exp_date' => $exp_date];
         }
     
         function billtoAddress($response = null)
@@ -552,6 +551,7 @@
                     return;
                 }
             }
+            // from checkout or getAddressInfo above
 	        $billto = new AnetAPI\CustomerAddressType();
 
 	        if (!empty($order->billing ?? '')) {
@@ -579,8 +579,8 @@
             if ($_POST['address_selection'] == 'new') {
                 $this->addNewAddress();
             
-                $return['firstname'] = $_POST['customers_firstname'];
-                $return['lastname'] = $_POST['customers_lastname'];
+                $return['firstname'] = $_POST['firstname'];
+                $return['lastname'] = $_POST['lastname'];
                 $return['street_address'] = $_POST['street_address'];
                 $return['city'] = $_POST['city'];
                 if (empty($_POST['zone_id'])) {
@@ -627,74 +627,74 @@
         {
             global $customer_id, $db, $zco_notifier;
         
-            $sql_data_array = array(
-              array('fieldName' => 'entry_firstname', 'value' => $_POST['firstname'], 'type' => 'stringIgnoreNull'),
-              array('fieldName' => 'entry_lastname', 'value' => $_POST['lastname'], 'type' => 'stringIgnoreNull'),
-              array(
+            $sql_data_array = [
+              ['fieldName' => 'entry_firstname', 'value' => $_POST['firstname'], 'type' => 'stringIgnoreNull'],
+              ['fieldName' => 'entry_lastname', 'value' => $_POST['lastname'], 'type' => 'stringIgnoreNull'],
+              [
                 'fieldName' => 'entry_street_address',
                 'value' => $_POST['street_address'],
                 'type' => 'stringIgnoreNull'
-              ),
-              array('fieldName' => 'entry_postcode', 'value' => $_POST['postcode'], 'type' => 'stringIgnoreNull'),
-              array('fieldName' => 'entry_city', 'value' => $_POST['city'], 'type' => 'stringIgnoreNull'),
-              array('fieldName' => 'entry_country_id', 'value' => $_POST['zone_country_id'], 'type' => 'integer')
-            );
+              ],
+              ['fieldName' => 'entry_postcode', 'value' => $_POST['postcode'], 'type' => 'stringIgnoreNull'],
+              ['fieldName' => 'entry_city', 'value' => $_POST['city'], 'type' => 'stringIgnoreNull'],
+              ['fieldName' => 'entry_country_id', 'value' => $_POST['zone_country_id'], 'type' => 'integer']
+            ];
         
             if (ACCOUNT_GENDER == 'true') {
-                $sql_data_array[] = array(
+                $sql_data_array[] = [
                   'fieldName' => 'entry_gender',
                   'value' => $_POST['gender'],
                   'type' => 'enum:m|f'
-                );
+                ];
             }
             if (ACCOUNT_COMPANY == 'true') {
-                $sql_data_array[] = array(
+                $sql_data_array[] = [
                   'fieldName' => 'entry_company',
                   'value' => $_POST['company'],
                   'type' => 'stringIgnoreNull'
-                );
+                ];
             }
             if (ACCOUNT_SUBURB == 'true') {
-                $sql_data_array[] = array(
+                $sql_data_array[] = [
                   'fieldName' => 'entry_suburb',
                   'value' => $_POST['suburb'],
                   'type' => 'stringIgnoreNull'
-                );
+                ];
             }
         
             if (ACCOUNT_STATE == 'true') {
                 if (!empty($_POST['zone_id']) && $_POST['zone_id'] > 0) {
-                    $sql_data_array[] = array(
+                    $sql_data_array[] = [
                       'fieldName' => 'entry_zone_id',
                       'value' => $_POST['zone_id'],
                       'type' => 'integer'
-                    );
-                    $sql_data_array[] = array(
+                    ];
+                    $sql_data_array[] = [
                       'fieldName' => 'entry_state',
                       'value' => '',
                       'type' => 'stringIgnoreNull'
-                    );
+                    ];
                 } else {
-                    $sql_data_array[] = array('fieldName' => 'entry_zone_id', 'value' => '0', 'type' => 'integer');
-                    $sql_data_array[] = array(
+                    $sql_data_array[] = ['fieldName' => 'entry_zone_id', 'value' => '0', 'type' => 'integer'];
+                    $sql_data_array[] = [
                       'fieldName' => 'entry_state',
                       'value' => $_POST['state'],
                       'type' => 'stringIgnoreNull'
-                    );
+                    ];
                 }
             }
         
-            $sql_data_array[] = array(
+            $sql_data_array[] = [
               'fieldName' => 'customers_id',
               'value' => $customer_id,
               'type' => 'integer'
-            );
+            ];
 
             $db->perform(TABLE_ADDRESS_BOOK, $sql_data_array);
             $new_address_book_id = $db->Insert_ID();
             $this->updateDefaultCustomerBillTo($new_address_book_id);
             $zco_notifier->notify('NOTIFY_MODULE_ADDRESS_BOOK_ADDED_ADDRESS_BOOK_RECORD',
-              array_merge(array('address_id' => $new_address_book_id), $sql_data_array));
+              array_merge(['address_id' => $new_address_book_id], $sql_data_array));
         }
     
         function nextOrderNumber($order)
@@ -840,7 +840,7 @@
     
         function getControllerResponse($controller)
         {
-            if (in_array(MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE, array('Test', 'Sandbox'))) {
+            if (in_array(MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE, ['Test', 'Sandbox'])) {
                 return $controller->executeWithApiResponse(\net\authorize\api\constants\ANetEnvironment::SANDBOX);
             } else {
                 return $controller->executeWithApiResponse(\net\authorize\api\constants\ANetEnvironment::PRODUCTION);
@@ -908,7 +908,7 @@
             global $order, $customerID;
         
             // for card_update
-            if (!isset($customerID) && (!defined('IS_ADMIN_FLAG') || ('IS_ADMIN_FLAG' == 0))) {
+            if (empty($customerID) && (!defined('IS_ADMIN_FLAG') || (IS_ADMIN_FLAG == 0))) {
                 $customerID = $_SESSION['customer_id'];
             }
         
@@ -1144,7 +1144,7 @@
         function updateCustomerPaymentProfile($customerProfileId, $customerPaymentProfileId)
         {
             //for card_update
-            $exp_date = $this->convertExpDate($_POST['cc_year'] ?? '', $_POST['cc_month'] ?? '');
+            $exp_date = $this->convertExpDate(($_POST['cc_year'] ?? ''), ($_POST['cc_month'] ?? ''));
             $request = new AnetAPI\GetCustomerPaymentProfileRequest();
             $request->setMerchantAuthentication($this->merchantCredentials());
             $request->setCustomerProfileId($customerProfileId);
@@ -1554,7 +1554,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
                 $db->Execute($sql);
 
                 $zco_notifier->notify('NOTIFY_MODULE_ADDRESS_BOOK_UPDATED_PRIMARY_CUSTOMER_RECORD',
-                    array('address_id' => $id, 'customers_id' => $customer_id));
+                    ['address_id' => $id, 'customers_id' => $customer_id]);
             }
         }
     
@@ -1671,8 +1671,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
 		function getCustomer()
 		{
 			global $db;
-			$csql = "select * from " . TABLE_CUSTOMERS . "
-        WHERE customers_id = :custID ";
+			$csql = "select * from " . TABLE_CUSTOMERS . " WHERE customers_id = :custID ";
 			$csql = $db->bindVars($csql, ':custID', $_SESSION['customer_id'], 'integer');
 			$user = $db->Execute($csql);
 			return $user;

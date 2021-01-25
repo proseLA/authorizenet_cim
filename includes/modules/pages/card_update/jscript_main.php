@@ -7,14 +7,16 @@
     released under GPU
     https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
 
-   04/2020  project: authorizenet_cim; file: jscript_main.php; version 2.0
+   01/2021  project: authorizenet_cim; file: jscript_main.php; version 2.2.3
 */
 ?>
 <link rel="stylesheet" type="text/css" href="includes/templates/template_default/css/cim.css" />
 <script language="javascript" type="text/javascript"><!--
 var selected;
 
-$(function() {
+var $ = jQuery.noConflict();
+
+$(function($) {
 	var exMonth;
 	var exYear;
 	$("#pmt-saved_cc").attr('checked', 'checked');
@@ -82,6 +84,9 @@ $(function() {
 			 $("#cardUpdate > form").attr("novalidate", "true");
 		}
 	});
+    $("#show_select  .required").prop('required', function () {
+        return $(this).is(':visible');
+	});
 	$(".last_four, .expiration_date").css("font-weight","bold");
 	$("#cardUpdate > form > div:nth-child(5)").removeClass('zebra');
 	var card_good=false;
@@ -106,6 +111,9 @@ $(function() {
 	}
 	$("#cardUpdate > form[name='card_new']").submit(function (e) {
 		error_free=true;
+        $("#show_select  .required").prop('required', function () {
+            return $(this).is(':visible');
+        });
 		if (!$('input[name="address_selection"]').is(":checked")) {
 			$("#cardUpdate > form > span").removeClass("inputError").addClass("inputError_show"); error_free=false;}
 		else{$("#cardUpdate > form > span").removeClass("inputError_show").addClass("inputError");}

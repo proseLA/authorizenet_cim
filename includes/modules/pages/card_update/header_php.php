@@ -7,7 +7,7 @@
 		released under GPU
 		https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
 
-	   04/2020  project: authorizenet_cim; file: header_php.php; version 2.0
+	   01/2021  project: authorizenet_cim; file: header_php.php; version 2.2.3
 	*/
 
 // if the customer is not logged on, redirect them to the login page
@@ -102,6 +102,7 @@
 	$div_id = 'cc_address';
 	$new_address_title = 'New Bill-To Address';
 
+	$breadcrumb->add(NAVBAR_TITLE_1, zen_href_link(FILENAME_ACCOUNT, '', 'SSL'));
 	$breadcrumb->add(NAVBAR_TITLE);
 
 	if (IS_ADMIN_FLAG && $_SESSION['emp_admin_login'] == true) {
@@ -132,6 +133,31 @@
 		);
 		$addresses->MoveNext();
 	}
+	$entry_query = "SELECT entry_country_id
+                  FROM   " . TABLE_ADDRESS_BOOK . " a, " . TABLE_CUSTOMERS . " c
+                  WHERE  a.customers_id = :customersID
+                  AND  a.customers_id = c.customers_id
+                  AND    a.address_book_id = c.customers_default_address_id";
+
+	$entry_query = $db->bindVars($entry_query, ':customersID', $_SESSION['customer_id'], 'integer');
+	$entry = $db->Execute($entry_query);
+
+	if ($entry->EOF) {
+		$entry->fields['entry_country_id'] = '223';
+	}
+	$zone_id = 0;
+
+
+	$entry->fields['entry_gender'] = 'm';
+	$entry->fields['entry_firstname'] = '';
+	$entry->fields['entry_lastname'] = '';
+	$entry->fields['entry_company'] = '';
+	$entry->fields['entry_street_address'] = '';
+	$entry->fields['entry_suburb'] = '';
+	$entry->fields['entry_city'] = '';
+	$entry->fields['entry_state'] = '';
+	$entry->fields['entry_zone_id'] = 0;
+	$entry->fields['entry_postcode'] = '';
 
 	$flag_show_pulldown_states = true;
 	$selected_country = 223;
