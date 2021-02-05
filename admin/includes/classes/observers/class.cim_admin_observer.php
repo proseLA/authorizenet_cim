@@ -54,7 +54,6 @@
 											)) && $authnet->balance_due > 0 && !empty($authnet->payment[$last_index]['payment_profile_id']) && +$authnet->payment[$last_index]['payment_profile_id'] !== 0 && $authnet->status != 199) {
 											?>
                                             <th colspan="2"><?= $authnet->button_new_funds($authnet->payment[$last_index]['index']) ?></th>
-
 											<?php
 											$cards = $cof->getCustomerCards($authnet->cID, true);
 											$key = false;
@@ -64,7 +63,6 @@
 													$cc_index = $_POST['ccindex'];
 													$key = array_search($cc_index, array_column($cards, 'id'));
 												}
-
 
 												if ($key === false && (string)$key != '0' && ($authnet->payment)) {
 													$cc_index = $authnet->getCustCardIndex($authnet->payment[$last_index]['payment_profile_id'],
@@ -80,7 +78,9 @@
                                                 <th colspan="2">
 
 													<?php
-														echo zen_draw_form('selection', FILENAME_ORDERS,  zen_get_all_get_params(), 'post', 'class="form-horizontal"');
+														echo zen_draw_form('selection', FILENAME_ORDERS,
+															zen_get_all_get_params(), 'post',
+															'class="form-horizontal"');
 														echo zen_draw_label(LAST_CARD, 'ccindex',
 															'class="control-label" style="margin-right: 15px;"');
 														echo zen_draw_pull_down_menu('ccindex', $cards, $cc_index,
@@ -108,53 +108,53 @@
                                 <tbody>
 								<?php
 									if ($authnet->payment) {
-									for ($a = 0; $a < sizeof($authnet->payment); $a++) {
-										?>
-                                        <tr class="bg-success">
-                                            <th scope="row"><?= $authnet->payment[$a]['number']; ?></th>
-                                            <td><?= $authnet->payment[$a]['name']; ?></td>
-                                            <th scope="row">
-											<?= $currencies->format($authnet->payment[$a]['amount']); ?></td>
-                                            <td><?= $authnet->full_type($authnet->payment[$a]['type']); ?></td>
-                                            <td><?= zen_datetime_short($authnet->payment[$a]['posted']); ?></td>
-                                            <td><?= zen_datetime_short($authnet->payment[$a]['captured']); ?></td>
-                                            <td><?= $authnet->payment[$a]['approval_code']; ?></td>
-                                            <td><?php
-													$date = new DateTime($authnet->payment[$a]['posted']);
-													$now = new DateTime();
-													((($authnet->payment[$a]['amount'] > $authnet->payment[$a]['refund_amount']) && (abs($date->diff($now)->format("%R%a")) < 120)) ? $authnet->button_refund('payment',
-														$authnet->payment[$a]['index']) : "");
-													($authnet->payment[$a]['status'] == 'A' && ($authnet->payment[$a]['amount'] - $authnet->payment[$a]['refund_amount']) > 0) ? $authnet->button_capture($authnet->payment[$a]['index']) : "";
+										for ($a = 0; $a < sizeof($authnet->payment); $a++) {
+											?>
+                                            <tr class="bg-success">
+                                                <th scope="row"><?= $authnet->payment[$a]['number']; ?></th>
+                                                <td><?= $authnet->payment[$a]['name']; ?></td>
+                                                <th scope="row">
+												<?= $currencies->format($authnet->payment[$a]['amount']); ?></td>
+                                                <td><?= $authnet->full_type($authnet->payment[$a]['type']); ?></td>
+                                                <td><?= zen_datetime_short($authnet->payment[$a]['posted']); ?></td>
+                                                <td><?= zen_datetime_short($authnet->payment[$a]['captured']); ?></td>
+                                                <td><?= $authnet->payment[$a]['approval_code']; ?></td>
+                                                <td><?php
+														$date = new DateTime($authnet->payment[$a]['posted']);
+														$now = new DateTime();
+														((($authnet->payment[$a]['amount'] > $authnet->payment[$a]['refund_amount']) && (abs($date->diff($now)->format("%R%a")) < 120)) ? $authnet->button_refund('payment',
+															$authnet->payment[$a]['index']) : "");
+														($authnet->payment[$a]['status'] == 'A' && ($authnet->payment[$a]['amount'] - $authnet->payment[$a]['refund_amount']) > 0) ? $authnet->button_capture($authnet->payment[$a]['index']) : "";
 
-												?></td>
-                                        </tr>
-										<?php
-										if ($authnet->refund) {
-											for ($b = 0; $b < sizeof($authnet->refund); $b++) {
-												if ($authnet->refund[$b]['payment'] == $authnet->payment[$a]['index']) {
-													?>
-                                                    <tr class="refundRow bg-danger">
-                                                        <th scope="row">
-														<?= $authnet->refund[$b]['number']; ?></td>
-                                                        <td><?= $authnet->refund[$b]['name']; ?></td>
-                                                        <th scope="row">
-														<?= '-' . $currencies->format($authnet->refund[$b]['amount']); ?></td>
-                                                        <td><?= $authnet->full_type($authnet->refund[$b]['type']); ?></td>
-                                                        <td><?= zen_datetime_short($authnet->refund[$b]['posted']); ?></td>
-                                                        <td></td>
-                                                        <td><?= $authnet->refund[$b]['approval_code']; ?></td>
-                                                        <td></td>
-                                                    </tr>
-													<?php
-												}  // END if ($authnet->refund[$b]['payment'] == $authnet->payment[$a]['index'])
-											}  // END for($b = 0; $b < sizeof($authnet->refund); $b++)
-										}  // END if ($authnet->refund)
-									}  // END for($a = 0; $a < sizeof($payment); $a++)
+													?></td>
+                                            </tr>
+											<?php
+											if ($authnet->refund) {
+												for ($b = 0; $b < sizeof($authnet->refund); $b++) {
+													if ($authnet->refund[$b]['payment'] == $authnet->payment[$a]['index']) {
+														?>
+                                                        <tr class="refundRow bg-danger">
+                                                            <th scope="row">
+															<?= $authnet->refund[$b]['number']; ?></td>
+                                                            <td><?= $authnet->refund[$b]['name']; ?></td>
+                                                            <th scope="row">
+															<?= '-' . $currencies->format($authnet->refund[$b]['amount']); ?></td>
+                                                            <td><?= $authnet->full_type($authnet->refund[$b]['type']); ?></td>
+                                                            <td><?= zen_datetime_short($authnet->refund[$b]['posted']); ?></td>
+                                                            <td></td>
+                                                            <td><?= $authnet->refund[$b]['approval_code']; ?></td>
+                                                            <td></td>
+                                                        </tr>
+														<?php
+													}  // END if ($authnet->refund[$b]['payment'] == $authnet->payment[$a]['index'])
+												}  // END for($b = 0; $b < sizeof($authnet->refund); $b++)
+											}  // END if ($authnet->refund)
+										}  // END for($a = 0; $a < sizeof($payment); $a++)
 									}
 
 								?>
                                 <tfoot>
-                                <tr >
+                                <tr>
                                     <td colspan="4" class="ot-shipping-Text">Amount
                                         Applied: <?= $currencies->format($authnet->amount_applied); ?> Amount
                                         Due: <?= $currencies->format($authnet->balance_due); ?>
