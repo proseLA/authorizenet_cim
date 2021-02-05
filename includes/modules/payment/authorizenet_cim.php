@@ -1219,6 +1219,15 @@
         
             return $response;
         }
+        
+        function expireTransaction($payment, $ordersId)
+		{
+			$this->insertRefund($payment['index'], $ordersId, $payment['number'],
+				$payment['name'],
+				$payment['number'], $payment['amount'], 'EXPIRED', 'expired');
+			$this->updatePaymentForRefund($ordersId, $payment['number'], $payment['amount']);
+			$this->updateOrderInfo($ordersId, MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID);
+		}
     
         function refundTransaction($ordersID, $refund, $refund_amount)
         {
@@ -1599,7 +1608,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
                 $this->deleteCustomerPaymentProfile($customerProfileID, $card['payment_profile_id']);
             }
             // i think i best to keep the profile in case one needs to do a refund on an existing transaction.
-            $this->deleteCustomerProfile($customerProfileID);
+            //$this->deleteCustomerProfile($customerProfileID);
         }
     
         function getCustomerCards($customerID, $all = false)

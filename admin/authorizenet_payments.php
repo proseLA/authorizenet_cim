@@ -237,6 +237,9 @@
 				} else {
 					$_SESSION['capture_error_status'] = true;
 					$messageStack->add_session(CAPTURE_BAD_STATUS, 'error');
+					if ($status == 'expired') {
+					    $authnet_cim->expireTransaction($authnet_order->payment[$index], $oID);
+					}
 					zen_redirect(zen_href_link(FILENAME_AUTHNET_PAYMENTS, 'oID=' . $oID . '&action=refund_capture_done',
 						'SSL'));
 				}
