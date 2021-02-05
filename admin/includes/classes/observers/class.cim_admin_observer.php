@@ -66,7 +66,7 @@
 												}
 
 
-												if ($key === false && (string)$key != '0') {
+												if ($key === false && (string)$key != '0' && ($authnet->payment)) {
 													$cc_index = $authnet->getCustCardIndex($authnet->payment[$last_index]['payment_profile_id'],
 														true);
 													$key = array_search($cc_index, array_column($cards, 'id'));
@@ -107,6 +107,7 @@
                                 </thead>
                                 <tbody>
 								<?php
+									if ($authnet->payment) {
 									for ($a = 0; $a < sizeof($authnet->payment); $a++) {
 										?>
                                         <tr class="bg-success">
@@ -121,7 +122,7 @@
                                             <td><?php
 													$date = new DateTime($authnet->payment[$a]['posted']);
 													$now = new DateTime();
-													((($authnet->payment[$a]['amount'] > $authnet->payment[$a]['refund_amount']) && $date->diff($now)->format("%d") < 120) ? $authnet->button_refund('payment',
+													((($authnet->payment[$a]['amount'] > $authnet->payment[$a]['refund_amount']) && (abs($date->diff($now)->format("%R%a")) < 120)) ? $authnet->button_refund('payment',
 														$authnet->payment[$a]['index']) : "");
 													($authnet->payment[$a]['status'] == 'A' && ($authnet->payment[$a]['amount'] - $authnet->payment[$a]['refund_amount']) > 0) ? $authnet->button_capture($authnet->payment[$a]['index']) : "";
 
@@ -149,6 +150,7 @@
 											}  // END for($b = 0; $b < sizeof($authnet->refund); $b++)
 										}  // END if ($authnet->refund)
 									}  // END for($a = 0; $a < sizeof($payment); $a++)
+									}
 
 								?>
                                 <tfoot>
@@ -187,8 +189,9 @@
 
 					$cards = $authnet_cim->getCustomerCards($p1->customers_id, true);
 
+					$valid_profile = $authnet_cim->getCustomerProfile($p1->customers_id);
 					// only show button if customer has cards on file
-					if (!empty($cards->count()) || $cards->count() > 0) {
+					if (($valid_profile) && (!empty($cards->count()) || $cards->count() > 0)) {
 						$p2[] = array(
 							'align' => 'text-center',
 							'text' => '<a href="javascript:cimpopupWindow(\'' . zen_href_link(FILENAME_AUTHNET_PAYMENTS,

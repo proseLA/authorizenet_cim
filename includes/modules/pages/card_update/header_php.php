@@ -34,7 +34,7 @@
 	$user = $cim->getCustomer();
 
 	if ($userProfile == false) {
-		$messageStack->add_session(FILENAME_ACCOUNT, 'Sorry, you have no credit cards on file', 'error');
+		$messageStack->add_session(FILENAME_ACCOUNT, 'Sorry, you have no credit cards on file.', 'error');
 		zen_redirect(zen_href_link(FILENAME_ACCOUNT, '', 'SSL'));
 	}
 

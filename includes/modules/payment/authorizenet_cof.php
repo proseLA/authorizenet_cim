@@ -102,7 +102,8 @@ class authorizenet_cof extends authorizenet_cim
 	    	if ($cards_on_file->fields['exp_date'] >= $cc_test) {
 			    $cards[] = array(
 				    'id' => $cards_on_file->fields['index_id'],
-				    'text' => 'Card ending in ' . $cards_on_file->fields['last_four']
+				    'text' => 'Card ending in ' . $cards_on_file->fields['last_four'],
+				    'payment_profile_id' => $cards_on_file->fields['payment_profile_id'],
 			    );
 		    }
 		    $cards_on_file->MoveNext();

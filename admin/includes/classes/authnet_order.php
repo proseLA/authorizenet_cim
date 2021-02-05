@@ -31,11 +31,10 @@
 			$this->start();
 		}
 
-		function start()
+		private function start()
 		{
 			global $db;
 
-			// scrape some useful info from the record in the orders table
 			$order_query = $db->Execute("select * from " . TABLE_ORDERS . " where orders_id = '" . $this->oID . "'");
 			if ($order_query->EOF) {
 				return;
