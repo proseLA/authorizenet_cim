@@ -509,32 +509,35 @@
 			}
 		}
 
-		function getCustomerPaymentProfile($customer_id, $last_four, $index_id = 0)
-		{
-			global $db;
+        function getCustomerPaymentProfile($customer_id, $last_four, $index_id = 0)
+        {
+            global $db;
 
-			if ($index_id == 0) {
-				$sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . "
-            WHERE customers_id = :custId and last_four = :last4 order by index_id desc limit 1";
-				$sql = $db->bindVars($sql, ':last4', $last_four, 'string');
-			} else {
-				$sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . "
-            WHERE customers_id = :custId and index_id = :index order by index_id desc limit 1";
-				$sql = $db->bindVars($sql, ':index', $index_id, 'integer');
-			}
-			$sql = $db->bindVars($sql, ':custId', $customer_id, 'string');
+            $select = ' ';
+            if ($index_id != 0) {
+                $select = ' and index_id = :index ';
+            } elseif (!empty($last_four)) {
+                $select = ' and last_four = :last4 ';
+            }
 
-			$check_customer_cc = $db->Execute($sql);
+            $sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . "
+            WHERE customers_id = :custId " . $select . " order by index_id desc limit 1";
 
-			if (!$check_customer_cc->EOF && $check_customer_cc->fields['payment_profile_id'] != 0) {
-				$paymentProfileId = $check_customer_cc->fields['payment_profile_id'];
-				$exp_date = $check_customer_cc->fields['exp_date'];
-			} else {
-				$paymentProfileId = false;
-				$exp_date = false;
-			}
-			return ['profile' => $paymentProfileId, 'exp_date' => $exp_date];
-		}
+            $sql = $db->bindVars($sql, ':last4', $last_four, 'string');
+            $sql = $db->bindVars($sql, ':index', $index_id, 'integer');
+            $sql = $db->bindVars($sql, ':custId', $customer_id, 'string');
+
+            $check_customer_cc = $db->Execute($sql);
+
+            if (!$check_customer_cc->EOF && $check_customer_cc->fields['payment_profile_id'] != 0) {
+                $paymentProfileId = $check_customer_cc->fields['payment_profile_id'];
+                $exp_date = $check_customer_cc->fields['exp_date'];
+            } else {
+                $paymentProfileId = false;
+                $exp_date = false;
+            }
+            return ['profile' => $paymentProfileId, 'exp_date' => $exp_date];
+        }
 
 		function billtoAddress($response = null)
 		{
