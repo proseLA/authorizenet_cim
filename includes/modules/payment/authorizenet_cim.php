@@ -509,7 +509,7 @@
 			}
 		}
 
-        function getCustomerPaymentProfile($customer_id, $last_four, $index_id = 0)
+        function getCustomerPaymentProfile($customer_id, $last_four = '', $index_id = 0)
         {
             global $db;
 
