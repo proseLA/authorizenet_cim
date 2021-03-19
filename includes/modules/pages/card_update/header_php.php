@@ -75,8 +75,8 @@
 			$messageStack->add_session(FILENAME_ACCOUNT, 'You have successfully added a new Credit Card!', 'success');
 			$cim->updateDefaultCustomerBillto($addressSelected);
 			zen_redirect(zen_href_link(FILENAME_ACCOUNT, '', 'SSL'));
-		} elseif ($new_cid->error) {
-			$messageStack->add_session(FILENAME_CARD_UPDATE, $new_cid, 'error');
+		} else {
+			$messageStack->add_session(FILENAME_CARD_UPDATE, 'There was a problem adding your card: ' . $new_cid, 'error');
 			zen_redirect(zen_href_link(FILENAME_CARD_UPDATE, '', 'SSL'));
 		}
 	}
