@@ -1622,7 +1622,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
 			//$this->deleteCustomerProfile($customerProfileID);
 		}
 
-		function getCustomerCards($customerID, $all = false)
+		function getCustomerCardList($customerID, $all = false)
 		{
 			global $db;
 			$sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . " WHERE customers_id = :custID AND payment_profile_id <> 0";
@@ -1634,6 +1634,26 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
 
 			return $customer_cards;
 		}
+
+      function getCustomerCards($customerID, $all = false)
+      {
+   	    $cards_on_file =  parent::getCustomerCardList($customerID, $all);
+   	    $today = getdate();
+   	    $cc_test = $today['year'] . '-' . str_pad($today['mon'], 2, 0, STR_PAD_LEFT);
+   	    $cards = [];
+   
+   	    while (!$cards_on_file->EOF) {
+   	    	if ($all || $cards_on_file->fields['exp_date'] >= $cc_test) {
+   			    $cards[] = array(
+   				    'id' => $cards_on_file->fields['index_id'],
+   				    'text' => 'Card ending in ' . $cards_on_file->fields['last_four'],
+   				    'payment_profile_id' => $cards_on_file->fields['payment_profile_id'],
+   			    );
+   		    }
+   		    $cards_on_file->MoveNext();
+   	    }
+   	    return $cards;
+      }
 
 		function checkValidPaymentProfile($customerID, $cc_index)
 		{

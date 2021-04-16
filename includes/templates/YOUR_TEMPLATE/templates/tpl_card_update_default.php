@@ -142,7 +142,7 @@
 					}
 				}
 				//if (strlen($cc_options) == 0) {
-				if ($cards_saved->EOF) {
+				if (!empty($cards_saved)) {
 					?>
                     <h3>You have no Credit Cards On File</h3>
 					<?php
@@ -151,8 +151,7 @@
                     <div id='payment_choices'>
 					<?php
 					// echo zen_draw_form('card_update', zen_href_link(FILENAME_CARD_UPDATE, '', 'SSL'), 'post');
-					while (!$cards_saved->EOF) {
-						$card = $cards_saved->fields;
+               foreach ($cards_saved as $card) { 
 						?>
                         <div class='payment_select zebra'>
                             Credit Card ending in <span class='last_four'><?= $card['last_four']; ?></span>
@@ -181,7 +180,6 @@
 							?>
                         </div>
 						<?php
-						$cards_saved->MoveNext();
 					}
 				}
 				?>
