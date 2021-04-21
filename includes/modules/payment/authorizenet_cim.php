@@ -7,7 +7,7 @@
 		released under GPU
 		https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
 
-	   01/2021  project: authorizenet_cim; file: authorizenet_cim.php; version 2.2.3
+	   04/2021  project: authorizenet_cim; file: authorizenet_cim.php; version 2.3.0
 	*/
 
 	if (!file_exists($sdk_loader = DIR_FS_CATALOG . 'includes/modules/payment/authorizenet/authorizenet-sdk/autoload.php')) {
@@ -24,7 +24,7 @@
 
 		var $code, $title, $description, $enabled, $authorize = '';
 
-		var $version = '2.2.3';
+		var $version = '2.3.0';
 		var $params = [];
 		var $success = false;
 		var $error = true;
@@ -303,7 +303,13 @@
 		 */
 		function before_process()
 		{
-			global $order, $customerID;
+			global $order, $customerID, $zco_notifier;
+
+			$early_return = false;
+			$zco_notifier->notify('NOTIFY_AUTHNET_CIM_BEFORE_PROCESS', '', $early_return);
+			if ($early_return) {
+				return;
+			}
 
 			$order->info['cc_number'] = str_pad(substr($_POST['cc_number'], -4), CC_NUMBER_MIN_LENGTH, "X",
 				STR_PAD_LEFT);
@@ -374,7 +380,7 @@
 		{
 			return [
 				'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_ERROR,
-				'error' => stripslashes(urldecode($_GET['error']))
+				'error' => ($this->errorMessages[0] ?? 'Some undefined credit card Error!'),
 			];
 		}
 
@@ -488,6 +494,7 @@
 				$return_error = true;
 				foreach ($this->errorMessages as $error) {
 					if (!defined('IS_ADMIN_FLAG') || IS_ADMIN_FLAG !== true) {
+						$messageStack->add_session(FILENAME_SHOPPING_CART, $type . ': ' . $error, 'error');
 						$messageStack->add_session(FILENAME_CHECKOUT_PAYMENT, $type . ': ' . $error, 'error');
 					} else {
 						$messageStack->add_session($type . ': ' . $error, 'error');
@@ -509,35 +516,35 @@
 			}
 		}
 
-        function getCustomerPaymentProfile($customer_id, $last_four = '', $index_id = 0)
-        {
-            global $db;
+		function getCustomerPaymentProfile($customer_id, $last_four = '', $index_id = 0)
+		{
+			global $db;
 
-            $select = ' ';
-            if ($index_id != 0) {
-                $select = ' and index_id = :index ';
-            } elseif (!empty($last_four)) {
-                $select = ' and last_four = :last4 ';
-            }
+			$select = ' ';
+			if ($index_id != 0) {
+				$select = ' and index_id = :index ';
+			} elseif (!empty($last_four)) {
+				$select = ' and last_four = :last4 ';
+			}
 
-            $sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . "
+			$sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . "
             WHERE customers_id = :custId " . $select . " order by index_id desc limit 1";
 
-            $sql = $db->bindVars($sql, ':last4', $last_four, 'string');
-            $sql = $db->bindVars($sql, ':index', $index_id, 'integer');
-            $sql = $db->bindVars($sql, ':custId', $customer_id, 'string');
+			$sql = $db->bindVars($sql, ':last4', $last_four, 'string');
+			$sql = $db->bindVars($sql, ':index', $index_id, 'integer');
+			$sql = $db->bindVars($sql, ':custId', $customer_id, 'string');
 
-            $check_customer_cc = $db->Execute($sql);
+			$check_customer_cc = $db->Execute($sql);
 
-            if (!$check_customer_cc->EOF && $check_customer_cc->fields['payment_profile_id'] != 0) {
-                $paymentProfileId = $check_customer_cc->fields['payment_profile_id'];
-                $exp_date = $check_customer_cc->fields['exp_date'];
-            } else {
-                $paymentProfileId = false;
-                $exp_date = false;
-            }
-            return ['profile' => $paymentProfileId, 'exp_date' => $exp_date];
-        }
+			if (!$check_customer_cc->EOF && $check_customer_cc->fields['payment_profile_id'] != 0) {
+				$paymentProfileId = $check_customer_cc->fields['payment_profile_id'];
+				$exp_date = $check_customer_cc->fields['exp_date'];
+			} else {
+				$paymentProfileId = false;
+				$exp_date = false;
+			}
+			return ['profile' => $paymentProfileId, 'exp_date' => $exp_date];
+		}
 
 		function billtoAddress($response = null)
 		{
@@ -592,7 +599,8 @@
 				if (empty($_POST['zone_id'])) {
 					$return['state'] = $_POST['state'];
 				} else {
-					$return['state'] = zen_get_zone_name($_POST['zone_country_id'], $_POST['zone_id'], $_POST['state']);
+					$return['state'] = zen_get_zone_name($_POST['zone_country_id'], $_POST['zone_id'],
+						($_POST['state'] ?? ''));
 				}
 				$return['postcode'] = $_POST['postcode'];
 				$return['country']['title'] = zen_get_country_name($_POST['zone_country_id']);
@@ -1633,6 +1641,29 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
 			$customer_cards = $db->Execute($sql);
 
 			return $customer_cards;
+		}
+
+		function getCustomerCardsAsArray($customerID, $all = false)
+		{
+			$cards_on_file = $this->getCustomerCards($customerID, $all);
+			$today = getdate();
+			$cc_test = $today['year'] . '-' . str_pad($today['mon'], 2, 0, STR_PAD_LEFT);
+			$cards = [];
+
+			while (!$cards_on_file->EOF) {
+				if ($cards_on_file->fields['exp_date'] >= $cc_test) {
+					$cards[] = [
+						'id' => $cards_on_file->fields['index_id'],
+						'text' => 'Card ending in ' . $cards_on_file->fields['last_four'],
+						'payment_profile_id' => $cards_on_file->fields['payment_profile_id'],
+						'exp_date' => $cards_on_file->fields['exp_date'],
+						'last_four' => $cards_on_file->fields['last_four'],
+						'enabled' => $cards_on_file->fields['enabled'],
+					];
+				}
+				$cards_on_file->MoveNext();
+			}
+			return $cards;
 		}
 
 		function checkValidPaymentProfile($customerID, $cc_index)

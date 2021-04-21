@@ -7,7 +7,7 @@
 		released under GPU
 		https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
 
-	   04/2020  project: authorizenet_cim; file: class.cim_admin_observer.php; version 2.2.1
+	   04/2021  project: authorizenet_cim; file: class.cim_admin_observer.php; version 2.3.0
 	*/
 
 	if (!defined('IS_ADMIN_FLAG') || IS_ADMIN_FLAG !== true) {
@@ -18,11 +18,11 @@
 	{
 		public function __construct()
 		{
-			$this->attach($this, array(
+			$this->attach($this, [
 				'NOTIFY_ADMIN_ORDERS_PAYMENTDATA_COLUMN2',
 				'NOTIFY_ADMIN_CUSTOMERS_MENU_BUTTONS',
 				'NOTIFY_ADMIN_FOOTER_END',
-			));
+			]);
 		}
 
 		public function update(&$class, $eventID, &$p1, &$p2, &$p3, &$p4)
@@ -38,7 +38,7 @@
 					$cof = new authorizenet_cof();
 
 					$authnet = new authnet_order($p1);
-					if ($authnet->payment) {
+					if ($authnet->payment || $authnet->balance_due > 0) {
 						?>
                         <div class="panel panel-default " style="width: 60%">
                             <table class="table table-hover table-bordered">
@@ -46,17 +46,21 @@
                                 <tr>
                                     <th colspan="2"><?= TEXT_CIM_DATA ?></th>
 									<?php
-										$last_index = sizeof($authnet->payment) - 1;
-										if (in_array(MODULE_PAYMENT_AUTHORIZENET_CIM_ALLOW_MORE, array(
+										if ($authnet->payment) {
+											$last_index = sizeof($authnet->payment) - 1;
+										} else {
+											$last_index = 0;
+										}
+										if (in_array(MODULE_PAYMENT_AUTHORIZENET_CIM_ALLOW_MORE, [
 												'True',
 												'TRUE',
 												'true'
-											)) && $authnet->balance_due > 0 && !empty($authnet->payment[$last_index]['payment_profile_id']) && +$authnet->payment[$last_index]['payment_profile_id'] !== 0 && $authnet->status != 199) {
+											]) && $authnet->balance_due > 0 && $authnet->status != $this->cancelled_status()) {
 											?>
-                                            <th colspan="2"><?= $authnet->button_new_funds($authnet->payment[$last_index]['index']) ?></th>
+                                            <th colspan="2"><?= $authnet->button_new_funds($authnet->payment[$last_index]['index'] ?? '') ?></th>
 
 											<?php
-											$cards = $cof->getCustomerCards($authnet->cID, true);
+											$cards = $cof->getCustomerCardsAsArray($authnet->cID, true);
 											$key = false;
 
 											if (count($cards) > 1) {
@@ -73,14 +77,16 @@
 												}
 
 												if (!$key && (string)$key != '0') {
-													$cards[] = array('id' => '0', 'text' => 'Card not in file');
+													$cards[] = ['id' => '0', 'text' => 'Card not in file'];
 													$cc_index = 0;
 												}
 												?>
                                                 <th colspan="2">
 
 													<?php
-														echo zen_draw_form('selection', FILENAME_ORDERS,  zen_get_all_get_params(), 'post', 'class="form-horizontal"');
+														echo zen_draw_form('selection', FILENAME_ORDERS,
+															zen_get_all_get_params(), 'post',
+															'class="form-horizontal"');
 														echo zen_draw_label(LAST_CARD, 'ccindex',
 															'class="control-label" style="margin-right: 15px;"');
 														echo zen_draw_pull_down_menu('ccindex', $cards, $cc_index,
@@ -108,53 +114,53 @@
                                 <tbody>
 								<?php
 									if ($authnet->payment) {
-									for ($a = 0; $a < sizeof($authnet->payment); $a++) {
-										?>
-                                        <tr class="bg-success">
-                                            <th scope="row"><?= $authnet->payment[$a]['number']; ?></th>
-                                            <td><?= $authnet->payment[$a]['name']; ?></td>
-                                            <th scope="row">
-											<?= $currencies->format($authnet->payment[$a]['amount']); ?></td>
-                                            <td><?= $authnet->full_type($authnet->payment[$a]['type']); ?></td>
-                                            <td><?= zen_datetime_short($authnet->payment[$a]['posted']); ?></td>
-                                            <td><?= zen_datetime_short($authnet->payment[$a]['captured']); ?></td>
-                                            <td><?= $authnet->payment[$a]['approval_code']; ?></td>
-                                            <td><?php
-													$date = new DateTime($authnet->payment[$a]['posted']);
-													$now = new DateTime();
-													((($authnet->payment[$a]['amount'] > $authnet->payment[$a]['refund_amount']) && (abs($date->diff($now)->format("%R%a")) < 120)) ? $authnet->button_refund('payment',
-														$authnet->payment[$a]['index']) : "");
-													($authnet->payment[$a]['status'] == 'A' && ($authnet->payment[$a]['amount'] - $authnet->payment[$a]['refund_amount']) > 0) ? $authnet->button_capture($authnet->payment[$a]['index']) : "";
+										for ($a = 0; $a < sizeof($authnet->payment); $a++) {
+											?>
+                                            <tr class="bg-success">
+                                                <th scope="row"><?= $authnet->payment[$a]['number']; ?></th>
+                                                <td><?= $authnet->payment[$a]['name']; ?></td>
+                                                <th scope="row">
+												<?= $currencies->format($authnet->payment[$a]['amount']); ?></td>
+                                                <td><?= $authnet->full_type($authnet->payment[$a]['type']); ?></td>
+                                                <td><?= zen_datetime_short($authnet->payment[$a]['posted']); ?></td>
+                                                <td><?= zen_datetime_short($authnet->payment[$a]['captured']); ?></td>
+                                                <td><?= $authnet->payment[$a]['approval_code']; ?></td>
+                                                <td><?php
+														$date = new DateTime($authnet->payment[$a]['posted']);
+														$now = new DateTime();
+														((($authnet->payment[$a]['amount'] > $authnet->payment[$a]['refund_amount']) && (abs($date->diff($now)->format("%R%a")) < 120)) ? $authnet->button_refund('payment',
+															$authnet->payment[$a]['index']) : "");
+														($authnet->payment[$a]['status'] == 'A' && ($authnet->payment[$a]['amount'] - $authnet->payment[$a]['refund_amount']) > 0) ? $authnet->button_capture($authnet->payment[$a]['index']) : "";
 
-												?></td>
-                                        </tr>
-										<?php
-										if ($authnet->refund) {
-											for ($b = 0; $b < sizeof($authnet->refund); $b++) {
-												if ($authnet->refund[$b]['payment'] == $authnet->payment[$a]['index']) {
-													?>
-                                                    <tr class="refundRow bg-danger">
-                                                        <th scope="row">
-														<?= $authnet->refund[$b]['number']; ?></td>
-                                                        <td><?= $authnet->refund[$b]['name']; ?></td>
-                                                        <th scope="row">
-														<?= '-' . $currencies->format($authnet->refund[$b]['amount']); ?></td>
-                                                        <td><?= $authnet->full_type($authnet->refund[$b]['type']); ?></td>
-                                                        <td><?= zen_datetime_short($authnet->refund[$b]['posted']); ?></td>
-                                                        <td></td>
-                                                        <td><?= $authnet->refund[$b]['approval_code']; ?></td>
-                                                        <td></td>
-                                                    </tr>
-													<?php
-												}  // END if ($authnet->refund[$b]['payment'] == $authnet->payment[$a]['index'])
-											}  // END for($b = 0; $b < sizeof($authnet->refund); $b++)
-										}  // END if ($authnet->refund)
-									}  // END for($a = 0; $a < sizeof($payment); $a++)
+													?></td>
+                                            </tr>
+											<?php
+											if ($authnet->refund) {
+												for ($b = 0; $b < sizeof($authnet->refund); $b++) {
+													if ($authnet->refund[$b]['payment'] == $authnet->payment[$a]['index']) {
+														?>
+                                                        <tr class="refundRow bg-danger">
+                                                            <th scope="row">
+															<?= $authnet->refund[$b]['number']; ?></td>
+                                                            <td><?= $authnet->refund[$b]['name']; ?></td>
+                                                            <th scope="row">
+															<?= '-' . $currencies->format($authnet->refund[$b]['amount']); ?></td>
+                                                            <td><?= $authnet->full_type($authnet->refund[$b]['type']); ?></td>
+                                                            <td><?= zen_datetime_short($authnet->refund[$b]['posted']); ?></td>
+                                                            <td></td>
+                                                            <td><?= $authnet->refund[$b]['approval_code']; ?></td>
+                                                            <td></td>
+                                                        </tr>
+														<?php
+													}  // END if ($authnet->refund[$b]['payment'] == $authnet->payment[$a]['index'])
+												}  // END for($b = 0; $b < sizeof($authnet->refund); $b++)
+											}  // END if ($authnet->refund)
+										}  // END for($a = 0; $a < sizeof($payment); $a++)
 									}
 
 								?>
                                 <tfoot>
-                                <tr >
+                                <tr>
                                     <td colspan="4" class="ot-shipping-Text">Amount
                                         Applied: <?= $currencies->format($authnet->amount_applied); ?> Amount
                                         Due: <?= $currencies->format($authnet->balance_due); ?>
@@ -193,18 +199,29 @@
 
 					$valid_profile = $authnet_cim->getCustomerProfile($p1->customers_id);
 					// only show button if customer has cards on file
-					if (($valid_profile) && (!empty($cards->count()) || $cards->count() > 0)) {
-						$p2[] = array(
+					if (($valid_profile) && (!empty($cards))) {
+						$p2[] = [
 							'align' => 'text-center',
 							'text' => '<a href="javascript:cimpopupWindow(\'' . zen_href_link(FILENAME_AUTHNET_PAYMENTS,
 									'cID=' . $p1->customers_id . '&action=clearCards',
 									'NONSSL') . '\', \'scrollbars=yes,resizable=yes,width=100,height=1000,screenX=150,screenY=100,top=100,left=150\')"' .
 								'class="btn btn-danger" role="button" id="cards_btn" class="btn btn-danger btn-margin">' . BUTTON_DELETE_CARDS . '</a>'
-						);
+						];
 					}
 					break;
 				default:
 					break;
+			}
+		}
+
+		private function cancelled_status()
+		{
+			global $db;
+			$status = $db->Execute('SELECT orders_status_id FROM ' . TABLE_ORDERS_STATUS . ' WHERE orders_status_name LIKE "%Cancelled%" LIMIT 1');
+			if ($status->EOF) {
+				return ' ';
+			} else {
+				return $status->fields['orders_status_id'];
 			}
 		}
 	}

@@ -7,7 +7,7 @@
 		released under GPU
 		https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
 
-	   01/2021  project: authorizenet_cim; file: tpl_card_update_default.php; version 2.2.3
+	   04/2021  project: authorizenet_cim; file: tpl_card_update_default.php; version 2.3.0
 	*/
 	$def_month = '04';
 	$def_year = (int)date('y') + 2;
@@ -142,7 +142,7 @@
 					}
 				}
 				//if (strlen($cc_options) == 0) {
-				if ($cards_saved->EOF) {
+				if (empty($cards_saved)) {
 					?>
                     <h3>You have no Credit Cards On File</h3>
 					<?php
@@ -151,8 +151,7 @@
                     <div id='payment_choices'>
 					<?php
 					// echo zen_draw_form('card_update', zen_href_link(FILENAME_CARD_UPDATE, '', 'SSL'), 'post');
-					while (!$cards_saved->EOF) {
-						$card = $cards_saved->fields;
+					foreach ($cards_saved as $card) {
 						?>
                         <div class='payment_select zebra'>
                             Credit Card ending in <span class='last_four'><?= $card['last_four']; ?></span>
@@ -161,13 +160,13 @@
 		  <?= $card['exp_date']; ?>
 		</span>
                             <span class='pay_buttons'>
-		  <?= '<a href="' . zen_href_link(FILENAME_CARD_UPDATE, 'cid=' . $card['index_id'] . '&action=update',
+		  <?= '<a href="' . zen_href_link(FILENAME_CARD_UPDATE, 'cid=' . $card['id'] . '&action=update',
 			  'SSL') . '"> '; ?>
-		  <button class="a-button-text btn btn-primary">Edit</button>
+		  <button class="a-button-text btn btn-primary button">Edit</button>
                                 </a>
-		  <?= '<a href="' . zen_href_link(FILENAME_CARD_UPDATE, 'cid=' . $card['index_id'] . '&action=delete',
+		  <?= '<a href="' . zen_href_link(FILENAME_CARD_UPDATE, 'cid=' . $card['id'] . '&action=delete',
 			  'SSL') . '"> '; ?>
-		  <button class="a-button-text btn btn-primary">Delete</button>
+		  <button class="a-button-text btn btn-primary button">Delete</button>
                                 </a>
 		</span>
 							<?php
@@ -181,7 +180,6 @@
 							?>
                         </div>
 						<?php
-						$cards_saved->MoveNext();
 					}
 				}
 				?>
@@ -189,7 +187,7 @@
                     Enter a new Credit Card:
                     <span class='pay_buttons'>
 		<?= '<a href="' . zen_href_link(FILENAME_CARD_UPDATE, 'action=new', 'SSL') . '"> '; ?>
-                        <button class="a-button-text btn btn-primary">Enter</button>
+                        <button class="a-button-text btn btn-primary button">Enter</button>
                         </a>
 	  </span>
                 </div>

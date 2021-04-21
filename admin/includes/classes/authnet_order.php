@@ -7,7 +7,7 @@
 		released under GPU
 		https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
 
-	   04/2020  project: authorizenet_cim; file: authnet_order.php; version 2.2.1
+	   04/2021  project: authorizenet_cim; file: authnet_order.php; version 2.3.0
 	*/
 
 	class authnet_order
@@ -18,10 +18,10 @@
 		// instantiates the class and gathers existing data
 		function __construct($orders_id)
 		{
-			$this->payment = array();
-			$this->refund = array();
-			$this->payment_key = array();
-			$this->payment_key_array = array();
+			$this->payment = [];
+			$this->refund = [];
+			$this->payment_key = [];
+			$this->payment_key_array = [];
 
 			$this->oID = (int)$orders_id;   // now you have the order_id whenever you need it
 
@@ -33,7 +33,7 @@
 
 		private function start()
 		{
-			global $db;
+			global $db, $zco_notifier;
 
 			$order_query = $db->Execute("select * from " . TABLE_ORDERS . " where orders_id = '" . $this->oID . "'");
 			if ($order_query->EOF) {
@@ -52,10 +52,10 @@
 				$this->payment_key_array[$payment_key_query->fields['payment_type_code']] = $payment_key_query->fields['payment_type_full'];
 
 				// and this one can be used to build dropdown menus
-				$this->payment_key[] = array(
+				$this->payment_key[] = [
 					'id' => $payment_key_query->fields['payment_type_code'],
 					'text' => $payment_key_query->fields['payment_type_full']
-				);
+				];
 				$payment_key_query->MoveNext();
 			}
 
@@ -66,7 +66,7 @@
 
 			if (!$payments_query->EOF) {
 				while (!$payments_query->EOF) {
-					$this->payment[] = array(
+					$this->payment[] = [
 						'index' => $payments_query->fields['payment_id'],
 						'number' => $payments_query->fields['transaction_id'],
 						'name' => $payments_query->fields['payment_name'],
@@ -78,12 +78,9 @@
 						'approval_code' => $payments_query->fields['approval_code'],
 						'status' => $payments_query->fields['status'],
 						'payment_profile_id' => $payments_query->fields['payment_profile_id'],
-					);
+					];
 					$payments_query->MoveNext();
 				}
-			} else {
-				unset($this->payment);
-				$this->payment = false;
 			}
 
 			// get any refunds
@@ -94,7 +91,7 @@
 
 				if (!$refunds_query->EOF) {
 					while (!$refunds_query->EOF) {
-						$this->refund[] = array(
+						$this->refund[] = [
 							'index' => $refunds_query->fields['refund_id'],
 							'payment' => $refunds_query->fields['payment_id'],
 							'number' => $refunds_query->fields['transaction_id'],
@@ -104,14 +101,13 @@
 							'payment_number' => $refunds_query->fields['payment_trans_id'],
 							'posted' => $refunds_query->fields['date_posted'],
 							'approval_code' => $refunds_query->fields['approval_code']
-						);
+						];
 						$refunds_query->MoveNext();
 					}
-				} else {
-					unset($this->refund);
-					$this->refund = false;
 				}
 			}
+
+			$zco_notifier->notify('NOTIFY_ADMIN_AUTHNET_PAYMENTS', '', $this);
 
 			// calculate and store the order total, amount applied, & balance due for the order
 			// add individual payments if they exists
@@ -131,7 +127,7 @@
 			// subtract from the order total to get the balance due
 			$this->balance_due = $this->num_2_dec($this->order_total - $this->amount_applied);
 
-		}   // END function start
+		}
 
 		function num_2_dec($number)
 		{
@@ -142,7 +138,6 @@
 		{
 			echo '&nbsp;<a href="javascript:cimpopupWindow(\'' .
 				zen_href_link(FILENAME_AUTHNET_PAYMENTS,
-//                'oID=' . $this->oID . '&payment_mode=' . $payment_mode . '&index=' . $index . '&action=refund',
 					'oID=' . $this->oID . '&payment_mode=' . $payment_mode . '&action=refund' . '&index=' . $index,
 					'NONSSL') . '\', \'scrollbars=yes,resizable=yes,width=100,height=1000,screenX=150,screenY=100,top=100,left=150\')"' .
 				'class="btn btn-danger btn-sm" role="button" >' . BUTTON_REFUND . '</a>';
@@ -186,7 +181,6 @@
 			}
 			$last_index = sizeof($this->payment) - 1;
 			for ($i = $last_index; $i > -1; $i--) {
-				//echo '***>' . $i . '<---->' . $this->payment[$i]['index'] . "<-----\N";
 				if ($index == $this->payment[$i]['index']) {
 					$return = $i;
 					break;
