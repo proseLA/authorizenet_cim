@@ -1040,7 +1040,10 @@
 			$profileToCharge->setPaymentProfile($paymentProfile);
 
 			$transactionRequestType = new AnetAPI\TransactionRequestType();
-			if (MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE == 'Authorize') {
+			$authType = MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE ?? 'Authorize';
+			$this->notify('NOTIFIER_CIM_OVERRIDE_CHARGE_TYPE', $authType, $authType);
+
+			if ($authType == 'Authorize') {
 				$transactionRequestType->setTransactionType("authOnlyTransaction");
 			} else {
 				$transactionRequestType->setTransactionType("authCaptureTransaction");
