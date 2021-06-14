@@ -1513,13 +1513,15 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
 			if ($this->authorizationType == 'Authorize') {
 				$status = 'A';
 				$mod_date = null;
+				$bindType = 'date';
 			} else {
 				$status = 'C';
 				$mod_date = 'now()';
+				$bindType = 'noquotestring';
 			}
 
 			$sql = $db->bindVars($sql, ':transID', $transID, 'string');
-			$sql = $db->bindVars($sql, ':mod', $mod_date, 'date');
+			$sql = $db->bindVars($sql, ':mod', $mod_date, $bindType);
 			$sql = $db->bindVars($sql, ':nameFull', $name, 'string');
 			$sql = $db->bindVars($sql, ':amount', $total, 'noquotestring');
 			$sql = $db->bindVars($sql, ':type', $type, 'string');
