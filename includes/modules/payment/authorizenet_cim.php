@@ -36,6 +36,7 @@
 		var $customerPaymentProfileId;
 		var $approvalCode;
 		var $transID;
+		var $authorizationType = 'Authorize';
 
 		var $errorMessages = [];
 
@@ -1040,14 +1041,16 @@
 			$profileToCharge->setPaymentProfile($paymentProfile);
 
 			$transactionRequestType = new AnetAPI\TransactionRequestType();
-			$authType = MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE ?? 'Authorize';
-			$this->notify('NOTIFIER_CIM_OVERRIDE_CHARGE_TYPE', $authType, $authType);
 
-			if ($authType == 'Authorize') {
+			$this->authorizationType = MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE ?? 'Authorize';
+			$this->notify('NOTIFIER_CIM_OVERRIDE_CHARGE_TYPE', $this->authorizationType, $this->authorizationType);
+
+			if ($this->authorizationType == 'Authorize') {
 				$transactionRequestType->setTransactionType("authOnlyTransaction");
 			} else {
 				$transactionRequestType->setTransactionType("authCaptureTransaction");
 			}
+
 			if (!$new_auth) {
 				$charge_amount = (number_format($order->info['total'], 2, '.', ''));
 				$invoice_number = $this->nextOrderNumber($order->info);
@@ -1507,7 +1510,7 @@
 			$sql = "insert into " . TABLE_CIM_PAYMENTS . " ( payment_name, payment_amount, payment_type, date_posted, last_modified,  transaction_id, payment_profile_id, approval_code, customers_id, status, orders_id)
 VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :approval_code, :custID, :status, :ordersID)";
 
-			if (MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE == 'Authorize') {
+			if ($this->authorizationType == 'Authorize') {
 				$status = 'A';
 				$mod_date = null;
 			} else {
@@ -1593,6 +1596,10 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
 		{
 			global $db;
 
+			$comments = 'Credit Card payment.  AUTH: ' . $approval . '. TransID: ' . $transID . '.';
+
+			$this->notify('NOTIFIER_CIM_OVERRIDE_STATUS_UPDATE', $status, $status, $comments);
+
 			$sql = "update  " . TABLE_CIM_PAYMENTS . " set orders_id = :insertID
             WHERE customers_id = :custId and transaction_id = :transID and orders_id = 0";
 			$sql = $db->bindVars($sql, ':custId', $customerID, 'integer');
@@ -1603,9 +1610,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
 			$this->updateOrderInfo($insertID, $status);
 
 			$sql = "insert into " . TABLE_ORDERS_STATUS_HISTORY . " (comments, orders_id, orders_status_id, date_added) values (:orderComments, :orderID, :orderStatus, now() )";
-			$sql = $db->bindVars($sql, ':orderComments',
-				'Credit Card payment.  AUTH: ' . $approval . '. TransID: ' . $transID . '.',
-				'string');
+			$sql = $db->bindVars($sql, ':orderComments', $comments, 'string');
 			$sql = $db->bindVars($sql, ':orderID', $insertID, 'integer');
 			$sql = $db->bindVars($sql, ':orderStatus', $status, 'integer');
 			$db->Execute($sql);
