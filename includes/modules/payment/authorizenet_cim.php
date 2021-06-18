@@ -486,6 +486,11 @@
 			}
 		}
 
+		private function resetErrorMessages()
+		{
+			$this->errorMessages = [];
+		}
+
 		function addErrorsMessageStack($type)
 		{
 			global $messageStack;
@@ -1022,6 +1027,7 @@
 
 		function adminCharge($profileid, $paymentprofileid, $new_auth)
 		{
+			$this->resetErrorMessages();
 			$this->chargeCustomerProfile($profileid, $paymentprofileid, $new_auth);
 			$error = $this->addErrorsMessageStack('Admin:');
 			return $error;
