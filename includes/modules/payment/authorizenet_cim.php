@@ -1617,11 +1617,19 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
 
 			$this->updateOrderInfo($insertID, $status);
 
-			$sql = "insert into " . TABLE_ORDERS_STATUS_HISTORY . " (comments, orders_id, orders_status_id, date_added) values (:orderComments, :orderID, :orderStatus, now() )";
+			$sql = "insert into " . TABLE_ORDERS_STATUS_HISTORY . " (comments, orders_id, orders_status_id, updated_by, date_added) values (:orderComments, :orderID, :orderStatus, :adminName now() )";
 			$sql = $db->bindVars($sql, ':orderComments', $comments, 'string');
 			$sql = $db->bindVars($sql, ':orderID', $insertID, 'integer');
 			$sql = $db->bindVars($sql, ':orderStatus', $status, 'integer');
+			$sql = $db->bindVars($sql, ':adminName', $this->cimUpdatedByAdminName(), 'string');
 			$db->Execute($sql);
+		}
+
+		function cimUpdatedByAdminName()
+		{
+			if (function_exists('zen_updated_by_admin')) {
+				return zen_updated_by_admin();
+			}
 		}
 
 		function updateOrderInfo($ordersID, $status)
