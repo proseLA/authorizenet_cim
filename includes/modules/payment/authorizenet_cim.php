@@ -1637,7 +1637,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
 			global $db;
 
 			$sql = "UPDATE " . TABLE_ORDERS . "
-        	SET orders_status = :stat
+        	SET orders_status = :stat, last_modified = now()
         	WHERE orders_id = :orderID ";
 			$sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
 			$sql = $db->bindVars($sql, ':stat', $status, 'integer');
