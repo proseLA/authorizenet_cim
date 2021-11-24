@@ -7,7 +7,7 @@
 		released under GPU
 		https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
 
-	   04/2021  project: authorizenet_cim; file: tpl_card_update_default.php; version 2.3.0
+	   04/2021  project: authorizenet_cim; file: tpl_card_update_default.php; version 2.3.1
 	*/
 	$def_month = '04';
 	$def_year = (int)date('y') + 2;

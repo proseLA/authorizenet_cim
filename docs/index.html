@@ -100,7 +100,8 @@
         </li>
         <li>If you need help with FTPing the files up to your server, or an FTP client, go to the zen-cart forum.</li>
         <li>Go to Admin -> Modules -> Payment and you will see 2 new payment modules</li>
-        <li><b>PLEASE PLEASE PLEASE,</b> even if you already have an authorize.net account, <a href="http://reseller.authorize.net/application/?resellerId=111066">create a new one using the link here.</a>  In this way, you can keep the transactions made using this NEW module separate from your old way of taking transactions.  In addition, creating an account here benefits me (allowing me to do additional development) and the zen-cart team.</li>
+        <li><b>PLEASE PLEASE PLEASE,</b> even if you already have an authorize.net account:<br><br> <h2><a href="http://reseller.authorize.net/application/?resellerId=111066">Create a new one using the link here</a></h2>  <li>In this way, you can keep the transactions made using this NEW module separate from your old way of taking transactions.  In addition, creating an account here benefits me, allowing me to do additional development.</li>
+        <li>For those of you who already have an authorize.net account and have no desire to create a new one, there is a <a href="#money"> contribution link to mxWorks at the bottom of this page.</a></li>
         <li>Enable authorizenet_cim, enter your API login ID and transaction key. Select Test mode or Production Mode.
             And you are off and running.
         </li>
@@ -150,8 +151,7 @@
     &lt;?php
     $zco_notifier->notify('NOTIFY_ADMIN_FOOTER_END');
     </pre>
-        <li>Refunds must be issued within 120 days of the transaction. This is inherent in the system from
-            authorize.net.
+        <li>Refunds must be issued within 120 days of the transaction. This is inherent in the system from authorize.net.
         </li>
         <li>I have tested this module for compatibility with OPC (One Page Checkout).  It works.</li>
         <li>There is no warranty, express and/or implied, that this module will work or is well suited for your
@@ -161,7 +161,15 @@
         </li>
         <li>Admins can delete all cards on file for any customer.  There is a button for it on the customer page.</li>
         <li>There is an option for customers to add, update, and delete credit cards from within their account.  Styling has been done to match responsive_classic and one would need to add a link to ->  index.php?main_page=card_update.  I am not the styling expert.</li>
-        <br />
+        <br>
+        <h2>Notes on Version 2.3.1</h2>
+        <li>Changes to work with mysql in strict mode.</li>
+        <li>Added notifier to override charge type.</li>
+        <li>More bug (squash!) fixes.</li>
+        <li>Reset message stack on admin, prior to doing a new admin charge.</li>
+        <li>Add admin user name to orders history table when updating a transaction.</li>
+        <li>Update order with last modified date.</li>
+        <br>
         <h2>Notes on Version 2.3.0</h2>
         <li>More miscellaneous bug fixes and code cleanup.</li>
         <li>Cancelled order status are now not hard coded.  If you have a cancelled status, more money buttons will not be included on the admin side.</li>
@@ -169,19 +177,19 @@
         <li>Refactor so that no methods with the same name do different things.</li>
         <li>Moved to short array syntax.</li>
         <li>Don't forget!!  php 7.0 is the minimum required</li>
-        <br />
+        <br>
         <h2>Notes on Version 2.2.3</h2>
         <li>Miscellaneous bug fixes.</li>
         <li>Version now requires at minimum php 7.0.  If you are running a lower version please use a lower version of this module.</li>
         <li>Some more fixes associated with card update page.</li>
-        <br />
+        <br>
         <h2>Notes on Version 2.2.2</h2>
         <li>Order Status for this module is only updated on <b>capture of funds.</b>  If you are set for Authorize and Capture, then configured completed order status will happen then.  Else status will change to configured completed order status when funds are captured.</li>
-        <br />
+        <br>
         <h2>Notes on Version 2.2.1</h2>
         <li>When customer has multiple cards on file, can use any card on file when a balance due on the order.  This feature must be enabled per v2.2.0.</li>
         <li>More code cleanup and and bug fixes, specifically associated with this feature.</li>
-        <br />
+        <br>
         <h2>Notes on Version 2.2.0</h2>
         <li>Added ability to get new authorization when there is a balance due on admin side.</li>
         <li>New authorization is configurable by admin; so this feature can be turned off.</li>
@@ -197,11 +205,11 @@
         <H2>Notes on Version 2.1.1</H2>
         <li>Added order information => invoice number and description.</li>
         <li>More bug fixes and code cleanup on admin side.</li>
-        <br />
+        <br>
         <H2>Notes on Version 2.1.0</H2>
         <li>Added separate authorize and capture transactions.  If transaction is NOT captured, a capture button is added on the admin side.</li>
         <li>Bug fixes on admin side pop-up window.</li>
-        <br />
+        <br>
         <H2>Notes on Version 2.0.1</H2>
         <li>I have done some cleanup on the admin side</li>
         <li>The refund window is now separate from a void window.  Voids can only be done on unsettled transactions.  As currently, this module is ONLY authorize/capture; there is no opportunity to capture for less than the original amount.</li>
@@ -217,7 +225,7 @@
             <p>I am around.... <a href="https://www.zen-cart.com/member.php?17577-carlwhat">on the forum.</a> or here</p>
             <p>pr -at- rossroberts.com
             </p>
-            <p><a href="https://www.paypal.me/carlwhat">Contributions are fine.</a> <br> NBL. (Nothing but love!)</p>
+            <p><a id="money" href="https://www.dropbox.com/s/jfm0333ub1pyt3j/mxWorks_qpr_venmo.jpg?dl=0">Contributions are fine. (Yes, mxWorks is me!)</a><br><br> NBL. (Nothing but love!)</p>
             <ul class="list-inline banner-social-buttons">
                 <li>
                     <a href="https://twitter.com/pRoseLA" class="btn btn-default btn-lg"><i

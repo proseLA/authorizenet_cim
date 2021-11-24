@@ -7,7 +7,7 @@
 		released under GPU
 		https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
 
-	   04/2021  project: authorizenet_cim; file: authorizenet_cof.php; version 2.3.0
+	   04/2021  project: authorizenet_cim; file: authorizenet_cof.php; version 2.3.1
 	*/
 	require_once (IS_ADMIN_FLAG === true ? DIR_FS_CATALOG_MODULES : DIR_WS_MODULES) . 'payment/authorizenet_cim.php';
 
