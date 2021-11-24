@@ -1518,8 +1518,8 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
 
 			if ($this->authorizationType == 'Authorize') {
 				$status = 'A';
-				$mod_date = null;
-				$bindType = 'date';
+				$mod_date = 'null';
+				$bindType = 'noquotestring';
 			} else {
 				$status = 'C';
 				$mod_date = 'now()';
@@ -1617,7 +1617,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
 
 			$this->updateOrderInfo($insertID, $status);
 
-			$sql = "insert into " . TABLE_ORDERS_STATUS_HISTORY . " (comments, orders_id, orders_status_id, updated_by, date_added) values (:orderComments, :orderID, :orderStatus, :adminName now() )";
+			$sql = "insert into " . TABLE_ORDERS_STATUS_HISTORY . " (comments, orders_id, orders_status_id, updated_by, date_added) values (:orderComments, :orderID, :orderStatus, :adminName, now() )";
 			$sql = $db->bindVars($sql, ':orderComments', $comments, 'string');
 			$sql = $db->bindVars($sql, ':orderID', $insertID, 'integer');
 			$sql = $db->bindVars($sql, ':orderStatus', $status, 'integer');
