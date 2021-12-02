@@ -138,8 +138,7 @@
 		{
 			echo '&nbsp;<a href="javascript:cimpopupWindow(\'' .
 				zen_href_link(FILENAME_AUTHNET_PAYMENTS,
-					'oID=' . $this->oID . '&payment_mode=' . $payment_mode . '&action=refund' . '&index=' . $index,
-					'NONSSL') . '\', \'scrollbars=yes,resizable=yes,width=100,height=1000,screenX=150,screenY=100,top=100,left=150\')"' .
+					'oID=' . $this->oID . '&payment_mode=' . $payment_mode . '&action=refund' . '&index=' . $index, 'NONSSL') . '\')"' .
 				'class="btn btn-danger btn-sm" role="button" >' . BUTTON_REFUND . '</a>';
 		}
 
@@ -147,8 +146,7 @@
 		{
 			echo '&nbsp;<a href="javascript:cimpopupWindow(\'' .
 				zen_href_link(FILENAME_AUTHNET_PAYMENTS,
-					'oID=' . $this->oID . '&index=' . $index . '&action=capture',
-					'NONSSL') . '\', \'scrollbars=yes,resizable=yes,width=100,height=1000,screenX=150,screenY=100,top=100,left=150\')"' .
+					'oID=' . $this->oID . '&index=' . $index . '&action=capture', 'NONSSL') . '\')"' .
 				'class="btn btn-success btn-sm" role="button" >' . BUTTON_CAPTURE . '</a>';
 		}
 
@@ -158,8 +156,7 @@
 		{
 			echo '&nbsp;<a href="javascript:cimpopupWindow(\'' .
 				zen_href_link(FILENAME_AUTHNET_PAYMENTS,
-					'oID=' . $this->oID . '&index=' . $index . '&action=more_money&ccindex=' . ($_POST['ccindex'] ?? ''),
-					'NONSSL') . '\', \'scrollbars=yes,resizable=yes,width=100,height=1000,screenX=150,screenY=100,top=100,left=150\')"' .
+					'oID=' . $this->oID . '&index=' . $index . '&action=more_money&ccindex=' . ($_POST['ccindex'] ?? ''), 'NONSSL') . '\')"' .
 				'class="btn btn-primary btn-sm" role="button" type="submit">' . BUTTON_NEW_FUNDS . '</a>';
 		}
 
