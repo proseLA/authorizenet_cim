@@ -139,7 +139,7 @@
 			echo '&nbsp;<a href="javascript:cimpopupWindow(\'' .
 				zen_href_link(FILENAME_AUTHNET_PAYMENTS,
 					'oID=' . $this->oID . '&payment_mode=' . $payment_mode . '&action=refund' . '&index=' . $index, 'NONSSL') . '\')"' .
-				'class="btn btn-danger btn-sm" role="button" >' . BUTTON_REFUND . '</a>';
+				' class="btn btn-danger btn-sm" role="button" >' . BUTTON_REFUND . '</a>';
 		}
 
 		function button_capture($index)
@@ -147,7 +147,7 @@
 			echo '&nbsp;<a href="javascript:cimpopupWindow(\'' .
 				zen_href_link(FILENAME_AUTHNET_PAYMENTS,
 					'oID=' . $this->oID . '&index=' . $index . '&action=capture', 'NONSSL') . '\')"' .
-				'class="btn btn-success btn-sm" role="button" >' . BUTTON_CAPTURE . '</a>';
+				' class="btn btn-success btn-sm" role="button" >' . BUTTON_CAPTURE . '</a>';
 		}
 
 		// translates payment type codes into full text

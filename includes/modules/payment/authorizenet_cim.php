@@ -1320,11 +1320,12 @@
                             $tresponse->getMessages()[0]->getCode());
                         $this->updatePaymentForRefund($ordersID, $refund->fields['transaction_id'], $refund_amount);
                         $update_status = $this->checkZeroBalance($ordersID);
-                        if ($update_status) {
-                            $this->updateOrderInfo($ordersID, MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID, (0 - $refund_amount));
-                        } else {
-                            $zco_notifier->notify('NOTIFY_AUTHNET_PAYMENT_REFUND', $ordersID, (0 - $refund_amount));
-                        }
+	                    if ($update_status) {
+		                    $this->updateOrderInfo($ordersID, MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID, (0 - $refund_amount));
+	                    } else {
+		                    $notifier_amount = (0 - $refund_amount);
+		                    $zco_notifier->notify('NOTIFY_AUTHNET_PAYMENT_REFUND', $ordersID, $notifier_amount);
+	                    }
 
                     } else {
                         $logData = "Transaction Failed \n";
