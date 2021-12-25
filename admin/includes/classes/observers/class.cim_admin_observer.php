@@ -57,7 +57,7 @@
 												'true'
 											]) && $authnet->balance_due > 0 && $authnet->status != $this->cancelled_status()) {
 											?>
-                                            <th colspan="2"><?= $authnet->button_new_funds($authnet->payment[$last_index]['index'] ?? '') ?></th>
+                                            <th colspan="6"><?= $authnet->button_new_funds($authnet->payment[$last_index]['index'] ?? '') ?></th>
 
 											<?php
 											$cards = $cof->getCustomerCardsAsArray($authnet->cID, true);
@@ -159,15 +159,15 @@
 									}
 
 								?>
+                                </tbody>
                                 <tfoot>
                                 <tr>
-                                    <td colspan="4" class="ot-shipping-Text">Amount
+                                    <td colspan="8" class="ot-shipping-Text">Amount
                                         Applied: <?= $currencies->format($authnet->amount_applied); ?> Amount
                                         Due: <?= $currencies->format($authnet->balance_due); ?>
                                     </td>
                                 </tr>
                                 </tfoot>
-                                </tbody>
                             </table>
                         </div>
 						<?php

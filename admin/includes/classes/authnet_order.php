@@ -157,7 +157,7 @@
 			echo '&nbsp;<a href="javascript:cimpopupWindow(\'' .
 				zen_href_link(FILENAME_AUTHNET_PAYMENTS,
 					'oID=' . $this->oID . '&index=' . $index . '&action=more_money&ccindex=' . ($_POST['ccindex'] ?? ''), 'NONSSL') . '\')"' .
-				'class="btn btn-primary btn-sm" role="button" type="submit">' . BUTTON_NEW_FUNDS . '</a>';
+				' class="btn btn-primary btn-sm" role="button">' . BUTTON_NEW_FUNDS . '</a>';
 		}
 
 		function full_type($code)
