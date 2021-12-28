@@ -718,16 +718,19 @@
                 array_merge(['address_id' => $new_address_book_id], $sql_data_array));
         }
 
-	    function nextOrderNumber($order)
-	    {
-		    global $db;
-		    if (isset($order['orders_id'])) {
-			    return $order['orders_id'];
-		    } else {
-			    $nextIDResult = $db->Execute("SELECT orders_id as nextID FROM " . TABLE_CIM_PAYMENTS . " ORDER BY payment_id DESC limit 1");
-			    return ($nextIDResult->fields['nextID'] + 1);
-		    }
-	    }
+        function nextOrderNumber($order)
+        {
+            global $db;
+            if (isset($order['orders_id'])) {
+                return $order['orders_id'];
+            } else {
+                $nextIDResultA = $db->Execute("SELECT max(orders_id) as nextID FROM " . TABLE_CIM_PAYMENTS);
+                $nextIDResultB = $db->Execute("SELECT (orders_id + 1) AS nextID FROM " . TABLE_ORDERS . " ORDER BY orders_id DESC LIMIT 1");
+                $nextIDB = $nextIDResultB->fields['nextID'];
+                $nextIDA = $nextIDResultA->fields['nextID'] + 1;
+                return max($nextIDA, $nextIDB);
+            }
+        }
 
         function saveCard()
         {
