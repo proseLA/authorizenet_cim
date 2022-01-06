@@ -160,9 +160,9 @@
                 'id' => $this->code,
                 'module' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CATALOG_TITLE,
                 'fields' => [
-                    [
+/*                    [
                         'field' => '<div class="apple-pay-button apple-pay-button-white"></div>',
-                    ],
+                    ],*/
                     [
                         'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CREDIT_CARD_OWNER,
                         'field' => zen_draw_input_field('authorizenet_cim_cc_owner',
