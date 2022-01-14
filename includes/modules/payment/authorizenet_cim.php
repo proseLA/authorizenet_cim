@@ -142,15 +142,15 @@
             for ($i = 1; $i < 13; $i++) {
                 $expires_month[] = [
                     'id' => sprintf('%02d', $i),
-                    'text' => strftime('%B - (%m)', mktime(0, 0, 0, $i, 1, 2000)),
+                    'text' => date('F',mktime(0,0,0,$i,10)) . ' - ('. date('m',mktime(0,0,0,$i,10)) . ')',
                 ];
             }
 
             $today = getdate();
             for ($i = $today['year']; $i < $today['year'] + 10; $i++) {
                 $expires_year[] = [
-                    'id' => strftime('%y', mktime(0, 0, 0, 1, 1, $i)),
-                    'text' => strftime('%Y', mktime(0, 0, 0, 1, 1, $i)),
+                    'id' => date('y', mktime(0, 0, 0, 1, 1, $i)),
+                    'text' => date('Y', mktime(0, 0, 0, 1, 1, $i)),
                 ];
             }
 
@@ -160,9 +160,6 @@
                 'id' => $this->code,
                 'module' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CATALOG_TITLE,
                 'fields' => [
-/*                    [
-                        'field' => '<div class="apple-pay-button apple-pay-button-white"></div>',
-                    ],*/
                     [
                         'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CREDIT_CARD_OWNER,
                         'field' => zen_draw_input_field('authorizenet_cim_cc_owner',
@@ -180,7 +177,7 @@
                         'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CREDIT_CARD_EXPIRES,
                         'field' => zen_draw_pull_down_menu('authorizenet_cim_cc_expires_month', $expires_month, '',
                                 'id="' . $this->code . '-cc-expires-month"' . $onFocus) . '&nbsp;' . zen_draw_pull_down_menu('authorizenet_cim_cc_expires_year',
-                                $expires_year, strftime('%y', mktime(0, 0, 0, 1, 1, $today['year'] + 1)),
+                                $expires_year, date('y', mktime(0, 0, 0, 1, 1, $today['year'] + 1)),
                                 'id="' . $this->code . '-cc-expires-year"' . $onFocus),
                         'tag' => $this->code . '-cc-expires-month',
                     ],
@@ -267,7 +264,7 @@
                     ],
                     [
                         'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CREDIT_CARD_EXPIRES,
-                        'field' => strftime('%B, %Y', mktime(0, 0, 0, $_POST['authorizenet_cim_cc_expires_month'], 1,
+                        'field' => date('F, Y', mktime(0, 0, 0, $_POST['authorizenet_cim_cc_expires_month'], 1,
                             '20' . $_POST['authorizenet_cim_cc_expires_year'])),
                     ],
                 ],
@@ -718,19 +715,19 @@
                 array_merge(['address_id' => $new_address_book_id], $sql_data_array));
         }
 
-        function nextOrderNumber($order)
-        {
-            global $db;
-            if (isset($order['orders_id'])) {
-                return $order['orders_id'];
-            } else {
-                $nextIDResultA = $db->Execute("SELECT max(orders_id) as nextID FROM " . TABLE_CIM_PAYMENTS);
-                $nextIDResultB = $db->Execute("SELECT (orders_id + 1) AS nextID FROM " . TABLE_ORDERS . " ORDER BY orders_id DESC LIMIT 1");
-                $nextIDB = $nextIDResultB->fields['nextID'];
-                $nextIDA = $nextIDResultA->fields['nextID'] + 1;
-                return max($nextIDA, $nextIDB);
-            }
-        }
+	    function nextOrderNumber($order)
+	    {
+		    global $db;
+		    if (isset($order['orders_id'])) {
+			    return $order['orders_id'];
+		    } else {
+			    $nextIDResultA = $db->Execute("SELECT max(orders_id) as nextID FROM " . TABLE_CIM_PAYMENTS);
+			    $nextIDResultB = $db->Execute("SELECT (orders_id + 1) AS nextID FROM " . TABLE_ORDERS . " ORDER BY orders_id DESC LIMIT 1");
+			    $nextIDB = $nextIDResultB->fields['nextID'];
+			    $nextIDA = $nextIDResultA->fields['nextID'] + 1;
+			    return max($nextIDA, $nextIDB);
+		    }
+	    }
 
         function saveCard()
         {
