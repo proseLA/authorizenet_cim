@@ -198,8 +198,8 @@
             if (!zen_in_guest_checkout()) {
                 $selection['fields'][] = [
                     'title' => 'Keep Card on File',
-                    'field' => zen_draw_checkbox_field('authorizenet_cim_save', '', true),
-                    'tag' => $this->code . '-save',
+                    'field' => zen_draw_checkbox_field('authorizenet_cim_save', '', true, 'id="authorizenet_cim_save"'),
+                    'tag' => $this->code . '_save',
                 ];
             }
 

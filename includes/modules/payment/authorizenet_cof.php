@@ -70,7 +70,7 @@
 					[
 						'title' => 'Saved Credit Card',
 						'field' => zen_draw_pull_down_menu('saved_cc_index', $cards, '', $onFocus),
-						'tag' => 'card_index'
+						'tag' => 'select-saved_cc_index'
 					]
 				]
 			];
