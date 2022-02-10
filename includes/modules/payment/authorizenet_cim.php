@@ -37,6 +37,8 @@
         var $approvalCode;
         var $transID;
         var $authorizationType = 'Authorize';
+        var $testMode = false;
+        var $solution = 'AAA183475';
 
         var $errorMessages = [];
 
@@ -74,6 +76,9 @@
 
             if ($this->enabled && is_object($order)) {
                 $this->update_status();
+            }
+            if (in_array(MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE, ['Test', 'Sandbox'])) {
+                $this->testMode = true;
             }
 
             if (!defined('DEBUG_CIM') && ($this->enabled)) {
@@ -861,13 +866,12 @@
             return ($merch);
         }
 
-        function getControllerResponse($controller)
+        private function getControllerResponse($controller)
         {
-            if (in_array(MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE, ['Test', 'Sandbox'])) {
+            if ($this->testMode) {
                 return $controller->executeWithApiResponse(\net\authorize\api\constants\ANetEnvironment::SANDBOX);
-            } else {
-                return $controller->executeWithApiResponse(\net\authorize\api\constants\ANetEnvironment::PRODUCTION);
             }
+            return $controller->executeWithApiResponse(\net\authorize\api\constants\ANetEnvironment::PRODUCTION);
         }
 
         function setParameter($field = "", $value = null)
@@ -885,9 +889,9 @@
 
             // Create a new CustomerProfileType and add the payment profile object
             $customerProfile = new AnetAPI\CustomerProfileType();
-            $customerProfile->setDescription($order->customer['firstname'] . ' ' . $order->customer['lastname']);
+            $customerProfile->setDescription(($order->customer['firstname'] ?? $_SESSION['customer_first_name']) . ' ' . ($order->customer['lastname'] ?? $_SESSION['customer_last_name']));
             $customerProfile->setMerchantCustomerId($customerID);
-            $customerProfile->setEmail($order->customer['email_address']);
+            $customerProfile->setEmail($order->customer['email_address'] ?? $_SESSION['customers_email_address']);
             //$customerProfile->setpaymentProfiles($paymentProfiles);
             //$customerProfile->setShipToList($shippingProfiles);
 
@@ -1035,6 +1039,17 @@
             return $error;
         }
 
+        private function newTransactionRequest() {
+            $request = new AnetAPI\TransactionRequestType();
+            $solution = new AnetAPI\SolutionType();
+            if ($this->testMode) {
+                $solution->setId('AAA100302');
+            } else {
+                $solution->setId($this->solution);
+            }
+            return $request;
+        }
+
         function chargeCustomerProfile($profileid, $paymentprofileid, $new_auth = false)
         {
             global $order;
@@ -1048,7 +1063,7 @@
             }
             $profileToCharge->setPaymentProfile($paymentProfile);
 
-            $transactionRequestType = new AnetAPI\TransactionRequestType();
+            $transactionRequestType = $this->newTransactionRequest();
 
             $this->authorizationType = MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE ?? 'Authorize';
             $this->notify('NOTIFIER_CIM_OVERRIDE_CHARGE_TYPE', $this->authorizationType, $this->authorizationType);
@@ -1284,7 +1299,7 @@
             }
 
             //create a transaction
-            $transactionRequestType = new AnetAPI\TransactionRequestType();
+            $transactionRequestType = $this->newTransactionRequest();
             $transactionRequestType->setTransactionType("refundTransaction");
             $transactionRequestType->setAmount(number_format($refund_amount, 2, '.', '') . "");
             if ($guest) {
@@ -1349,7 +1364,7 @@
 
         function voidTransaction($ordersID, $refund, $refund_amount)
         {
-            $transactionRequestType = new AnetAPI\TransactionRequestType();
+            $transactionRequestType = $this->newTransactionRequest();
             $transactionRequestType->setTransactionType("voidTransaction");
             $transactionRequestType->setRefTransId(trim($refund->fields['transaction_id']));
 
@@ -1468,7 +1483,7 @@
 
         function capturePreviouslyAuthorizedAmount($transactionid, $amount)
         {
-            $transactionRequestType = new AnetAPI\TransactionRequestType();
+            $transactionRequestType = $this->newTransactionRequest();
             $transactionRequestType->setTransactionType("priorAuthCaptureTransaction");
             $transactionRequestType->setRefTransId($transactionid);
             $transactionRequestType->setAmount(number_format($amount, 2, '.', '') . "");
