@@ -1669,8 +1669,10 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
 
         function cimUpdatedByAdminName()
         {
-            if (function_exists('zen_updated_by_admin')) {
+            if (IS_ADMIN_FLAG === true) {
                 return zen_updated_by_admin();
+            } else {
+               return "";
             }
         }
 
