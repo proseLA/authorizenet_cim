@@ -504,14 +504,14 @@
             if (isset($this->errorMessages) && (!empty($this->errorMessages))) {
                 $return_error = true;
                 foreach ($this->errorMessages as $error) {
-                    if (!defined('IS_ADMIN_FLAG') || IS_ADMIN_FLAG !== true) {
+                    if (!IS_ADMIN_FLAG) {
                         $messageStack->add_session(FILENAME_SHOPPING_CART, $type . ': ' . $error, 'error');
                         $messageStack->add_session(FILENAME_CHECKOUT_PAYMENT, $type . ': ' . $error, 'error');
                     } else {
                         $messageStack->add_session($type . ': ' . $error, 'error');
                     }
                 }
-                if (!defined('IS_ADMIN_FLAG') || IS_ADMIN_FLAG !== true) {
+                if (!IS_ADMIN_FLAG) {
                     zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
                 }
             }
@@ -935,7 +935,7 @@
             global $order, $customerID;
 
             // for card_update
-            if (empty($customerID) && (!defined('IS_ADMIN_FLAG') || (IS_ADMIN_FLAG == 0))) {
+            if (empty($customerID) && (!IS_ADMIN_FLAG)) {
                 $customerID = $_SESSION['customer_id'];
             }
 
@@ -1669,7 +1669,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
 
         function cimUpdatedByAdminName()
         {
-            if (function_exists('zen_updated_by_admin')) {
+            if (IS_ADMIN_FLAG) {
                 return zen_updated_by_admin();
             }
         }
