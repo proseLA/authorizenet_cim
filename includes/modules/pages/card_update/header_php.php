@@ -24,6 +24,7 @@
 	$customer_id = $_SESSION['customer_id'];
 
 	$addressSelected = $_POST['address_selection'] ?? '';
+
 	require_once DIR_WS_MODULES . 'require_languages.php';
 
 	require_once DIR_FS_CATALOG . DIR_WS_LANGUAGES . $_SESSION['language'] . '/modules/payment/authorizenet_cim.php';
@@ -41,16 +42,16 @@
 	if (isset($_POST['delete_cid'])) {
 		$payment_profile = $cim->checkValidPaymentProfile($customer_id, $_POST['delete_cid']);
 		if ($payment_profile['valid']) {
-			$delete_cid = $cim->deleteCustomerPaymentProfile($userProfile, $payment_profile['payment_profile_id']);
+		$delete_cid = $cim->deleteCustomerPaymentProfile($userProfile, $payment_profile['payment_profile_id']);
 
-			$start = strpos($delete_cid, 'ERROR');
-			$startE0040 = strpos($delete_cid, 'E00040');
-			if (($start === false) || ($startE0040 !== false)) {
-				$messageStack->add_session(FILENAME_CARD_UPDATE, 'Your credit card has been deleted!', 'success');
-			} else {
-				$messageStack->add_session(FILENAME_CARD_UPDATE,
-					'There was a problem deleting your card.  Please contact the store owner.', 'error');
-			}
+		$start = strpos($delete_cid, 'ERROR');
+		$startE0040 = strpos($delete_cid, 'E00040');
+		if (($start === false) || ($startE0040 !== false)) {
+			$messageStack->add_session(FILENAME_CARD_UPDATE, 'Your credit card has been deleted!', 'success');
+		} else {
+			$messageStack->add_session(FILENAME_CARD_UPDATE,
+				'There was a problem deleting your card.  Please contact the store owner.', 'error');
+		}
 		} else {
 			$messageStack->add_session(FILENAME_CARD_UPDATE,
 				'There was a problem deleting your card.  Please contact the store owner.', 'error');
@@ -112,7 +113,7 @@
 	$breadcrumb->add(NAVBAR_TITLE_1, zen_href_link(FILENAME_ACCOUNT, '', 'SSL'));
 	$breadcrumb->add(NAVBAR_TITLE);
 
-	if (IS_ADMIN_FLAG && $_SESSION['emp_admin_login'] == true) {
+	if ($_SESSION['emp_admin_login'] === true) {
 		$cards_saved = $cim->getCustomerCardsAsArray($customer_id, true);
 	} else {
 		$cards_saved = $cim->getCustomerCardsAsArray($customer_id);
