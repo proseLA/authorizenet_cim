@@ -113,7 +113,7 @@
 	$breadcrumb->add(NAVBAR_TITLE_1, zen_href_link(FILENAME_ACCOUNT, '', 'SSL'));
 	$breadcrumb->add(NAVBAR_TITLE);
 
-	if ($_SESSION['emp_admin_login'] === true) {
+	if (($_SESSION['emp_admin_login'] ?? false) === true) {
 		$cards_saved = $cim->getCustomerCardsAsArray($customer_id, true);
 	} else {
 		$cards_saved = $cim->getCustomerCardsAsArray($customer_id);
