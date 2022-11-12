@@ -959,10 +959,11 @@
                 substr(trim($_POST['cc_number']), -4));
 
             if (!is_null($existing_profile['profile']) && $existing_profile['profile']) {
-                if ($existing_profile['exp_date'] !== $exp_date) {
+                // save status may have changed...  lets just update.
+                //if ($existing_profile['exp_date'] !== $exp_date) {
                     $this->updateCustomerPaymentProfile($this->params['customerProfileId'],
                         $existing_profile['profile']);
-                }
+                //}
                 $this->setParameter('customerPaymentProfileId', $existing_profile['profile']);
                 return;
             }
