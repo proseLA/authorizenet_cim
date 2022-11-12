@@ -11,7 +11,7 @@
 */
 ?>
 <link rel="stylesheet" type="text/css" href="includes/templates/template_default/css/cim.css" />
-<script language="javascript" type="text/javascript"><!--
+<script language="javascript" type="text/javascript">
 var selected;
 
 var $ = jQuery.noConflict();
@@ -529,4 +529,4 @@ function check_form(form_name) {
     }
     return this;
   };
-//--></script>
+</script>
