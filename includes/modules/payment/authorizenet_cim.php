@@ -605,6 +605,7 @@
 
                 $return['firstname'] = $_POST['firstname'];
                 $return['lastname'] = $_POST['lastname'];
+                $return['company'] = $_POST['company'] ?? '';
                 $return['street_address'] = $_POST['street_address'];
                 $return['city'] = $_POST['city'];
                 if (empty($_POST['zone_id'])) {
