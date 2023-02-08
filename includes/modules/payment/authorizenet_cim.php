@@ -40,6 +40,8 @@
         var $testMode = false;
         var $solution = 'AAA183475';
 
+        private $email;
+
         var $errorMessages = [];
 
         // zen-cart base payment functions
@@ -87,6 +89,9 @@
                 } else {
                     define('DEBUG_CIM', false);
                 }
+            }
+            if (defined('DEVELOPER_OVERRIDE_EMAIL_ADDRESS')) {
+                $this->email = DEVELOPER_OVERRIDE_EMAIL_ADDRESS;
             }
         }
 
@@ -178,7 +183,7 @@
                     [
                         'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CREDIT_CARD_NUMBER,
                         'field' => zen_draw_input_field('authorizenet_cim_cc_number', '',
-                            'id="' . $this->code . '-cc-number"' . $onFocus),
+                            'id="' . $this->code . '-cc-number"' . $onFocus . ' pattern="[0-9]*"', 'number'),
                         'tag' => $this->code . '-cc-number',
                     ],
                     [
@@ -196,7 +201,8 @@
                 $selection['fields'][] = [
                     'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CVV,
                     'field' => zen_draw_input_field('authorizenet_cim_cc_cvv', '',
-                            'size="4" maxlength="4" class="cvv_input"' . ' id="' . $this->code . '-cc-cvv"' . $onFocus) . ' ' . '<a href="javascript:popupWindow(\'' . zen_href_link(FILENAME_POPUP_CVV_HELP) . '\')">' . MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_POPUP_CVV_LINK . '</a>',
+                            'size="4" maxlength="4" class="cvv_input"' . ' id="' . $this->code . '-cc-cvv"' . $onFocus . ' pattern="[0-9]*"', 'number') . ' ' . '<a href="javascript:popupWindow(\'' . zen_href_link
+                        (FILENAME_POPUP_CVV_HELP) . '\')">' . MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_POPUP_CVV_LINK . '</a>',
                     'tag' => $this->code . '-cc-cvv',
                 ];
             }
@@ -504,14 +510,14 @@
             if (isset($this->errorMessages) && (!empty($this->errorMessages))) {
                 $return_error = true;
                 foreach ($this->errorMessages as $error) {
-                    if (!IS_ADMIN_FLAG) {
+                    if (!defined('IS_ADMIN_FLAG') || IS_ADMIN_FLAG !== true) {
                         $messageStack->add_session(FILENAME_SHOPPING_CART, $type . ': ' . $error, 'error');
                         $messageStack->add_session(FILENAME_CHECKOUT_PAYMENT, $type . ': ' . $error, 'error');
                     } else {
                         $messageStack->add_session($type . ': ' . $error, 'error');
                     }
                 }
-                if (!IS_ADMIN_FLAG) {
+                if (!defined('IS_ADMIN_FLAG') || IS_ADMIN_FLAG !== true) {
                     zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, '', 'SSL', true, false));
                 }
             }
@@ -892,7 +898,11 @@
             $customerProfile = new AnetAPI\CustomerProfileType();
             $customerProfile->setDescription(($order->customer['firstname'] ?? $_SESSION['customer_first_name']) . ' ' . ($order->customer['lastname'] ?? $_SESSION['customer_last_name']));
             $customerProfile->setMerchantCustomerId($customerID);
+            if (!empty($this->email)) {
+                $customerProfile->setEmail($this->email);
+            } else {
             $customerProfile->setEmail($order->customer['email_address'] ?? $_SESSION['customers_email_address']);
+            }
             //$customerProfile->setpaymentProfiles($paymentProfiles);
             //$customerProfile->setShipToList($shippingProfiles);
 
@@ -936,7 +946,7 @@
             global $order, $customerID;
 
             // for card_update
-            if (empty($customerID) && (!IS_ADMIN_FLAG)) {
+            if (empty($customerID) && (!defined('IS_ADMIN_FLAG') || (IS_ADMIN_FLAG == 0))) {
                 $customerID = $_SESSION['customer_id'];
             }
 
@@ -1134,7 +1144,7 @@
                     if ($tresponse != null && $tresponse->getMessages() != null) {
                         $error = false;
                         $logData = "Transaction Response code : " . $tresponse->getResponseCode() . "\n";
-                        $logData .= " Charge Customer Profile APPROVED  :" . "\n";
+                        $logData .= " Charge Customer Profile APPROVED!" . "\n";
                         $logData .= " Charge Customer Profile AUTH CODE : " . $tresponse->getAuthCode() . "\n";
                         $this->approvalCode = $tresponse->getAuthCode();
                         $logData .= " Charge Customer Profile TRANS ID  : " . $tresponse->getTransId() . "\n";
@@ -1641,7 +1651,6 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
 
             $comments = 'Credit Card payment.  AUTH: ' . $approval . '. TransID: ' . $transID . '.';
 
-            $this->notify('NOTIFIER_CIM_OVERRIDE_STATUS_UPDATE', $status, $status, $comments);
 
             $sql = "update  " . TABLE_CIM_PAYMENTS . " set orders_id = :insertID
             WHERE customers_id = :custId and transaction_id = :transID and orders_id = 0";
@@ -1659,6 +1668,8 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
                 $initialAuthAmount = $authAmount->fields['payment_amount'];
             }
 
+            $this->notify('NOTIFIER_CIM_OVERRIDE_STATUS_UPDATE', $insertID, $status, $comments);
+
             $this->updateOrderInfo($insertID, $status, $initialAuthAmount);
 
             $sql = "insert into " . TABLE_ORDERS_STATUS_HISTORY . " (comments, orders_id, orders_status_id, updated_by, date_added) values (:orderComments, :orderID, :orderStatus, :adminName, now() )";
@@ -1666,12 +1677,14 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
             $sql = $db->bindVars($sql, ':orderID', $insertID, 'integer');
             $sql = $db->bindVars($sql, ':orderStatus', $status, 'integer');
             $sql = $db->bindVars($sql, ':adminName', $this->cimUpdatedByAdminName(), 'string');
-            $db->Execute($sql);
+//            $db->Execute($sql);
+
+            zen_update_orders_history($insertID, $comments, $this->cimUpdatedByAdminName(), $status, -1);
         }
 
         function cimUpdatedByAdminName()
         {
-            if (IS_ADMIN_FLAG) {
+            if (function_exists('zen_updated_by_admin')) {
                 return zen_updated_by_admin();
             }
         }
