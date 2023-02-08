@@ -1062,9 +1062,18 @@
             return $request;
         }
 
+        private function level2Data(array $order_total)
+        {
+            $extraData = new AnetAPI\ExtendedAmountType();
+            $extraData->setName(substr($order_total['title'], 0, 31));
+            $extraData->setDescription(substr($order_total['title'], 0, 255));
+            $extraData->setAmount(round($order_total['value'], 2));
+            return $extraData;
+        }
+
         function chargeCustomerProfile($profileid, $paymentprofileid, $new_auth = false)
         {
-            global $order;
+            global $order, $order_totals;
 
             $profileToCharge = new AnetAPI\CustomerProfilePaymentType();
             $profileToCharge->setCustomerProfileId($profileid);
@@ -1122,6 +1131,23 @@
                 }
             } else {
                 $invoice_description = $_POST['charge_description'];
+            }
+
+            // level 2 reporting
+
+            foreach ($order_totals as $order_total) {
+                switch ($order_total['code']) {
+                    case 'ot_tax':
+                        $extraData = $this->level2Data($order_total);
+                        $transactionRequestType->setTax($extraData);
+                        break;
+                    case 'ot_shipping':
+                        $extraData = $this->level2Data($order_total);
+                        $transactionRequestType->setShipping($extraData);
+                        break;
+                    default:
+                        break;
+                }
             }
 
             $authorize_order = new AnetAPI\OrderType();
@@ -1730,12 +1756,12 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
         function getCustomerCardsAsArray($customerID, $all = false)
         {
             $cards_on_file = $this->getCustomerCards($customerID, $all);
-//            $today = getdate();
-//            $cc_test = $today['year'] . '-' . str_pad($today['mon'], 2, 0, STR_PAD_LEFT);
+            $today = getdate();
+            $cc_test = $today['year'] . '-' . str_pad($today['mon'], 2, 0, STR_PAD_LEFT);
             $cards = [];
 
             while (!$cards_on_file->EOF) {
-//                if ($cards_on_file->fields['exp_date'] >= $cc_test) {
+                if ($all || $cards_on_file->fields['exp_date'] >= $cc_test) {
                     $cards[] = [
                         'id' => $cards_on_file->fields['index_id'],
                         'text' => 'Card ending in ' . $cards_on_file->fields['last_four'],
@@ -1744,7 +1770,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
                         'last_four' => $cards_on_file->fields['last_four'],
                         'enabled' => $cards_on_file->fields['enabled'],
                     ];
-//                }
+                }
                 $cards_on_file->MoveNext();
             }
             return $cards;
