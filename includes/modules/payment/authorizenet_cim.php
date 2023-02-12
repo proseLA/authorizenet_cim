@@ -1135,18 +1135,21 @@
 
             // level 2 reporting
 
-            foreach ($order_totals as $order_total) {
-                switch ($order_total['code']) {
-                    case 'ot_tax':
-                        $extraData = $this->level2Data($order_total);
-                        $transactionRequestType->setTax($extraData);
-                        break;
-                    case 'ot_shipping':
-                        $extraData = $this->level2Data($order_total);
-                        $transactionRequestType->setShipping($extraData);
-                        break;
-                    default:
-                        break;
+            // first conditional needed for customer payments page; possibly on admin orders page
+            if (!empty($order_totals) && is_array($order_totals)) {
+                foreach ($order_totals as $order_total) {
+                    switch ($order_total['code']) {
+                        case 'ot_tax':
+                            $extraData = $this->level2Data($order_total);
+                            $transactionRequestType->setTax($extraData);
+                            break;
+                        case 'ot_shipping':
+                            $extraData = $this->level2Data($order_total);
+                            $transactionRequestType->setShipping($extraData);
+                            break;
+                        default:
+                            break;
+                    }
                 }
             }
 
