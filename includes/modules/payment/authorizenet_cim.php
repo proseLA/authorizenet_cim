@@ -24,7 +24,7 @@
 
         var $code, $title, $description, $enabled, $authorize = '';
 
-        var $version = '2.3.2';
+        var $version = '2.3.3';
         var $params = [];
         var $success = false;
         var $error = true;
@@ -40,8 +40,12 @@
         var $testMode = false;
         var $solution = 'AAA183475';
 
-        private $email;
+        // used for fraud prevention, put a limiter on the amount of time one can submit new credit cards;
+        // and after $logoff +1; send them to the account page.
+        private $delayTime = 60;
+        private $logOff = 3;
 
+        private $email;
         var $errorMessages = [];
 
         // zen-cart base payment functions
@@ -592,7 +596,12 @@
                 $billto->setAddress($order->billing['street_address']);
                 $billto->setCity($order->billing['city']);
                 $billto->setState($order->billing['state']);
-                $billto->setZip($order->billing['postcode']);
+                $zip = $order->billing['postcode'];
+                if ($this->testMode) {
+                    $zip = substr($order->billing['postcode'], 0, 5);
+//                    $zip = '46208';
+                }
+                $billto->setZip($zip);
                 $billto->setCountry($order->billing['country']['title']);
                 //$billto->setPhoneNumber();
                 //$billto->setfaxNumber();
@@ -650,6 +659,9 @@
                     $return['city'] = $address->fields['entry_city'];
                     $return['state'] = ((zen_not_null($address->fields['entry_state'])) ? $address->fields['entry_state'] : $address->fields['zone_name']);
                     $return['postcode'] = $address->fields['entry_postcode'];
+                    if ($this->testMode) {
+                        $return['postcode'] = substr($address->fields['entry_postcode'], 0, 5);
+                    }
                     $return['country']['title'] = $address->fields['countries_name'];
                 }
             }
@@ -886,6 +898,25 @@
             $this->params[$field] = $value;
         }
 
+        private function checkEmailAddress(int $customerID, string $email)
+        {
+            global $db;
+
+            $customerCheck = $db->Execute('select customers_email_address from ' . TABLE_CUSTOMERS . " WHERE customers_id = $customerID LIMIT 1");
+            $error = false;
+            if ($customerCheck->EOF) {
+                $error = true;
+            }
+            if (!$error && $email !== $customerCheck->fields['customers_email_address']) {
+                $error = true;
+            }
+            if ($error) {
+                sleep(45);
+                trigger_error($customerID . ' was logged off and should be looked at!');
+                zen_redirect(zen_href_link(FILENAME_LOGOFF, '', 'SSL', true, false));
+            }
+
+        }
         // functions that use the authorize API and return responses.
 
         function createCustomerProfileRequest()
@@ -893,6 +924,9 @@
             global $customerID, $order;
 
             $customerID = $_SESSION['customer_id'];
+            $email = $order->customer['email_address'] ?? $_SESSION['customers_email_address'];
+
+            $this->checkEmailAddress($customerID, $email);
 
             // Create a new CustomerProfileType and add the payment profile object
             $customerProfile = new AnetAPI\CustomerProfileType();
@@ -901,7 +935,7 @@
             if (!empty($this->email)) {
                 $customerProfile->setEmail($this->email);
             } else {
-            $customerProfile->setEmail($order->customer['email_address'] ?? $_SESSION['customers_email_address']);
+                $customerProfile->setEmail($email);
             }
             //$customerProfile->setpaymentProfiles($paymentProfiles);
             //$customerProfile->setShipToList($shippingProfiles);
@@ -943,11 +977,17 @@
 
         function createCustomerPaymentProfileRequest()
         {
-            global $order, $customerID;
+            global $order, $customerID, $messageStack;
 
             // for card_update
-            if (empty($customerID) && (!defined('IS_ADMIN_FLAG') || (IS_ADMIN_FLAG == 0))) {
+            if (empty($customerID) && (!IS_ADMIN_FLAG)) {
                 $customerID = $_SESSION['customer_id'];
+            }
+
+            if (!IS_ADMIN_FLAG) {
+//                $customerID = $_SESSION['customer_id'];
+                $email = $order->customer['email_address'] ?? $_SESSION['customers_email_address'];
+                $this->checkEmailAddress($customerID, $email);
             }
 
             if (!isset($this->params['customerProfileId']) || ($this->params['customerProfileId'] == 0)) {
@@ -960,6 +1000,28 @@
                 }
             }
 
+
+            $currentTimeForTest = time();
+            if (empty($_SESSION['createCard'])) {
+                $_SESSION['createCard'] = time();
+                $_SESSION['logOff'] = 0;
+                $currentTimeForTest = time() + $this->delayTime + 3;
+            }
+
+            $_SESSION['logOff'] ++;
+            if ($_SESSION['logOff'] > $this->logOff) {
+//                $messageStack->add_session(FILENAME_LOGOFF, 'Sorry, due to the increasing amount of fraud we are logging you off!', 'error');
+                // once the session is destroyed, so is the messageStack!
+                trigger_error($customerID . ' was logged off and should be looked at!');
+                zen_redirect(zen_href_link(FILENAME_LOGOFF, '', 'SSL', true, false));
+            }
+
+            if (($currentTimeForTest - $_SESSION['createCard']) < $this->delayTime) {
+                $messageStack->add_session(FILENAME_ACCOUNT, MODULE_PAYMENT_AUTHORIZENET_CIM_FRAUD_WARNING, 'error');
+                zen_redirect(zen_href_link(FILENAME_ACCOUNT, '', 'SSL', true, false));
+            } else {
+                $_SESSION['createCard'] = time();
+            }
             // for card_update
             $exp_date = $this->convertExpDate($_POST['cc_year'] ?? '', $_POST['cc_month'] ?? '');
 
@@ -1173,7 +1235,7 @@
                     if ($tresponse != null && $tresponse->getMessages() != null) {
                         $error = false;
                         $logData = "Transaction Response code : " . $tresponse->getResponseCode() . "\n";
-                        $logData .= " Charge Customer Profile APPROVED!" . "\n";
+                        $logData .= " Charge Customer Profile APPROVED  :" . "\n";
                         $logData .= " Charge Customer Profile AUTH CODE : " . $tresponse->getAuthCode() . "\n";
                         $this->approvalCode = $tresponse->getAuthCode();
                         $logData .= " Charge Customer Profile TRANS ID  : " . $tresponse->getTransId() . "\n";
@@ -1701,12 +1763,13 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
 
             $this->updateOrderInfo($insertID, $status, $initialAuthAmount);
 
-            $sql = "insert into " . TABLE_ORDERS_STATUS_HISTORY . " (comments, orders_id, orders_status_id, updated_by, date_added) values (:orderComments, :orderID, :orderStatus, :adminName, now() )";
+/*            $sql = "insert into " . TABLE_ORDERS_STATUS_HISTORY . " (comments, orders_id, orders_status_id, updated_by, date_added) values (:orderComments, :orderID, :orderStatus, :adminName, now() )";
             $sql = $db->bindVars($sql, ':orderComments', $comments, 'string');
             $sql = $db->bindVars($sql, ':orderID', $insertID, 'integer');
             $sql = $db->bindVars($sql, ':orderStatus', $status, 'integer');
             $sql = $db->bindVars($sql, ':adminName', $this->cimUpdatedByAdminName(), 'string');
 //            $db->Execute($sql);
+*/
 
             zen_update_orders_history($insertID, $comments, $this->cimUpdatedByAdminName(), $status, -1);
         }
