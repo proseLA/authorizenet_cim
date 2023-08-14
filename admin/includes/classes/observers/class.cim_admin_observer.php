@@ -204,7 +204,7 @@
 
 					$valid_profile = $authnet_cim->getCustomerProfile($p1->customers_id);
 					// only show button if customer has cards on file
-					if (($valid_profile) && (!empty($cards))) {
+					if (($valid_profile) && (!$cards->EOF)) {
 						$p2[] = [
 							'align' => 'text-center',
 							'text' => '<a href="javascript:cimpopupWindow(\'' . zen_href_link(FILENAME_AUTHNET_PAYMENTS,
