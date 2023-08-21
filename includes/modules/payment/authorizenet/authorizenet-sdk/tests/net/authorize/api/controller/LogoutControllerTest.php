@@ -26,7 +26,7 @@ class LogoutControllerTest extends ApiCoreTestBase
 
         $this->assertEquals("Ok", $response->getMessages()->getResultCode());
         $this->assertEquals( $this->refId, $response->getRefId());
-        $this->assertNotNull($response->getMessages());
+        $this->assertTrue(0 < count($response->getMessages()));
         foreach ($response->getMessages() as $message)
         {
             $this->assertEquals("I00001", $message->getCode());

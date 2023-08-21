@@ -27,6 +27,11 @@ class OpaqueDataType implements \JsonSerializable
     private $dataKey = null;
 
     /**
+     * @property \DateTime $expirationTimeStamp
+     */
+    private $expirationTimeStamp = null;
+
+    /**
      * Gets as dataDescriptor
      *
      * @return string
@@ -92,8 +97,31 @@ class OpaqueDataType implements \JsonSerializable
         return $this;
     }
 
+    /**
+     * Gets as expirationTimeStamp
+     *
+     * @return \DateTime
+     */
+    public function getExpirationTimeStamp()
+    {
+        return $this->expirationTimeStamp;
+    }
+
+    /**
+     * Sets a new expirationTimeStamp
+     *
+     * @param \DateTime $expirationTimeStamp
+     * @return self
+     */
+    public function setExpirationTimeStamp(\DateTime $expirationTimeStamp)
+    {
+        $this->expirationTimeStamp = $expirationTimeStamp;
+        return $this;
+    }
+
 
     // Json Serialize Code
+    #[\ReturnTypeWillChange]
     public function jsonSerialize(){
         $values = array_filter((array)get_object_vars($this),
         function ($val){

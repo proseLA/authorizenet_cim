@@ -67,6 +67,7 @@ class AuUpdateType extends AuDetailsType implements \JsonSerializable
 
 
     // Json Serialize Code
+    #[\ReturnTypeWillChange]
     public function jsonSerialize(){
         $values = array_filter((array)get_object_vars($this),
         function ($val){
@@ -93,10 +94,9 @@ class AuUpdateType extends AuDetailsType implements \JsonSerializable
                 }
             }
         }
-
         return array_merge(parent::jsonSerialize(), $values);
     }
-    
+
     // Json Set Code
     public function set($data)
     {
