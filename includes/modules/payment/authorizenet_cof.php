@@ -13,12 +13,8 @@
 
 	class authorizenet_cof extends authorizenet_cim
 	{
-		var $code, $title, $description, $enabled;
-
 		function __construct()
 		{
-			global $order;
-
 			require_once (IS_ADMIN_FLAG === true ? DIR_FS_CATALOG_LANGUAGES : DIR_WS_LANGUAGES) . $_SESSION['language'] . '/modules/payment/authorizenet_cim.php';
 
 			parent::__construct();

@@ -26,11 +26,8 @@
 
         var $version = '2.3.3';
         var $params = [];
-        var $success = false;
         var $error = true;
         var $response;
-        var $xml;
-        var $update = false;
         var $text;
         var $customerProfileId;
         var $customerPaymentProfileId;
@@ -44,6 +41,8 @@
         // and after $logoff +1; send them to the account page.
         private $delayTime = 60;
         private $logOff = 3;
+
+        public $sort_order, $form_action_url, $order_status, $_check;
 
         private $email;
         var $errorMessages = [];
@@ -174,9 +173,6 @@
                 'id' => $this->code,
                 'module' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CATALOG_TITLE,
                 'fields' => [
-/*                    [
-                        'field' => '<div class="apple-pay-button apple-pay-button-white"></div>',
-                    ],*/
                     [
                         'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CREDIT_CARD_OWNER,
                         'field' => zen_draw_input_field('authorizenet_cim_cc_owner',
@@ -378,9 +374,6 @@
                 'MODULE_PAYMENT_AUTHORIZENET_CIM_TXNKEY',
                 'MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE',
                 'MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE',
-                //'MODULE_PAYMENT_AUTHORIZENET_CIM_STORE_DATA',
-                //'MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_CUSTOMER',
-                //'MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_MERCHANT',
                 'MODULE_PAYMENT_AUTHORIZENET_CIM_USE_CVV',
                 'MODULE_PAYMENT_AUTHORIZENET_CIM_VALIDATION',
                 'MODULE_PAYMENT_AUTHORIZENET_CIM_SORT_ORDER',
@@ -432,9 +425,6 @@
             if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE')) {
                 $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Authorization Type', 'MODULE_PAYMENT_AUTHORIZENET_CIM_AUTHORIZATION_TYPE', 'Authorize', 'Do you want submitted credit card transactions to be authorized only, or authorized and captured?', '6', '7', 'zen_cfg_select_option(array(\'Authorize\', \'Authorize+Capture\'), ', now())");
             }
-            //if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_STORE_DATA')) $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Enable Database Storage', 'MODULE_PAYMENT_AUTHORIZENET_CIM_STORE_DATA', 'True', 'Do you want to save the gateway communications data to the database?', '6', '8', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
-            //if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_CUSTOMER')) $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Customer Notifications', 'MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_CUSTOMER', 'False', 'Should Authorize.Net email a receipt to the customer?', '6', '9', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
-            //if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_MERCHANT')) $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Merchant Notifications', 'MODULE_PAYMENT_AUTHORIZENET_CIM_EMAIL_MERCHANT', 'False', 'Should Authorize.Net email a receipt to the merchant?', '6', '10', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
             if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_USE_CVV')) {
                 $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Request CVV Number', 'MODULE_PAYMENT_AUTHORIZENET_CIM_USE_CVV', 'True', 'Do you want to ask the customer for the card\'s CVV number? If set to false, ensure that on merchant dashboard at authorize.net, you have card code not selected as required.  See https://developer.authorize.net/api/reference/responseCodes.html?code=33', '6', '11', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
             }
@@ -1762,14 +1752,6 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
             $this->notify('NOTIFIER_CIM_OVERRIDE_STATUS_UPDATE', $insertID, $status, $comments);
 
             $this->updateOrderInfo($insertID, $status, $initialAuthAmount);
-
-/*            $sql = "insert into " . TABLE_ORDERS_STATUS_HISTORY . " (comments, orders_id, orders_status_id, updated_by, date_added) values (:orderComments, :orderID, :orderStatus, :adminName, now() )";
-            $sql = $db->bindVars($sql, ':orderComments', $comments, 'string');
-            $sql = $db->bindVars($sql, ':orderID', $insertID, 'integer');
-            $sql = $db->bindVars($sql, ':orderStatus', $status, 'integer');
-            $sql = $db->bindVars($sql, ':adminName', $this->cimUpdatedByAdminName(), 'string');
-//            $db->Execute($sql);
-*/
 
             zen_update_orders_history($insertID, $comments, $this->cimUpdatedByAdminName(), $status, -1);
         }
