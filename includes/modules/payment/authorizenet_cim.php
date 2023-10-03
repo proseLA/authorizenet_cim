@@ -1886,6 +1886,16 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
             return $user;
         }
 
+        function isValidCustomerAddress($addressId)
+        {
+            global $db;
+            $sql = 'select * from ' . TABLE_ADDRESS_BOOK . ' WHERE customers_id = :custID AND address_book_id = :addID';
+            $sql = $db->bindVars($sql, ':custID', $_SESSION['customer_id'], 'integer');
+            $sql = $db->bindVars($sql, ':addID', $addressId, 'integer');
+            $result = $db->Execute($sql);
+            return !$result->EOF;
+        }
+
         function updateCustomer($customerID, $profileID)
         {
             global $db;
