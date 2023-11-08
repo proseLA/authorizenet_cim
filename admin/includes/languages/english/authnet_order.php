@@ -85,3 +85,5 @@
 	define('TEXT_DELETE_CONFIRM',
 		'The operation is complete.<p><strong>%s</strong> line(s) affected in the process.<br/>');
 	define('BUTTON_DELETE_CONFIRM', 'Return');
+
+    define('CAPTURED_AT_GATEWAY', 'According to authorize.net, this payment is already captured at the gateway!');

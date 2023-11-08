@@ -231,18 +231,29 @@
 				break;  // END case
 			case 'capture':
 				$captureFunds = false;
-				$status = $authnet_cim->getTransactionDetails($authnet_order->payment[$index]['number'])->getTransaction()->getTransactionStatus();
-				if (strpos($status, 'authorizedPendingCapture') !== false) {
-					$captureFunds = true;
-				} else {
-					$_SESSION['capture_error_status'] = true;
-					$messageStack->add_session(CAPTURE_BAD_STATUS, 'error');
-					if ($status == 'expired') {
-					    $authnet_cim->expireTransaction($authnet_order->payment[$index], $oID);
-					}
-					zen_redirect(zen_href_link(FILENAME_AUTHNET_PAYMENTS, 'oID=' . $oID . '&action=refund_capture_done',
-						'SSL'));
-				}
+                $transaction = $authnet_cim->getTransactionDetails($authnet_order->payment[$index]['number'])->getTransaction();
+                $status = $transaction->getTransactionStatus();
+                switch ($status) {
+                    case ('authorizedPendingCapture'):
+                        $captureFunds = true;
+                        break;
+                    case ('capturedPendingSettlement'):
+                        $_SESSION['capture_error_status'] = true;
+                        $messageStack->add_session(CAPTURED_AT_GATEWAY, 'error');
+                        $settleAmount = $transaction->getSettleAmount();
+                        $authnet_cim->capturePayment($authnet_order->payment[$index]['number'], $settleAmount);
+                        zen_redirect(zen_href_link(FILENAME_AUTHNET_PAYMENTS, 'oID=' . $oID . '&action=refund_capture_done', 'SSL'));
+                        break;
+                    default:
+                        $_SESSION['capture_error_status'] = true;
+                        $messageStack->add_session(CAPTURE_BAD_STATUS, 'error');
+
+                        if ($status == 'expired') {
+                            $authnet_cim->expireTransaction($authnet_order->payment[$index], $oID);
+                        }
+                        zen_redirect(zen_href_link(FILENAME_AUTHNET_PAYMENTS, 'oID=' . $oID . '&action=refund_capture_done','SSL'));
+                        break;
+                }
 
 				echo zen_draw_form('capture', FILENAME_AUTHNET_PAYMENTS, '', 'post', '', true);
 				echo zen_draw_hidden_field('action', $action);

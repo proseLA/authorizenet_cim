@@ -382,6 +382,7 @@
                 'MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID',
                 'MODULE_PAYMENT_AUTHORIZENET_CIM_DEBUGGING',
                 'MODULE_PAYMENT_AUTHORIZENET_CIM_ALLOW_MORE',
+                'MODULE_PAYMENT_AUTHORIZENET_CIM_REVIEW_ORDER_STATUS_ID',
             ];
         }
 
@@ -448,6 +449,9 @@
             }
             if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_ALLOW_MORE')) {
                 $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('New Auths', 'MODULE_PAYMENT_AUTHORIZENET_CIM_ALLOW_MORE', 'False', 'Would you like to allow new authorizations for non guest orders on admin when there is a balance due?', '6', '17', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
+            }
+            if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_REVIEW_ORDER_STATUS_ID')) {
+                $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Set Held-For-Review Order Status', 'MODULE_PAYMENT_AUTHORIZENET_CIM_REVIEW_ORDER_STATUS_ID', '0', 'Set the status of orders made with this payment module, BUT are needing to be reviewed for processing.', '6', '15', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now())");
             }
 
             $this->tableCheckup();
@@ -990,7 +994,6 @@
                 }
             }
 
-
             $currentTimeForTest = time();
             if (empty($_SESSION['createCard'])) {
                 $_SESSION['createCard'] = time();
@@ -1224,6 +1227,10 @@
 
                     if ($tresponse != null && $tresponse->getMessages() != null) {
                         $error = false;
+                        if ($tresponse->getResponseCode() == '4') {
+                            $this->authorizationType = 'Authorize';
+                            $this->order_status = (int)MODULE_PAYMENT_AUTHORIZENET_CIM_REVIEW_ORDER_STATUS_ID;
+                        }
                         $logData = "Transaction Response code : " . $tresponse->getResponseCode() . "\n";
                         $logData .= " Charge Customer Profile APPROVED  :" . "\n";
                         $logData .= " Charge Customer Profile AUTH CODE : " . $tresponse->getAuthCode() . "\n";
@@ -1750,7 +1757,6 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
             }
 
             $this->notify('NOTIFIER_CIM_OVERRIDE_STATUS_UPDATE', $insertID, $status, $comments);
-
             $this->updateOrderInfo($insertID, $status, $initialAuthAmount);
 
             zen_update_orders_history($insertID, $comments, $this->cimUpdatedByAdminName(), $status, -1);
