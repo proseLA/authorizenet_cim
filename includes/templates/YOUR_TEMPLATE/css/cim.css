@@ -1,0 +1,50 @@
+/*  portions copyright by... zen-cart.com
+
+    developed and brought to you by proseLA
+    https://rossroberts.com
+
+    released under GPU
+    https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
+
+   01/2021  project: authorizenet_cim; file: cim.css; version 2.2.3
+*/
+address#percent15 {
+    margin:0;
+    width:15%;
+}
+.cvv_input {
+    width: 25px;
+}
+
+#select-cc_month, #select-cc_year {
+    width: 15%;
+}
+.payment_select {
+    margin-bottom: 10px;
+}
+.address_selection {
+	float: left;
+	width: 100%;
+    display: flex;
+}
+
+.size18 {
+    font-size: 18px;
+    padding-top: 12px;
+}
+
+.review_box {
+    border: 1px solid #CAC9C9;
+    border-radius: 4px 4px 4px 4px;
+    margin-bottom: 8px;
+    padding: 12px;
+    float: left;
+    width: 96.2%;
+}
+
+#cc_address > h2 {
+    margin: 1px 1px 3px
+}
+#cardUpdate {
+    background: white;
+}
