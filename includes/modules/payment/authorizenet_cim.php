@@ -209,7 +209,7 @@
             if (!zen_in_guest_checkout()) {
                 $selection['fields'][] = [
                     'title' => 'Keep Card on File',
-                    'field' => zen_draw_checkbox_field('authorizenet_cim_save', '', true, 'id="authorizenet_cim_save"'),
+                    'field' => zen_draw_checkbox_field('authorizenet_cim_save', '', true, 'id="authorizenet_cim_save" '),
                     'tag' => $this->code . '_save',
                 ];
             }
@@ -742,11 +742,15 @@
 		    if (isset($order['orders_id'])) {
 			    return $order['orders_id'];
 		    } else {
-			    $nextIDResultA = $db->Execute("SELECT max(orders_id) as nextID FROM " . TABLE_CIM_PAYMENTS);
+                $sql = "SHOW TABLE STATUS LIKE '" . TABLE_ORDERS . "'";
+                $result = $db->ExecuteNoCache($sql);
+                return $result->fields['Auto_increment'];
+
+/*			    $nextIDResultA = $db->Execute("SELECT max(orders_id) as nextID FROM " . TABLE_CIM_PAYMENTS);
 			    $nextIDResultB = $db->Execute("SELECT (orders_id + 1) AS nextID FROM " . TABLE_ORDERS . " ORDER BY orders_id DESC LIMIT 1");
 			    $nextIDB = $nextIDResultB->fields['nextID'];
 			    $nextIDA = $nextIDResultA->fields['nextID'] + 1;
-			    return max($nextIDA, $nextIDB);
+			    return max($nextIDA, $nextIDB);*/
 		    }
 	    }
 

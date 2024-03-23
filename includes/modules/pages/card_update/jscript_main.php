@@ -11,7 +11,7 @@
 */
 ?>
 <link rel="stylesheet" type="text/css" href="includes/templates/template_default/css/cim.css" />
-<script language="javascript" type="text/javascript">
+<script>
 var selected;
 
 var $ = jQuery.noConflict();

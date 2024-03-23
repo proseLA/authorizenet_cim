@@ -74,7 +74,8 @@
 				$selection['fields'][] = [
 					'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CVV,
 					'field' => zen_draw_input_field('authorizenet_cof_cc_cvv', '',
-							'size="4" maxlength="4" class="cvv_input"' . ' id="' . $this->code . '-cc-cvv"' . $onFocus) . ' ' . '<a href="javascript:popupWindow(\'' . zen_href_link(FILENAME_POPUP_CVV_HELP) . '\')">' . MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_POPUP_CVV_LINK . '</a>',
+							'size="4" maxlength="4" class="cvv_input"' . ' id="' . $this->code . '-cc-cvv"' . $onFocus . ' pattern="[0-9]*"', 'number') . ' ' . '<a href="javascript:popupWindow(\'' . zen_href_link
+                        (FILENAME_POPUP_CVV_HELP) . '\')">' . MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_POPUP_CVV_LINK . '</a>',
 					'tag' => $this->code . '-cc-cvv'
 				];
 			}
