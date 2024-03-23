@@ -52,17 +52,17 @@
 										} else {
 											$last_index = 0;
 										}
+                                        $cards = $cof->getCustomerCardsAsArray($authnet->cID, true);
 										if (in_array(MODULE_PAYMENT_AUTHORIZENET_CIM_ALLOW_MORE, [
 												'True',
 												'TRUE',
-												'true'
-											]) && $authnet->balance_due > 0 && $authnet->status != $this->cancelled_status()) {
+                                                'true',
+                                            ]) && $authnet->balance_due > 0 && $authnet->status != $this->cancelled_status() && (count($cards) > 0)) {
                                             $header_columns += 2;
 											?>
                                             <th colspan="2"><?= $authnet->button_new_funds($authnet->payment[$last_index]['index'] ?? '') ?></th>
 
 											<?php
-											$cards = $cof->getCustomerCardsAsArray($authnet->cID, true);
 											$key = false;
 
 											if (count($cards) > 1) {
@@ -210,7 +210,7 @@
 							'text' => '<a href="javascript:cimpopupWindow(\'' . zen_href_link(FILENAME_AUTHNET_PAYMENTS,
 									'cID=' . $p1->customers_id . '&action=clearCards',
 									'NONSSL') . '\', \'scrollbars=yes,resizable=yes,width=100,height=1000,screenX=150,screenY=100,top=100,left=150\')"' .
-								'class="btn btn-danger" role="button" id="cards_btn" class="btn btn-danger btn-margin">' . BUTTON_DELETE_CARDS . '</a>'
+                                'class="btn btn-danger" role="button" id="cards_btn" class="btn btn-danger btn-margin">' . BUTTON_DELETE_CARDS . '</a>',
 						];
 					}
 					break;

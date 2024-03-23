@@ -16,38 +16,47 @@
 
     require $sdk_loader;
 
+    use net\authorize\api\constants\ANetEnvironment;
     use net\authorize\api\contract\v1 as AnetAPI;
     use net\authorize\api\controller as AnetController;
 
     class authorizenet_cim extends base
     {
 
-        var $code, $title, $description, $enabled, $authorize = '';
+        var string $authorize = '';
+        var bool $enabled;
+        var string $description;
+        var string $title;
+        var string $code;
 
-        var $version = '2.3.3';
-        var $params = [];
-        var $error = true;
-        var $response;
-        var $text;
-        var $customerProfileId;
-        var $customerPaymentProfileId;
-        var $approvalCode;
-        var $transID;
-        var $authorizationType = 'Authorize';
-        var $testMode = false;
-        var $solution = 'AAA183475';
+        var string $version = '2.3.3';
+        var array $params = [];
+        var bool $error = true;
+        var net\authorize\api\contract\v1\CreateTransactionResponse $response;
+        var string $text;
+        var int $customerProfileId;
+        var int $customerPaymentProfileId;
+        var string $approvalCode;
+        var string $transID;
+        var string $authorizationType = 'Authorize';
+        var bool $testMode = false;
+        var string $solution = 'AAA183475';
 
         // used for fraud prevention, put a limiter on the amount of time one can submit new credit cards;
         // and after $logoff +1; send them to the account page.
-        private $delayTime = 60;
-        private $logOff = 3;
+        private int $delayTime = 60;
+        private int $logOff = 3;
 
-        public $sort_order, $form_action_url, $order_status, $_check;
+        public $sort_order, $form_action_url, $_check;
+        public int $order_status;
+        private string $email;
 
-        private $email;
-        var $errorMessages = [];
+        var array $errorMessages = [];
 
-        // zen-cart base payment functions
+        private $cc_card_type;
+        private $cc_card_number;
+        private $cc_expiry_month;
+        private $cc_expiry_year;
 
         function __construct()
         {
@@ -98,10 +107,10 @@
             }
         }
 
-        function update_status()
+        function update_status(): void
         {
             global $order, $db;
-            if (($this->enabled == true) && ((int)MODULE_PAYMENT_AUTHORIZENET_CIM_ZONE > 0)) {
+            if ($this->enabled && ((int)MODULE_PAYMENT_AUTHORIZENET_CIM_ZONE > 0)) {
                 $check_flag = false;
                 $check = $db->Execute("select zone_id from " . TABLE_ZONES_TO_GEO_ZONES . " where geo_zone_id = '" . MODULE_PAYMENT_AUTHORIZENET_CIM_ZONE . "' and zone_country_id = '" . $order->billing['country']['id'] . "' order by zone_id");
                 while (!$check->EOF) {
@@ -115,13 +124,13 @@
                     $check->MoveNext();
                 }
 
-                if ($check_flag == false) {
+                if (!$check_flag) {
                     $this->enabled = false;
                 }
             }
         }
 
-        function javascript_validation()
+        function javascript_validation(): string
         {
             $js = '  if (payment_value == "' . $this->code . '") {' . "\n" .
                 '    var cc_owner = document.checkout_payment.authorizenet_cim_cc_owner.value;' . "\n" .
@@ -148,14 +157,14 @@
             return $js;
         }
 
-        function selection()
+        function selection(): false|array
         {
             global $order;
 
             for ($i = 1; $i < 13; $i++) {
                 $expires_month[] = [
                     'id' => sprintf('%02d', $i),
-                    'text' => date('F',mktime(0,0,0,$i,10)) . ' - ('. date('m',mktime(0,0,0,$i,10)) . ')',
+                    'text' => date('F', mktime(0, 0, 0, $i, 10)) . ' - (' . date('m', mktime(0, 0, 0, $i, 10)) . ')',
                 ];
             }
 
@@ -176,22 +185,22 @@
                     [
                         'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CREDIT_CARD_OWNER,
                         'field' => zen_draw_input_field('authorizenet_cim_cc_owner',
-                            ($order->billing['firstname'] ?? '') . ' ' . ($order->billing['lastname'] ?? ''),
-                            'id="' . $this->code . '-cc-owner"' . $onFocus),
+                                                        ($order->billing['firstname'] ?? '') . ' ' . ($order->billing['lastname'] ?? ''),
+                                                        'id="' . $this->code . '-cc-owner"' . $onFocus),
                         'tag' => $this->code . '-cc-owner',
                     ],
                     [
                         'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CREDIT_CARD_NUMBER,
                         'field' => zen_draw_input_field('authorizenet_cim_cc_number', '',
-                            'id="' . $this->code . '-cc-number"' . $onFocus . ' pattern="[0-9]*"', 'number'),
+                                                        'id="' . $this->code . '-cc-number"' . $onFocus . ' pattern="[0-9]*"', 'number'),
                         'tag' => $this->code . '-cc-number',
                     ],
                     [
                         'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CREDIT_CARD_EXPIRES,
                         'field' => zen_draw_pull_down_menu('authorizenet_cim_cc_expires_month', $expires_month, '',
-                                'id="' . $this->code . '-cc-expires-month"' . $onFocus) . '&nbsp;' . zen_draw_pull_down_menu('authorizenet_cim_cc_expires_year',
-                                $expires_year, date('y', mktime(0, 0, 0, 1, 1, $today['year'] + 1)),
-                                'id="' . $this->code . '-cc-expires-year"' . $onFocus),
+                                                           'id="' . $this->code . '-cc-expires-month"' . $onFocus) . '&nbsp;' . zen_draw_pull_down_menu('authorizenet_cim_cc_expires_year',
+                                                                                                                                                        $expires_year, date('y', mktime(0, 0, 0, 1, 1, $today['year'] + 1)),
+                                                                                                                                                        'id="' . $this->code . '-cc-expires-year"' . $onFocus),
                         'tag' => $this->code . '-cc-expires-month',
                     ],
                 ],
@@ -201,7 +210,7 @@
                 $selection['fields'][] = [
                     'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CVV,
                     'field' => zen_draw_input_field('authorizenet_cim_cc_cvv', '',
-                            'size="4" maxlength="4" class="cvv_input"' . ' id="' . $this->code . '-cc-cvv"' . $onFocus . ' pattern="[0-9]*"', 'number') . ' ' . '<a href="javascript:popupWindow(\'' . zen_href_link
+                                                    'size="4" maxlength="4" class="cvv_input"' . ' id="' . $this->code . '-cc-cvv"' . $onFocus . ' pattern="[0-9]*"', 'number') . ' ' . '<a href="javascript:popupWindow(\'' . zen_href_link
                         (FILENAME_POPUP_CVV_HELP) . '\')">' . MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_POPUP_CVV_LINK . '</a>',
                     'tag' => $this->code . '-cc-cvv',
                 ];
@@ -217,7 +226,7 @@
             return $selection;
         }
 
-        function pre_confirmation_check()
+        function pre_confirmation_check(): void
         {
             global $messageStack;
 
@@ -225,8 +234,8 @@
 
             $cc_validation = new cc_validation();
             $result = $cc_validation->validate($_POST['authorizenet_cim_cc_number'],
-                $_POST['authorizenet_cim_cc_expires_month'], $_POST['authorizenet_cim_cc_expires_year'],
-                $_POST['authorizenet_cim_cc_cvv'] ?? '');
+                                               $_POST['authorizenet_cim_cc_expires_month'], $_POST['authorizenet_cim_cc_expires_year'],
+                                               $_POST['authorizenet_cim_cc_cvv'] ?? '');
             $error = '';
             switch ($result) {
                 case -1:
@@ -242,7 +251,7 @@
                     break;
             }
 
-            if (($result == false) || ($result < 1)) {
+            if (!$result || ($result < 1)) {
                 $payment_error_return = 'payment_error=' . $this->code . '&authorizenet_cim_cc_owner=' . urlencode($_POST['authorizenet_cim_cc_owner']) . '&authorizenet_cim_cc_expires_month=' . $_POST['authorizenet_cim_cc_expires_month'] . '&authorizenet_cim_cc_expires_year=' . $_POST['authorizenet_cim_cc_expires_year'];
                 $messageStack->add_session('checkout_payment', $error . '<!-- [' . $this->code . '] -->', 'error');
                 zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, $payment_error_return, 'SSL', true, false));
@@ -259,7 +268,7 @@
          *
          * @return array
          */
-        function confirmation()
+        function confirmation(): array
         {
             $confirmation = [
                 'fields' => [
@@ -274,12 +283,12 @@
                     [
                         'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CREDIT_CARD_NUMBER,
                         'field' => str_repeat('X', strlen($this->cc_card_number) - 12) . '-' . str_repeat('X',
-                                4) . '-' . str_repeat('X', 4) . '-' . substr($this->cc_card_number, -4),
+                                                                                                          4) . '-' . str_repeat('X', 4) . '-' . substr($this->cc_card_number, -4),
                     ],
                     [
                         'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_CREDIT_CARD_EXPIRES,
                         'field' => date('F, Y', mktime(0, 0, 0, $_POST['authorizenet_cim_cc_expires_month'], 1,
-                            '20' . $_POST['authorizenet_cim_cc_expires_year'])),
+                                                       '20' . $_POST['authorizenet_cim_cc_expires_year'])),
                     ],
                 ],
             ];
@@ -293,7 +302,7 @@
          *
          * @return string
          */
-        function process_button()
+        function process_button(): string
         {
             $process_button_string = zen_draw_hidden_field('cc_owner', $_POST['authorizenet_cim_cc_owner']) .
                 zen_draw_hidden_field('cc_expires', $this->cc_expiry_month . substr($this->cc_expiry_year, -2)) .
@@ -313,7 +322,7 @@
         /**
          * Store the CC info to the order and process any results that come back from the payment gateway
          */
-        function before_process()
+        function before_process(): void
         {
             global $order, $customerID, $zco_notifier;
 
@@ -324,16 +333,15 @@
             }
 
             $order->info['cc_number'] = str_pad(substr($_POST['cc_number'], -4), CC_NUMBER_MIN_LENGTH, "X",
-                STR_PAD_LEFT);
+                                                STR_PAD_LEFT);
             $order->info['cc_expires'] = $_POST['cc_expires'];
             $order->info['cc_type'] = $_POST['cc_type'];
-            $order->info['cc_owner'] = $_POST['cc_owner'];
             $order->info['cc_owner'] = $_POST['cc_owner'];
 
             $customerID = $_SESSION['customer_id'];
             $customerProfileId = $this->getCustomerProfile($customerID);
 
-            if ($customerProfileId == false) {
+            if (!$customerProfileId) {
                 $this->createCustomerProfileRequest();
             } else {
                 $this->setParameter('customerProfileId', $customerProfileId);
@@ -346,27 +354,27 @@
             $this->addErrorsMessageStack('Customer Payment Profile');
 
             $this->response = $this->chargeCustomerProfile($this->params['customerProfileId'],
-                $this->params['customerPaymentProfileId']);
+                                                           $this->params['customerPaymentProfileId']);
 
             $this->addErrorsMessageStack('Customer Payment Transaction');
         }
 
-        function after_process()
+        function after_process(): void
         {
             global $insert_id, $customerID;
 
             $this->updateOrderAndPayment($customerID, $this->transID, $insert_id, $this->approvalCode,
-                $this->order_status);
+                                         $this->order_status);
 
         }
 
-        function remove()
+        function remove(): void
         {
             global $db;
             $db->Execute("delete from " . TABLE_CONFIGURATION . " where configuration_key like 'MODULE\_PAYMENT\_AUTHORIZENET\_CIM\_%'");
         }
 
-        function keys()
+        function keys(): array
         {
             return [
                 'MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS',
@@ -386,7 +394,7 @@
             ];
         }
 
-        function get_error()
+        function get_error(): false|array
         {
             return [
                 'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_ERROR,
@@ -394,7 +402,7 @@
             ];
         }
 
-        function check()
+        function check(): int
         {
             global $db;
             if (!isset($this->_check)) {
@@ -408,7 +416,7 @@
             return $this->_check;
         }
 
-        function install()
+        function install(): void
         {
             global $db;
             if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS') || empty(MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS)) {
@@ -461,7 +469,7 @@
 
         // helper functions
 
-        function logError($logData, $error = false)
+        function logError($logData, $error = false): void
         {
             $response_log = (defined('DIR_FS_LOGS') ? DIR_FS_LOGS : DIR_FS_SQL_CACHE) . '/cim_response.log';
 
@@ -479,7 +487,7 @@
             }
         }
 
-        function checkLogName()
+        function checkLogName(): void
         {
             $log = ini_get('error_log');
             $start = strpos($log, 'cim');
@@ -495,17 +503,17 @@
             }
         }
 
-        private function resetErrorMessages()
+        private function resetErrorMessages(): void
         {
             $this->errorMessages = [];
         }
 
-        function addErrorsMessageStack($type)
+        function addErrorsMessageStack($type): bool
         {
             global $messageStack;
 
             $return_error = false;
-            if (isset($this->errorMessages) && (!empty($this->errorMessages))) {
+            if ((!empty($this->errorMessages))) {
                 $return_error = true;
                 foreach ($this->errorMessages as $error) {
                     if (!defined('IS_ADMIN_FLAG') || IS_ADMIN_FLAG !== true) {
@@ -524,14 +532,10 @@
 
         function convertExpDate($year, $month)
         {
-            if (isset($_POST['cc_expires_date'])) {
-                return $_POST['cc_expires_date'];
-            } else {
-                return '20' . $year . '-' . $month;
-            }
+            return $_POST['cc_expires_date'] ?? '20' . $year . '-' . $month;
         }
 
-        function getCustomerPaymentProfile($customer_id, $last_four = '', $index_id = 0)
+        function getCustomerPaymentProfile($customer_id, $last_four = '', $index_id = 0): array
         {
             global $db;
 
@@ -603,7 +607,7 @@
             return $billto;
         }
 
-        function getAddressInfo()
+        function getAddressInfo(): array
         {
             // for card_update
             global $customerID, $db;
@@ -644,7 +648,7 @@
 
                 if ($address->EOF) {
                     $this->logError('Problem with address. custNo: ' . $customerID . '; adress_book_id: ' . $_POST['address_selection'],
-                        true);
+                                    true);
                 } else {
                     $return['firstname'] = $address->fields['entry_firstname'];
                     $return['lastname'] = $address->fields['entry_lastname'];
@@ -662,7 +666,7 @@
             return $return;
         }
 
-        function addNewAddress()
+        function addNewAddress(): void
         {
             global $customer_id, $db, $zco_notifier;
 
@@ -733,28 +737,22 @@
             $new_address_book_id = $db->Insert_ID();
             $this->updateDefaultCustomerBillTo($new_address_book_id);
             $zco_notifier->notify('NOTIFY_MODULE_ADDRESS_BOOK_ADDED_ADDRESS_BOOK_RECORD',
-                array_merge(['address_id' => $new_address_book_id], $sql_data_array));
+                                  array_merge(['address_id' => $new_address_book_id], $sql_data_array));
         }
 
-	    function nextOrderNumber($order)
-	    {
-		    global $db;
-		    if (isset($order['orders_id'])) {
-			    return $order['orders_id'];
-		    } else {
+        function nextOrderNumber($order)
+        {
+            global $db;
+            if (isset($order['orders_id'])) {
+                return $order['orders_id'];
+            } else {
                 $sql = "SHOW TABLE STATUS LIKE '" . TABLE_ORDERS . "'";
                 $result = $db->ExecuteNoCache($sql);
                 return $result->fields['Auto_increment'];
+            }
+        }
 
-/*			    $nextIDResultA = $db->Execute("SELECT max(orders_id) as nextID FROM " . TABLE_CIM_PAYMENTS);
-			    $nextIDResultB = $db->Execute("SELECT (orders_id + 1) AS nextID FROM " . TABLE_ORDERS . " ORDER BY orders_id DESC LIMIT 1");
-			    $nextIDB = $nextIDResultB->fields['nextID'];
-			    $nextIDA = $nextIDResultA->fields['nextID'] + 1;
-			    return max($nextIDA, $nextIDB);*/
-		    }
-	    }
-
-        function saveCard()
+        function saveCard(): string
         {
             if (($_POST['cc_save'] ?? 'off' == 'on') || ($_POST['new_cid'] ?? '' == 'NEW') || isset($_POST['update_cid'])) {
                 return 'Y';
@@ -763,7 +761,7 @@
             }
         }
 
-        function doCimRefund($ordersID, $refund_amount, $payment_index)
+        function doCimRefund($ordersID, $refund_amount, $payment_index): bool
         {
             global $db;
 
@@ -792,7 +790,7 @@
 
             $details = $this->getTransactionDetails($refund->fields['transaction_id']);
 
-            if (strpos($details->getTransaction()->getTransactionStatus(), 'Pending') !== false) {
+            if (str_contains($details->getTransaction()->getTransactionStatus(), 'Pending')) {
                 // if the transaction is pending, a void will void all of the amount
                 $response = $this->voidTransaction($ordersID, $refund, $max_refund);
                 $this->addErrorsMessageStack('Void');
@@ -807,7 +805,7 @@
             }
         }
 
-        function checkZeroBalance($ordersID)
+        function checkZeroBalance($ordersID): bool
         {
             global $db;
             $sql = "SELECT sum(payment_amount) as payment from " . TABLE_CIM_PAYMENTS . "
@@ -875,7 +873,7 @@
             return $return;
         }
 
-        function merchantCredentials()
+        function merchantCredentials(): AnetAPI\MerchantAuthenticationType
         {
             $merch = new AnetAPI\MerchantAuthenticationType();
             $merch->setName(trim(MODULE_PAYMENT_AUTHORIZENET_CIM_LOGIN));
@@ -886,17 +884,17 @@
         private function getControllerResponse($controller)
         {
             if ($this->testMode) {
-                return $controller->executeWithApiResponse(\net\authorize\api\constants\ANetEnvironment::SANDBOX);
+                return $controller->executeWithApiResponse(ANetEnvironment::SANDBOX);
             }
-            return $controller->executeWithApiResponse(\net\authorize\api\constants\ANetEnvironment::PRODUCTION);
+            return $controller->executeWithApiResponse(ANetEnvironment::PRODUCTION);
         }
 
-        function setParameter($field = "", $value = null)
+        function setParameter($field = "", $value = null): void
         {
             $this->params[$field] = $value;
         }
 
-        private function checkEmailAddress(int $customerID, string $email)
+        private function checkEmailAddress(int $customerID, string $email): void
         {
             global $db;
 
@@ -915,6 +913,7 @@
             }
 
         }
+
         // functions that use the authorize API and return responses.
 
         function createCustomerProfileRequest()
@@ -991,7 +990,7 @@
             if (!isset($this->params['customerProfileId']) || ($this->params['customerProfileId'] == 0)) {
                 $customerProfileId = $this->getCustomerProfile($customerID);
 
-                if ($customerProfileId == false) {
+                if (!$customerProfileId) {
                     $this->createCustomerProfileRequest();
                 } else {
                     $this->setParameter('customerProfileId', $customerProfileId);
@@ -1005,7 +1004,7 @@
                 $currentTimeForTest = time() + $this->delayTime + 3;
             }
 
-            $_SESSION['logOff'] ++;
+            $_SESSION['logOff']++;
             if ($_SESSION['logOff'] > $this->logOff) {
 //                $messageStack->add_session(FILENAME_LOGOFF, 'Sorry, due to the increasing amount of fraud we are logging you off!', 'error');
                 // once the session is destroyed, so is the messageStack!
@@ -1025,13 +1024,13 @@
             // here we are checking to see if the customer already has this card on file.
             // if we have it, return that profile
             $existing_profile = $this->getCustomerPaymentProfile($customerID,
-                substr(trim($_POST['cc_number']), -4));
+                                                                 substr(trim($_POST['cc_number']), -4));
 
-            if (!is_null($existing_profile['profile']) && $existing_profile['profile']) {
+            if ($existing_profile['profile']) {
                 // save status may have changed...  lets just update.
                 //if ($existing_profile['exp_date'] !== $exp_date) {
-                    $this->updateCustomerPaymentProfile($this->params['customerProfileId'],
-                        $existing_profile['profile']);
+                $this->updateCustomerPaymentProfile($this->params['customerProfileId'],
+                                                    $existing_profile['profile']);
                 //}
                 $this->setParameter('customerPaymentProfileId', $existing_profile['profile']);
                 return;
@@ -1080,8 +1079,8 @@
                 $save = $this->saveCard();
 
                 $this->saveCCToken($customerID, $this->params['customerPaymentProfileId'],
-                    substr($_POST['cc_number'], -4),
-                    $exp_date, $save);
+                                   substr($_POST['cc_number'], -4),
+                                   $exp_date, $save);
                 $order->info['payment_profile_id'] = $this->params['customerPaymentProfileId'];
             } else {
                 $logData = "Create Customer Payment Profile: ERROR Invalid response\n";
@@ -1093,8 +1092,8 @@
                     $this->setParameter('customerPaymentProfileId', $response->getCustomerPaymentProfileId());
                     $save = $this->saveCard();
                     $this->saveCCToken($customerID, $this->params['customerPaymentProfileId'],
-                        substr($_POST['cc_number'], -4),
-                        $exp_date, $save);
+                                       substr($_POST['cc_number'], -4),
+                                       $exp_date, $save);
                     $order->info['payment_profile_id'] = $this->params['customerPaymentProfileId'];
                 }
             }
@@ -1102,15 +1101,15 @@
             return $logData;
         }
 
-        function adminCharge($profileid, $paymentprofileid, $new_auth)
+        function adminCharge($profileid, $paymentprofileid, $new_auth): bool
         {
             $this->resetErrorMessages();
             $this->chargeCustomerProfile($profileid, $paymentprofileid, $new_auth);
-            $error = $this->addErrorsMessageStack('Admin:');
-            return $error;
+            return $this->addErrorsMessageStack('Admin:');
         }
 
-        private function newTransactionRequest() {
+        private function newTransactionRequest(): AnetAPI\TransactionRequestType
+        {
             $request = new AnetAPI\TransactionRequestType();
             $solution = new AnetAPI\SolutionType();
             if ($this->testMode) {
@@ -1121,7 +1120,7 @@
             return $request;
         }
 
-        private function level2Data(array $order_total)
+        private function level2Data(array $order_total): AnetAPI\ExtendedAmountType
         {
             $extraData = new AnetAPI\ExtendedAmountType();
             $extraData->setName(substr($order_total['title'], 0, 31));
@@ -1163,7 +1162,7 @@
                 $invoice_number = (int)$_POST['oID'];
                 $full_name = $this->getPaymentName($_POST['oID']);
             }
-            $transactionRequestType->setAmount(number_format($charge_amount, 2, '.', '') . "");
+            $transactionRequestType->setAmount(number_format($charge_amount, 2, '.', ''));
             $transactionRequestType->setProfile($profileToCharge);
 
             $invoice_description = '';
@@ -1178,10 +1177,10 @@
                     }
                     $first_item = false;
                     $invoice_description .= preg_replace('/[^a-z0-9_ ]/i', '',
-                        preg_replace('/&nbsp;/', ' ', $items['name']));
+                                                         preg_replace('/&nbsp;/', ' ', $items['name']));
                     $invoice_description .= ' (qty: ' . $items['qty'] . ')';
                     $lineItem1->setName(substr(preg_replace('/[^a-z0-9_ ]/i', '',
-                        preg_replace('/&nbsp;/', ' ', $items['name'])), 0, 30));
+                                                            preg_replace('/&nbsp;/', ' ', $items['name'])), 0, 30));
                     //$lineItem1->setDescription("Here's the first line item");
                     $lineItem1->setQuantity($items['qty']);
                     $lineItem1->setUnitPrice($items['final_price']);
@@ -1244,7 +1243,7 @@
                         $logData .= " Code : " . $tresponse->getMessages()[0]->getCode() . "\n";
                         $logData .= " Description : " . $tresponse->getMessages()[0]->getDescription() . "\n";
 
-                        $cust_id = isset($order->customer['id']) ? $order->customer['id'] : ($_SESSION['customer_id'] ?? '');
+                        $cust_id = $order->customer['id'] ?? ($_SESSION['customer_id'] ?? '');
                         if ($cust_id == '') {
                             $cust_id = $this->getCustomerID($profileid);
                         }
@@ -1254,13 +1253,13 @@
                         }
 
                         $this->insertPayment($tresponse->getTransId(),
-                            $full_name,
-                            $charge_amount, $this->code, $paymentprofileid,
-                            $tresponse->getAuthCode(),
-                            $cust_id, $invoice_number);
+                                             $full_name,
+                                             $charge_amount, $this->code, $paymentprofileid,
+                                             $tresponse->getAuthCode(),
+                                             $cust_id, $invoice_number);
                         if ($new_auth) {
                             $this->updateOrderAndPayment($cust_id, $tresponse->getTransId(), $invoice_number,
-                                $tresponse->getAuthCode(), $this->order_status);
+                                                         $tresponse->getAuthCode(), $this->order_status);
                         }
                     } else {
                         $logData = "Transaction Failed \n";
@@ -1279,7 +1278,7 @@
             return $response;
         }
 
-        function failedTransaction($response)
+        function failedTransaction($response): string
         {
             $logData = "Transaction Failed \n";
             $tresponse = $response->getTransactionResponse();
@@ -1372,11 +1371,11 @@
             return $response;
         }
 
-        function expireTransaction($payment, $ordersId)
+        function expireTransaction($payment, $ordersId): void
         {
             $this->insertRefund($payment['index'], $ordersId, $payment['number'],
-                $payment['name'],
-                $payment['number'], $payment['amount'], 'EXPIRED', 'expired');
+                                $payment['name'],
+                                $payment['number'], $payment['amount'], 'EXPIRED', 'expired');
             $this->updatePaymentForRefund($ordersId, $payment['number'], $payment['amount']);
             $this->updateOrderInfo($ordersId, MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID, (0 - $payment['amount']));
         }
@@ -1405,7 +1404,7 @@
             //create a transaction
             $transactionRequestType = $this->newTransactionRequest();
             $transactionRequestType->setTransactionType("refundTransaction");
-            $transactionRequestType->setAmount(number_format($refund_amount, 2, '.', '') . "");
+            $transactionRequestType->setAmount(number_format($refund_amount, 2, '.', ''));
             if ($guest) {
                 $transactionRequestType->setPayment($paymentOne);
             } else {
@@ -1416,7 +1415,6 @@
             $authorize_order = new AnetAPI\OrderType();
             $authorize_order->setInvoiceNumber($ordersID);
             $transactionRequestType->setOrder($authorize_order);
-
 
             $request = new AnetAPI\CreateTransactionRequest();
             $request->setMerchantAuthentication($this->merchantCredentials());
@@ -1438,16 +1436,16 @@
                         $logData .= " Description : " . $tresponse->getMessages()[0]->getDescription() . "\n";
 
                         $this->insertRefund($refund->fields['payment_id'], $ordersID, $tresponse->getTransId(),
-                            $refund->fields['payment_name'], $refund->fields['transaction_id'], $refund_amount, 'REF',
-                            $tresponse->getMessages()[0]->getCode());
+                                            $refund->fields['payment_name'], $refund->fields['transaction_id'], $refund_amount, 'REF',
+                                            $tresponse->getMessages()[0]->getCode());
                         $this->updatePaymentForRefund($ordersID, $refund->fields['transaction_id'], $refund_amount);
                         $update_status = $this->checkZeroBalance($ordersID);
-	                    if ($update_status) {
-		                    $this->updateOrderInfo($ordersID, MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID, (0 - $refund_amount));
-	                    } else {
-		                    $notifier_amount = (0 - $refund_amount);
-		                    $zco_notifier->notify('NOTIFY_AUTHNET_PAYMENT_REFUND', $ordersID, $notifier_amount);
-	                    }
+                        if ($update_status) {
+                            $this->updateOrderInfo($ordersID, MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID, (0 - $refund_amount));
+                        } else {
+                            $notifier_amount = (0 - $refund_amount);
+                            $zco_notifier->notify('NOTIFY_AUTHNET_PAYMENT_REFUND', $ordersID, $notifier_amount);
+                        }
 
                     } else {
                         $logData = "Transaction Failed \n";
@@ -1487,8 +1485,8 @@
                     if ($tresponse != null && $tresponse->getMessages() != null) {
 
                         $this->insertRefund($refund->fields['payment_id'], $ordersID, $tresponse->getTransId(),
-                            $refund->fields['payment_name'],
-                            $refund->fields['transaction_id'], $refund_amount, 'VOID', $tresponse->getAuthCode());
+                                            $refund->fields['payment_name'],
+                                            $refund->fields['transaction_id'], $refund_amount, 'VOID', $tresponse->getAuthCode());
                         $this->updatePaymentForRefund($ordersID, $refund->fields['transaction_id'], $refund_amount);
                         $this->updateOrderInfo($ordersID, MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID, (0 - $refund_amount));
                         $error = false;
@@ -1525,7 +1523,7 @@
             return $response;
         }
 
-        function deleteCustomerPaymentProfile($customerProfileId, $customerpaymentprofileid)
+        function deleteCustomerPaymentProfile($customerProfileId, $customerpaymentprofileid): string
         {
             global $db;
 
@@ -1585,13 +1583,12 @@
             return $response;
         }
 
-        function capturePreviouslyAuthorizedAmount($transactionid, $amount)
+        function capturePreviouslyAuthorizedAmount($transactionid, $amount): bool
         {
             $transactionRequestType = $this->newTransactionRequest();
             $transactionRequestType->setTransactionType("priorAuthCaptureTransaction");
             $transactionRequestType->setRefTransId($transactionid);
-            $transactionRequestType->setAmount(number_format($amount, 2, '.', '') . "");
-
+            $transactionRequestType->setAmount(number_format($amount, 2, '.', ''));
 
             $request = new AnetAPI\CreateTransactionRequest();
             $request->setMerchantAuthentication($this->merchantCredentials());
@@ -1636,7 +1633,7 @@
 
         // functions for updating some aspect of the zen-cart database.
 
-        function insertPayment($transID, $name, $total, $type, $profileID, $approval, $custID, $ordersID)
+        function insertPayment($transID, $name, $total, $type, $profileID, $approval, $custID, $ordersID): void
         {
             global $db;
             $sql = "insert into " . TABLE_CIM_PAYMENTS . " ( payment_name, payment_amount, payment_type, date_posted, last_modified,  transaction_id, payment_profile_id, approval_code, customers_id, status, orders_id)
@@ -1665,7 +1662,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
             $db->Execute($sql);
         }
 
-        function insertRefund($paymentID, $ordersID, $transID, $name, $payment_trans_id, $amount, $type, $approval_code)
+        function insertRefund($paymentID, $ordersID, $transID, $name, $payment_trans_id, $amount, $type, $approval_code): void
         {
             global $db;
             $sql = "insert into " . TABLE_CIM_REFUNDS . " (payment_id, orders_id, transaction_id, refund_name, refund_amount, refund_type, payment_trans_id, date_posted, approval_code) values (:paymentID, :orderID, :transID, :payment_name, :amount, :type, :payment_trans_id, now(), :apprCode )";
@@ -1680,7 +1677,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
             $db->Execute($sql);
         }
 
-        function updatePaymentForRefund($ordersID, $transID, $amount)
+        function updatePaymentForRefund($ordersID, $transID, $amount): void
         {
             global $db;
             $sql = "update " . TABLE_CIM_PAYMENTS . " set refund_amount = (refund_amount + :amount) where transaction_id = :transID and orders_id = :orderID";
@@ -1721,7 +1718,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
             return ($amount - $initialAuthAmount);
         }
 
-        function updateDefaultCustomerBillto($id)
+        function updateDefaultCustomerBillto($id): void
         {
             global $db, $customer_id, $zco_notifier;
 
@@ -1733,16 +1730,15 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
                 $db->Execute($sql);
 
                 $zco_notifier->notify('NOTIFY_MODULE_ADDRESS_BOOK_UPDATED_PRIMARY_CUSTOMER_RECORD',
-                    ['address_id' => $id, 'customers_id' => $customer_id]);
+                                      ['address_id' => $id, 'customers_id' => $customer_id]);
             }
         }
 
-        function updateOrderAndPayment($customerID, $transID, $insertID, $approval, $status)
+        function updateOrderAndPayment($customerID, $transID, $insertID, $approval, $status): void
         {
             global $db;
 
             $comments = 'Credit Card payment.  AUTH: ' . $approval . '. TransID: ' . $transID . '.';
-
 
             $sql = "update  " . TABLE_CIM_PAYMENTS . " set orders_id = :insertID
             WHERE customers_id = :custId and transaction_id = :transID and orders_id = 0";
@@ -1761,6 +1757,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
             }
 
             $this->notify('NOTIFIER_CIM_OVERRIDE_STATUS_UPDATE', $insertID, $status, $comments);
+
             $this->updateOrderInfo($insertID, $status, $initialAuthAmount);
 
             zen_update_orders_history($insertID, $comments, $this->cimUpdatedByAdminName(), $status, -1);
@@ -1773,7 +1770,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
             }
         }
 
-        function updateOrderInfo($ordersID, $status, $amount = 0)
+        function updateOrderInfo($ordersID, $status, $amount = 0): void
         {
             // $amount can be negative...
             global $db, $zco_notifier;
@@ -1783,12 +1780,13 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
         	WHERE orders_id = :orderID ";
             $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
             $sql = $db->bindVars($sql, ':stat', $status, 'integer');
+
             $db->Execute($sql);
 
             $zco_notifier->notify('NOTIFY_AUTHNET_PAYMENT_REFUND', $ordersID, $amount);
         }
 
-        function deleteStoredData($customer_id, $customerProfileID)
+        function deleteStoredData($customer_id, $customerProfileID): void
         {
             $cards = $this->getCustomerCards($customer_id, true);
             foreach ($cards as $card) {
@@ -1798,7 +1796,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
             //$this->deleteCustomerProfile($customerProfileID);
         }
 
-        function getCustomerCards($customerID, $all = false)
+        function getCustomerCards($customerID, $all = false): queryFactoryResult
         {
             global $db;
             $sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . " WHERE customers_id = :custID AND payment_profile_id <> 0";
@@ -1811,7 +1809,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
             return $customer_cards;
         }
 
-        function getCustomerCardsAsArray($customerID, $all = false)
+        function getCustomerCardsAsArray($customerID, $all = false): array
         {
             $cards_on_file = $this->getCustomerCards($customerID, $all);
             $today = getdate();
@@ -1834,7 +1832,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
             return $cards;
         }
 
-        function checkValidPaymentProfile($customerID, $cc_index)
+        function checkValidPaymentProfile($customerID, $cc_index): array
         {
             global $db;
             $sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . "
@@ -1853,7 +1851,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
             return $return;
         }
 
-        function updateCCToken($custId, $payment_profile, $exp_date, $save)
+        function updateCCToken($custId, $payment_profile, $exp_date, $save): void
         {
             global $db;
 
@@ -1869,7 +1867,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
             $db->Execute($sql);
         }
 
-        function saveCCToken($custId, $payment_profile, $lastfour, $exp_date, $save)
+        function saveCCToken($custId, $payment_profile, $lastfour, $exp_date, $save): void
         {
             global $db;
 
@@ -1887,7 +1885,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
             }
         }
 
-        function getCustomer()
+        function getCustomer(): queryFactoryResult
         {
             global $db;
             $csql = "select * from " . TABLE_CUSTOMERS . " WHERE customers_id = :custID ";
@@ -1896,7 +1894,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
             return $user;
         }
 
-        function isValidCustomerAddress($addressId)
+        function isValidCustomerAddress($addressId): bool
         {
             global $db;
             $sql = 'select * from ' . TABLE_ADDRESS_BOOK . ' WHERE customers_id = :custID AND address_book_id = :addID';
@@ -1906,7 +1904,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
             return !$result->EOF;
         }
 
-        function updateCustomer($customerID, $profileID)
+        function updateCustomer($customerID, $profileID): void
         {
             global $db;
             $sql = "SELECT * FROM " . TABLE_CUSTOMERS_CIM_PROFILE . " WHERE customers_id = :custID";
@@ -1925,7 +1923,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
             $db->Execute($sql);
         }
 
-        protected function tableCheckup()
+        protected function tableCheckup(): void
         {
             global $db, $sniffer;
 
@@ -2031,7 +2029,7 @@ CREATE TABLE `" . TABLE_CUSTOMERS_CIM_PROFILE . "` (
             }
 
             $fieldOkay1 = (method_exists($sniffer, 'field_exists')) ? $sniffer->field_exists(TABLE_CIM_PAYMENTS,
-                'status') : false;
+                                                                                             'status') : false;
             if ($fieldOkay1 !== true) {
                 $db->Execute("ALTER TABLE " . TABLE_CIM_PAYMENTS . " ADD `status` enum('A','C') NOT NULL DEFAULT 'C' AFTER `payment_type`");
             }
