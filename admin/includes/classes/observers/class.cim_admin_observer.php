@@ -191,7 +191,6 @@
                     if (empty($p1) || !is_object($p1) || empty($p2) || !is_array($p2)) {
                         trigger_error('Missing or invalid parameters for the NOTIFY_ADMIN_CUSTOMERS_MENU_BUTTONS notifier.',
                             E_USER_ERROR);
-                        exit ();
                     }
 
                     zen_include_language_file('authorizenet_cim.php', '/modules/payment/', 'inline');

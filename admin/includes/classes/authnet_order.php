@@ -1,203 +1,209 @@
 <?php
-	/*  portions copyright by... zen-cart.com
+    /*  portions copyright by... zen-cart.com
 
-		developed and brought to you by proseLA
-		https://rossroberts.com
+        developed and brought to you by proseLA
+        https://rossroberts.com
 
-		released under GPU
-		https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
+        released under GPU
+        https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
 
-	   04/2021  project: authorizenet_cim; file: authnet_order.php; version 2.3.1
-	*/
+       04/2021  project: authorizenet_cim; file: authnet_order.php; version 2.3.1
+    */
 
-	class authnet_order
-	{
-		var $payment, $refund, $payment_key, $payment_key_array;
-		var $oID, $cID, $order_total, $amount_applied, $balance_due, $status, $status_date;
+    class authnet_order
+    {
+        var array $payment_key_array;
+        var array $payment_key;
+        var array $refund;
+        var array $payment;
+        var int $cID;
+        var float $order_total, $amount_applied, $balance_due;
+        var int $status;
+        var int $oID;
 
-		// instantiates the class and gathers existing data
-		function __construct($orders_id)
-		{
-			$this->payment = [];
-			$this->refund = [];
-			$this->payment_key = [];
-			$this->payment_key_array = [];
+        // instantiates the class and gathers existing data
+        function __construct($orders_id)
+        {
+            $this->payment = [];
+            $this->refund = [];
+            $this->payment_key = [];
+            $this->payment_key_array = [];
 
-			$this->oID = (int)$orders_id;   // now you have the order_id whenever you need it
+            $this->oID = (int)$orders_id;   // now you have the order_id whenever you need it
 
-			if (IS_ADMIN_FLAG) {
+            if (IS_ADMIN_FLAG) {
                 zen_include_language_file('authnet_order.php', '/', 'inline');
-			}
-			$this->start();
-		}
+            }
+            $this->start();
+        }
 
-		private function start()
-		{
-			global $db, $zco_notifier;
+        private function start(): void
+        {
+            global $db, $zco_notifier;
 
-			$order_query = $db->Execute("select * from " . TABLE_ORDERS . " where orders_id = '" . $this->oID . "'");
-			if ($order_query->EOF) {
-				return;
-			}
-			$this->cID = $order_query->fields['customers_id'];
-			$this->order_total = $this->num_2_dec($order_query->fields['order_total']);
-			$this->status = $order_query->fields['orders_status'];
+            $order_query = $db->Execute("select * from " . TABLE_ORDERS . " where orders_id = '" . $this->oID . "'");
+            if ($order_query->EOF) {
+                return;
+            }
+            $this->cID = $order_query->fields['customers_id'];
+            $this->order_total = $this->num_2_dec($order_query->fields['order_total']);
+            $this->status = $order_query->fields['orders_status'];
 
-			// build an array to translate the payment_type codes stored in so_payments
-			$payment_key_query = $db->Execute("select * from " . TABLE_CIM_PAYMENT_TYPES . "
+            // build an array to translate the payment_type codes stored in so_payments
+            $payment_key_query = $db->Execute("select * from " . TABLE_CIM_PAYMENT_TYPES . "
                                        where language_id = '" . $_SESSION['languages_id'] . "'
                                        order by payment_type_full asc");
-			while (!$payment_key_query->EOF) {
-				// this array is used by the full_type() function
-				$this->payment_key_array[$payment_key_query->fields['payment_type_code']] = $payment_key_query->fields['payment_type_full'];
+            while (!$payment_key_query->EOF) {
+                // this array is used by the full_type() function
+                $this->payment_key_array[$payment_key_query->fields['payment_type_code']] = $payment_key_query->fields['payment_type_full'];
 
-				// and this one can be used to build dropdown menus
-				$this->payment_key[] = [
-					'id' => $payment_key_query->fields['payment_type_code'],
-					'text' => $payment_key_query->fields['payment_type_full']
-				];
-				$payment_key_query->MoveNext();
-			}
+                // and this one can be used to build dropdown menus
+                $this->payment_key[] = [
+                    'id' => $payment_key_query->fields['payment_type_code'],
+                    'text' => $payment_key_query->fields['payment_type_full'],
+                ];
+                $payment_key_query->MoveNext();
+            }
 
-			// get all payments not tied to a purchase order
-			$payments_query = $db->Execute("select * from " . TABLE_CIM_PAYMENTS . "
+            // get all payments not tied to a purchase order
+            $payments_query = $db->Execute("select * from " . TABLE_CIM_PAYMENTS . "
                                     where orders_id = '" . $this->oID . "'
                                     order by date_posted asc");
 
-			if (!$payments_query->EOF) {
-				while (!$payments_query->EOF) {
-					$this->payment[] = [
-						'index' => $payments_query->fields['payment_id'],
-						'number' => $payments_query->fields['transaction_id'],
-						'name' => $payments_query->fields['payment_name'],
-						'amount' => $payments_query->fields['payment_amount'],
-						'refund_amount' => $payments_query->fields['refund_amount'],
-						'type' => $payments_query->fields['payment_type'],
-						'posted' => $payments_query->fields['date_posted'],
-						'captured' => $payments_query->fields['last_modified'],
-						'approval_code' => $payments_query->fields['approval_code'],
-						'status' => $payments_query->fields['status'],
-						'payment_profile_id' => $payments_query->fields['payment_profile_id'],
-					];
-					$payments_query->MoveNext();
-				}
-			}
+            if (!$payments_query->EOF) {
+                while (!$payments_query->EOF) {
+                    $this->payment[] = [
+                        'index' => $payments_query->fields['payment_id'],
+                        'number' => $payments_query->fields['transaction_id'],
+                        'name' => $payments_query->fields['payment_name'],
+                        'amount' => $payments_query->fields['payment_amount'],
+                        'refund_amount' => $payments_query->fields['refund_amount'],
+                        'type' => $payments_query->fields['payment_type'],
+                        'posted' => $payments_query->fields['date_posted'],
+                        'captured' => $payments_query->fields['last_modified'],
+                        'approval_code' => $payments_query->fields['approval_code'],
+                        'status' => $payments_query->fields['status'],
+                        'payment_profile_id' => $payments_query->fields['payment_profile_id'],
+                    ];
+                    $payments_query->MoveNext();
+                }
+            }
 
-			// get any refunds
-			if ($this->payment) {   // gotta have payments in order to refund them
-				$refunds_query = $db->Execute("select * from " . TABLE_CIM_REFUNDS . "
+            // get any refunds
+            if ($this->payment) {   // gotta have payments in order to refund them
+                $refunds_query = $db->Execute("select * from " . TABLE_CIM_REFUNDS . "
                                      where orders_id = '" . $this->oID . "'
                                      order by date_posted asc");
 
-				if (!$refunds_query->EOF) {
-					while (!$refunds_query->EOF) {
-						$this->refund[] = [
-							'index' => $refunds_query->fields['refund_id'],
-							'payment' => $refunds_query->fields['payment_id'],
-							'number' => $refunds_query->fields['transaction_id'],
-							'name' => $refunds_query->fields['refund_name'],
-							'amount' => $refunds_query->fields['refund_amount'],
-							'type' => $refunds_query->fields['refund_type'],
-							'payment_number' => $refunds_query->fields['payment_trans_id'],
-							'posted' => $refunds_query->fields['date_posted'],
-							'approval_code' => $refunds_query->fields['approval_code']
-						];
-						$refunds_query->MoveNext();
-					}
-				}
-			}
+                if (!$refunds_query->EOF) {
+                    while (!$refunds_query->EOF) {
+                        $this->refund[] = [
+                            'index' => $refunds_query->fields['refund_id'],
+                            'payment' => $refunds_query->fields['payment_id'],
+                            'number' => $refunds_query->fields['transaction_id'],
+                            'name' => $refunds_query->fields['refund_name'],
+                            'amount' => $refunds_query->fields['refund_amount'],
+                            'type' => $refunds_query->fields['refund_type'],
+                            'payment_number' => $refunds_query->fields['payment_trans_id'],
+                            'posted' => $refunds_query->fields['date_posted'],
+                            'approval_code' => $refunds_query->fields['approval_code'],
+                        ];
+                        $refunds_query->MoveNext();
+                    }
+                }
+            }
 
-			$zco_notifier->notify('NOTIFY_ADMIN_AUTHNET_PAYMENTS', '', $this);
+            $zco_notifier->notify('NOTIFY_ADMIN_AUTHNET_PAYMENTS', '', $this);
 
-			// calculate and store the order total, amount applied, & balance due for the order
-			// add individual payments if they exists
-			if ($this->payment) {
-				for ($i = 0; $i < sizeof($this->payment); $i++) {
-					$this->amount_applied += $this->payment[$i]['amount'];
-				}
-			}
+            // calculate and store the order total, amount applied, & balance due for the order
+            // add individual payments if they exists
+            if ($this->payment) {
+                for ($i = 0; $i < sizeof($this->payment); $i++) {
+                    $this->amount_applied += $this->payment[$i]['amount'];
+                }
+            }
 
-			// now subtract out any refunds if they exist
-			if ($this->refund) {
-				for ($i = 0; $i < sizeof($this->refund); $i++) {
-					$this->amount_applied -= $this->refund[$i]['amount'];
-				}
-			}
+            // now subtract out any refunds if they exist
+            if ($this->refund) {
+                for ($i = 0; $i < sizeof($this->refund); $i++) {
+                    $this->amount_applied -= $this->refund[$i]['amount'];
+                }
+            }
 
-			// subtract from the order total to get the balance due
-			$this->balance_due = $this->num_2_dec($this->order_total - $this->amount_applied);
+            // subtract from the order total to get the balance due
+            $this->balance_due = $this->num_2_dec($this->order_total - $this->amount_applied);
 
-		}
+        }
 
-		function num_2_dec($number)
-		{
-			return round((float)$number, 2);
-		}
+        function num_2_dec($number): float
+        {
+            return round((float)$number, 2);
+        }
 
-		function button_refund($payment_mode, $index)
-		{
-			echo '&nbsp;<a href="javascript:cimpopupWindow(\'' .
-				zen_href_link(FILENAME_AUTHNET_PAYMENTS,
-					'oID=' . $this->oID . '&payment_mode=' . $payment_mode . '&action=refund' . '&index=' . $index, 'NONSSL') . '\')"' .
-				' class="btn btn-danger btn-sm" role="button" >' . BUTTON_REFUND . '</a>';
-		}
+        function button_refund($payment_mode, $index): void
+        {
+            echo '&nbsp;<a href="javascript:cimpopupWindow(\'' .
+                zen_href_link(FILENAME_AUTHNET_PAYMENTS,
+                    'oID=' . $this->oID . '&payment_mode=' . $payment_mode . '&action=refund' . '&index=' . $index, 'NONSSL') . '\')"' .
+                ' class="btn btn-danger btn-sm" role="button" >' . BUTTON_REFUND . '</a>';
+        }
 
-		function button_capture($index)
-		{
-			echo '&nbsp;<a href="javascript:cimpopupWindow(\'' .
-				zen_href_link(FILENAME_AUTHNET_PAYMENTS,
-					'oID=' . $this->oID . '&index=' . $index . '&action=capture', 'NONSSL') . '\')"' .
-				' class="btn btn-success btn-sm" role="button" >' . BUTTON_CAPTURE . '</a>';
-		}
+        function button_capture($index): void
+        {
+            echo '&nbsp;<a href="javascript:cimpopupWindow(\'' .
+                zen_href_link(FILENAME_AUTHNET_PAYMENTS,
+                    'oID=' . $this->oID . '&index=' . $index . '&action=capture', 'NONSSL') . '\')"' .
+                ' class="btn btn-success btn-sm" role="button" >' . BUTTON_CAPTURE . '</a>';
+        }
 
-		// translates payment type codes into full text
+        // translates payment type codes into full text
 
-		function button_new_funds($index)
-		{
-			echo '&nbsp;<a href="javascript:cimpopupWindow(\'' .
-				zen_href_link(FILENAME_AUTHNET_PAYMENTS,
-					'oID=' . $this->oID . '&index=' . $index . '&action=more_money&ccindex=' . ($_POST['ccindex'] ?? ''), 'NONSSL') . '\')"' .
-				' class="btn btn-primary btn-sm" role="button">' . BUTTON_NEW_FUNDS . '</a>';
-		}
+        function button_new_funds($index): void
+        {
+            echo '&nbsp;<a href="javascript:cimpopupWindow(\'' .
+                zen_href_link(FILENAME_AUTHNET_PAYMENTS,
+                    'oID=' . $this->oID . '&index=' . $index . '&action=more_money&ccindex=' . ($_POST['ccindex'] ?? ''), 'NONSSL') . '\')"' .
+                ' class="btn btn-primary btn-sm" role="button">' . BUTTON_NEW_FUNDS . '</a>';
+        }
 
-		function full_type($code)
-		{
-			if (array_key_exists($code, $this->payment_key_array)) {
-				$full_text = $this->payment_key_array[$code];
-			} else {
-				$full_text = $code;
-			}
-			return $full_text;
-		}
+        function full_type($code)
+        {
+            if (array_key_exists($code, $this->payment_key_array)) {
+                $full_text = $this->payment_key_array[$code];
+            } else {
+                $full_text = $code;
+            }
+            return $full_text;
+        }
 
-		function getPaymentIndex($index)
-		{
-			$return = 0;
-			if (!is_array($this->payment)) {
-				return 0;
-			}
-			$last_index = sizeof($this->payment) - 1;
-			for ($i = $last_index; $i > -1; $i--) {
-				if ($index == $this->payment[$i]['index']) {
-					$return = $i;
-					break;
-				}
-			}
-			return $return;
-		}
+        function getPaymentIndex($index): int
+        {
+            $return = 0;
+            if (empty($this->payment)) {
+                return 0;
+            }
+            $last_index = sizeof($this->payment) - 1;
+            for ($i = $last_index; $i > -1; $i--) {
+                if ($index == $this->payment[$i]['index']) {
+                    $return = $i;
+                    break;
+                }
+            }
+            return $return;
+        }
 
-		function getCustCardIndex($payment_profile_id, $all = false)
-		{
-			global $db;
-			$sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . " WHERE  payment_profile_id = :ppID";
-			if (!$all) {
-				$sql .= " and enabled = 'Y'";
-			}
-			$sql = $db->bindVars($sql, ':ppID', $payment_profile_id, 'integer');
-			$cardIndex = $db->Execute($sql);
-			if ($cardIndex->RecordCount() == 1) {
-				return $cardIndex->fields['index_id'];
-			}
-			return false;
-		}
-	}
+        function getCustCardIndex($payment_profile_id, $all = false)
+        {
+            global $db;
+            $sql = "SELECT * FROM " . TABLE_CUSTOMERS_CC . " WHERE  payment_profile_id = :ppID";
+            if (!$all) {
+                $sql .= " and enabled = 'Y'";
+            }
+            $sql = $db->bindVars($sql, ':ppID', $payment_profile_id, 'integer');
+            $cardIndex = $db->Execute($sql);
+            if ($cardIndex->RecordCount() == 1) {
+                return $cardIndex->fields['index_id'];
+            }
+            return false;
+        }
+    }
