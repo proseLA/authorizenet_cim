@@ -149,7 +149,7 @@
             $this->addErrorsMessageStack('Customer Payment Transaction');
         }
 
-        function get_error(): false
+        function get_error(): bool
         {
             return false;
         }

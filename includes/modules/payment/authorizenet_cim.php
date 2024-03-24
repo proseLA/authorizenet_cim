@@ -394,7 +394,7 @@
             ];
         }
 
-        function get_error(): false|array
+        function get_error(): bool|array
         {
             return [
                 'title' => MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_ERROR,
