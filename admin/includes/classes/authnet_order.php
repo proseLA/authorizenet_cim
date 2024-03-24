@@ -26,7 +26,7 @@
 			$this->oID = (int)$orders_id;   // now you have the order_id whenever you need it
 
 			if (IS_ADMIN_FLAG) {
-			include DIR_FS_ADMIN . DIR_WS_LANGUAGES . $_SESSION['language'] . '/authnet_order.php';
+                zen_include_language_file('authnet_order.php', '/', 'inline');
 			}
 			$this->start();
 		}
