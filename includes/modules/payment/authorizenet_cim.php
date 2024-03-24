@@ -1777,11 +1777,12 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
             zen_update_orders_history($insertID, $comments, $this->cimUpdatedByAdminName(), $status, -1);
         }
 
-        function cimUpdatedByAdminName()
+        function cimUpdatedByAdminName(): string
         {
-            if (function_exists('zen_updated_by_admin')) {
+            if (!empty($_SESSION['admin_id'])) {
                 return zen_updated_by_admin();
             }
+            return '';
         }
 
         function updateOrderInfo($ordersID, $status, $amount = 0): void
