@@ -39,9 +39,6 @@
         'clearCards_confirm',
     ];
 
-    //$oID = isset($_GET['oID']) ? (int)$_GET['oID'] : (int)$_POST['oID'];
-    //$action = (isset($_GET['action']) ? $_GET['action'] : $_POST['action']);
-
     $oID = (int)($_REQUEST['oID'] ?? 0);
     $action = $_REQUEST['action'] ?? '';
 
@@ -151,19 +148,28 @@
             <meta http-equiv="Content-Type" content="text/html; charset=<?= CHARSET; ?>">
             <title><?= 'Admin:  ' . ucwords(str_replace('_', ' ',
                     basename($_SERVER["SCRIPT_FILENAME"], '.php'))); ?></title>
-            <?php if (file_exists($value = DIR_WS_INCLUDES . 'css/bootstrap.min.css')) { ?>
-                <link rel="stylesheet" href="<?php echo $value; ?>">
-            <?php } else { ?>
-                <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" integrity="sha384-HSMxcRTRxnN+Bdg0JdbxYKrThecOKuH5zCYotlSAcp1+c8xmyTe9GYg1l9a69psu" crossorigin="anonymous">
-            <?php } ?>
-            <?php if (file_exists($value = DIR_WS_INCLUDES . 'css/jquery-ui.css')) { ?>
-                <link rel="stylesheet" href="<?php echo $value; ?>">
-            <?php } else { ?>
-                <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css" integrity="sha256-RPilbUJ5F7X6DdeTO6VFZ5vl5rO5MJnmSk4pwhWfV8A= sha384-xewr6kSkq3dBbEtB6Z/3oFZmknWn7nHqhLVLrYgzEFRbU/DHSxW7K3B44yWUN60D sha512-/Q1sBqvNZheW2yvAccKiu/xc/o2AtDS2jNBozDEqA/8Mk/IcH853wrwDSGqAdl7jFyOWOcefLtwDd3kYo276Hw==" crossorigin="anonymous">
-            <?php } ?>
-            <link rel="stylesheet" href="<?php echo DIR_WS_INCLUDES ?>css/jAlert.css">
-            <link rel="stylesheet" href="<?php echo DIR_WS_INCLUDES ?>css/menu.css">
-            <link rel="stylesheet" href="<?php echo DIR_WS_INCLUDES ?>css/stylesheet.css">
+            <?php
+                if (file_exists($value = DIR_WS_INCLUDES . 'css/bootstrap.min.css')) { ?>
+                    <link rel="stylesheet" href="<?= $value; ?>">
+                <?php
+                } else { ?>
+                    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css"
+                          integrity="sha384-HSMxcRTRxnN+Bdg0JdbxYKrThecOKuH5zCYotlSAcp1+c8xmyTe9GYg1l9a69psu" crossorigin="anonymous">
+                <?php
+                } ?>
+            <?php
+                if (file_exists($value = DIR_WS_INCLUDES . 'css/jquery-ui.css')) { ?>
+                    <link rel="stylesheet" href="<?= $value; ?>">
+                <?php
+                } else { ?>
+                    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css"
+                          integrity="sha256-RPilbUJ5F7X6DdeTO6VFZ5vl5rO5MJnmSk4pwhWfV8A= sha384-xewr6kSkq3dBbEtB6Z/3oFZmknWn7nHqhLVLrYgzEFRbU/DHSxW7K3B44yWUN60D sha512-/Q1sBqvNZheW2yvAccKiu/xc/o2AtDS2jNBozDEqA/8Mk/IcH853wrwDSGqAdl7jFyOWOcefLtwDd3kYo276Hw=="
+                          crossorigin="anonymous">
+                <?php
+                } ?>
+            <link rel="stylesheet" href="<?= DIR_WS_INCLUDES ?>css/jAlert.css">
+            <link rel="stylesheet" href="<?= DIR_WS_INCLUDES ?>css/menu.css">
+            <link rel="stylesheet" href="<?= DIR_WS_INCLUDES ?>css/stylesheet.css">
             <link rel="stylesheet" type="text/css" href="includes/css/authnet.css">
             <script type="text/javascript" language="javascript" src="includes/general.js"></script>
             <script language="JavaScript" type="text/javascript">
