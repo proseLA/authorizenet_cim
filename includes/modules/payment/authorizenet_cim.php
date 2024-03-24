@@ -1,14 +1,24 @@
 <?php
-    /*  portions copyright by... zen-cart.com
+    /**
+     *  developed, copyrighted and brought to you by @proseLA (github)
+     *  https://mxworks.cc
+     *  copyright 2024 proseLA
+     *
+     *  consider a donation.  payment modules are the core of any shopping cart.
+     *  a lot of work went into the development of this module.  consider an annual donation of
+     *  5 basis points of your sales if you want to keep this module going.
+     *
+     *  released under GPU
+     *  https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
+     *
+     *  use of this software constitutes acceptance of license
+     *  mxworks will vigilantly pursue any violations of this license.
+     *
+     *  some portions of code may be copyrighted and licensed by www.zen-cart.com
+     *
+     *  03/2024  project: authorizenet_cim v3.0.0 file: authorizenet_cim.php
+     */
 
-        developed and brought to you by proseLA
-        https://rossroberts.com
-
-        released under GPU
-        https://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
-
-       04/2021  project: authorizenet_cim; file: authorizenet_cim.php
-    */
 
     if (!file_exists($sdk_loader = DIR_FS_CATALOG . 'includes/modules/payment/authorizenet/authorizenet-sdk/autoload.php')) {
         return false;
@@ -29,7 +39,7 @@
         var string $title;
         var string $code;
 
-        var string $version = '2.3.3';
+        var string $version = '3.0.0';
         var array $params = [];
         var bool $error = true;
         var net\authorize\api\contract\v1\CreateTransactionResponse $response;
