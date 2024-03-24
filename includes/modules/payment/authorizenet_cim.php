@@ -898,6 +898,10 @@
         {
             global $db;
 
+            if (zen_in_guest_checkout()) {
+                return;
+            }
+
             $customerCheck = $db->Execute('select customers_email_address from ' . TABLE_CUSTOMERS . " WHERE customers_id = $customerID LIMIT 1");
             $error = false;
             if ($customerCheck->EOF) {
