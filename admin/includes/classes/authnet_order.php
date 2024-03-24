@@ -27,11 +27,11 @@
         var array $refund;
         var array $payment;
         var int $cID;
-        var float $order_total, $amount_applied, $balance_due;
+        var float $order_total, $balance_due;
         var int $status;
         var int $oID;
+        var float $amount_applied = 0;
 
-        // instantiates the class and gathers existing data
         function __construct($orders_id)
         {
             $this->payment = [];
