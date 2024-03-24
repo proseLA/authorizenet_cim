@@ -35,10 +35,8 @@
 
         'HEADER_DELETE_PAYMENT' => 'Refund Payment',
         'HEADER_VOID_PAYMENT' => 'Void Payment',
-        'DELETE_PAYMENT_NOTE',
-        'Leave blank for Total Refund.<br>',
-        'DELETE_VOID_NOTE',
-        'This payment is unsettled.  You can void the payment, or wait until after settlement (less than 24 hours), to issue a refund.',
+        'DELETE_PAYMENT_NOTE' => 'Leave blank for Total Refund.<br>',
+        'DELETE_VOID_NOTE' => 'This payment is unsettled.  You can void the payment, or wait until after settlement (less than 24 hours), to issue a refund.',
         'HEADER_DELETE_PO' => 'Delete Purchase Order',
         'HEADER_DELETE_REFUND' => 'Delete Refund',
         'HEADER_MORE_MONEY' => 'New Auth/Capture',
