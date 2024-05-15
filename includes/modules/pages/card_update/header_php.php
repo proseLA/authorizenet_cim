@@ -31,6 +31,7 @@
                                                   ORDER BY date_purchased desc");
 
     if ($customers_orders->RecordCount() < 1) {
+        $messageStack->add_session(FILENAME_ACCOUNT, 'Sorry, you have no valid  orders!', 'error');
         zen_redirect(zen_href_link(FILENAME_ACCOUNT, '', 'SSL'));
     }
     $addressSelected = $_POST['address_selection'] ?? '';

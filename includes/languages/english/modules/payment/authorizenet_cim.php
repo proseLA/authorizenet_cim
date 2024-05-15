@@ -43,7 +43,7 @@ define('MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_JS_CC_CVV',
 define('MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_DECLINED_MESSAGE',
     'Your credit card could not be authorized for this reason. Please correct the information and try again or contact us for further assistance.');
 define('MODULE_PAYMENT_AUTHORIZENET_CIM_TEXT_ERROR', 'Credit Card Error!');
-define('MODULE_PAYMENT_AUTHORIZENET_CIM_FRAUD_WARNING', 'Sorry, due to the increasing amount of fraud we are forced to limit credit card usage.')
+define('MODULE_PAYMENT_AUTHORIZENET_CIM_FRAUD_WARNING', 'Sorry, due to the increasing amount of fraud we are forced to limit credit card usage.');
 
 define('MODULE_PAYMENT_AUTHORIZENET_CIM_ENTRY_REFUND_TITLE', '<strong>Refund Transactions</strong>');
 define('MODULE_PAYMENT_AUTHORIZENET_CIM_ENTRY_REFUND', 'You may refund money to the customer\'s credit card here:');
