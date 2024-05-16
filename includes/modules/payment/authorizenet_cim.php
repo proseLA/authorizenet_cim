@@ -39,13 +39,13 @@
         var $authorizationType = 'Authorize';
         var $testMode = false;
         var $solution = 'AAA183475';
-
         // used for fraud prevention, put a limiter on the amount of time one can submit new credit cards;
         // and after $logoff +1; send them to the account page.
         private $delayTime = 60;
         private $logOff = 3;
 
         private $email;
+
         var $errorMessages = [];
 
         // zen-cart base payment functions
@@ -102,6 +102,9 @@
         function update_status()
         {
             global $order, $db;
+            if (empty($order->billing['country']['id'])) {
+                return;
+            }
             if (($this->enabled == true) && ((int)MODULE_PAYMENT_AUTHORIZENET_CIM_ZONE > 0)) {
                 $check_flag = false;
                 $check = $db->Execute("select zone_id from " . TABLE_ZONES_TO_GEO_ZONES . " where geo_zone_id = '" . MODULE_PAYMENT_AUTHORIZENET_CIM_ZONE . "' and zone_country_id = '" . $order->billing['country']['id'] . "' order by zone_id");
@@ -467,7 +470,7 @@
 
         // helper functions
 
-        function logError($logData, $error = false)
+        function logError($logData, $error = false, $afdsError = false)
         {
             $response_log = (defined('DIR_FS_LOGS') ? DIR_FS_LOGS : DIR_FS_SQL_CACHE) . '/cim_response.log';
 
@@ -480,7 +483,7 @@
                 trigger_error($logData);
             }
 
-            if ($error || DEBUG_CIM) {
+            if ($error || DEBUG_CIM || $afdsError) {
                 error_log(date(DATE_RFC2822) . ":\n" . $logData . "\n", 3, $response_log);
             }
         }
@@ -748,11 +751,15 @@
 		    if (isset($order['orders_id'])) {
 			    return $order['orders_id'];
 		    } else {
-			    $nextIDResultA = $db->Execute("SELECT max(orders_id) as nextID FROM " . TABLE_CIM_PAYMENTS);
+                $sql = "SHOW TABLE STATUS LIKE '" . TABLE_ORDERS . "'";
+                $result = $db->ExecuteNoCache($sql);
+                return $result->fields['Auto_increment'];
+
+/*			    $nextIDResultA = $db->Execute("SELECT max(orders_id) as nextID FROM " . TABLE_CIM_PAYMENTS);
 			    $nextIDResultB = $db->Execute("SELECT (orders_id + 1) AS nextID FROM " . TABLE_ORDERS . " ORDER BY orders_id DESC LIMIT 1");
 			    $nextIDB = $nextIDResultB->fields['nextID'];
 			    $nextIDA = $nextIDResultA->fields['nextID'] + 1;
-			    return max($nextIDA, $nextIDB);
+			    return max($nextIDA, $nextIDB);*/
 		    }
 	    }
 
@@ -905,7 +912,6 @@
             if (zen_in_guest_checkout()) {
                 return;
             }
-
             $customerCheck = $db->Execute('select customers_email_address from ' . TABLE_CUSTOMERS . " WHERE customers_id = $customerID LIMIT 1");
             $error = false;
             if ($customerCheck->EOF) {
@@ -1003,7 +1009,6 @@
                     $this->setParameter('customerProfileId', $customerProfileId);
                 }
             }
-
 
             $currentTimeForTest = time();
             if (empty($_SESSION['createCard'])) {
@@ -1232,6 +1237,7 @@
             $response = $this->getControllerResponse($controller);
 
             $error = true;
+            $afdsError = false;
             if ($response != null) {
                 if ($response->getMessages()->getResultCode() == "Ok") {
                     $tresponse = $response->getTransactionResponse();
@@ -1239,8 +1245,15 @@
                     if ($tresponse != null && $tresponse->getMessages() != null) {
                         $error = false;
                         $logData = "Transaction Response code : " . $tresponse->getResponseCode() . "\n";
-                        $logData .= " Charge Customer Profile APPROVED  :" . "\n";
-                        $logData .= " Charge Customer Profile AUTH CODE : " . $tresponse->getAuthCode() . "\n";
+                        if (empty($tresponse->getAuthCode())) {
+                            $charge_amount = 0;
+                            $logData .= " Authorization was not done.  Probaly due to AFDS.  Check auth.net dashboard.\n";
+                            $afdsError = true;
+                            $this->authorizationType = 'Authorize';
+                        } else {
+                            $logData .= " Charge Customer Profile APPROVED  :" . "\n";
+                            $logData .= " Charge Customer Profile AUTH CODE : " . $tresponse->getAuthCode() . "\n";
+                        }
                         $this->approvalCode = $tresponse->getAuthCode();
                         $logData .= " Charge Customer Profile TRANS ID  : " . $tresponse->getTransId() . "\n";
                         $this->transID = $tresponse->getTransId();
@@ -1255,6 +1268,12 @@
                             $this->deleteCustomerPaymentProfile($profileid, $paymentprofileid);
                             $paymentprofileid = '';
                         }
+                        if ($tresponse->getResponseCode() === '4') {
+                            $this->authorizationType = 'Authorize';
+                            $logData .= " Check auth.net dashboard for AFDS; possible fraud.\n";
+                            $afdsError = true;
+                        }
+
 
                         $this->insertPayment($tresponse->getTransId(),
                             $full_name,
@@ -1278,7 +1297,7 @@
             } else {
                 $logData = "No response returned \n";
             }
-            $this->logError($logData, $error);
+            $this->logError($logData, $error, $afdsError);
             return $response;
         }
 
@@ -1795,6 +1814,7 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
         	WHERE orders_id = :orderID ";
             $sql = $db->bindVars($sql, ':orderID', $ordersID, 'integer');
             $sql = $db->bindVars($sql, ':stat', $status, 'integer');
+
             $db->Execute($sql);
 
             $zco_notifier->notify('NOTIFY_AUTHNET_PAYMENT_REFUND', $ordersID, $amount);
