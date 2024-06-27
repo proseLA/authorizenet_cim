@@ -16,7 +16,7 @@
      *
      *  some portions of code may be copyrighted and licensed by www.zen-cart.com
      *
-     *  03/2024  project: authorizenet_cim v3.0.0 file: authorizenet_cim.php
+     *  03/2024  project: authorizenet_cim v3.0.4 file: authorizenet_cim.php
      */
 
 
@@ -39,7 +39,7 @@
         var string $title;
         var string $code;
 
-        var string $version = '3.0.0';
+        var string $version = '3.0.4';
         var array $params = [];
         var bool $error = true;
         var net\authorize\api\contract\v1\CreateTransactionResponse $response;
@@ -429,6 +429,10 @@
         function install(): void
         {
             global $db;
+            $default = 1;
+            if (defined('DEFAULT_ORDERS_STATUS_ID')) {
+                $default = (int) DEFAULT_ORDERS_STATUS_ID;
+            }
             if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS') || empty(MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS)) {
                 $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) values ('Enable Authorize.net (CIM) Module', 'MODULE_PAYMENT_AUTHORIZENET_CIM_STATUS', 'True', 'Do you want to accept Authorize.net payments via the CIM Method?', '6', '1', 'zen_cfg_select_option(array(\'True\', \'False\'), ', now())");
             }
@@ -457,7 +461,7 @@
                 $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, use_function, set_function, date_added) values ('Payment Zone', 'MODULE_PAYMENT_AUTHORIZENET_CIM_ZONE', '0', 'If a zone is selected, only enable this payment method for that zone.', '6', '14', 'zen_get_zone_class_title', 'zen_cfg_pull_down_zone_classes(', now())");
             }
             if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID')) {
-                $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Set Completed Order Status', 'MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID', '0', 'Set the status of orders made with this payment module to this value.  This status happens AFTER capture of funds.', '6', '15', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now())");
+                $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Set Completed Order Status', 'MODULE_PAYMENT_AUTHORIZENET_CIM_ORDER_STATUS_ID', $default, 'Set the status of orders made with this payment module to this value.  This status happens AFTER capture of funds.', '6', '15', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now())");
             }
             if (!defined('MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID')) {
                 $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Set Refunded Order Status', 'MODULE_PAYMENT_AUTHORIZENET_CIM_REFUNDED_ORDER_STATUS_ID', '1', 'Set the status of refunded orders to this value (refund amounts must be equal to payment total)', '6', '16', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now())");
@@ -750,11 +754,11 @@
                                   array_merge(['address_id' => $new_address_book_id], $sql_data_array));
         }
 
-        function nextOrderNumber($order)
+        function nextOrderNumber(array $order): int
         {
             global $db;
-            if (isset($order['orders_id'])) {
-                return $order['orders_id'];
+            if (isset($order['order_id'])) {
+                return $order['order_id'];
             } else {
                 $sql = "SHOW TABLE STATUS LIKE '" . TABLE_ORDERS . "'";
                 $result = $db->ExecuteNoCache($sql);
@@ -920,6 +924,7 @@
             if (!$error && $email !== $customerCheck->fields['customers_email_address']) {
                 $error = true;
             }
+            $this->notify('NOTIFY_CIM_OVERRIDE_CHECK_EMAIL', [], $error, $email, $customerCheck->fields['customers_email_address']);
             if ($error) {
                 sleep(45);
                 trigger_error($customerID . ' was logged off and should be looked at!');

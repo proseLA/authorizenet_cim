@@ -16,7 +16,7 @@
      *
      *  some portions of code may be copyrighted and licensed by www.zen-cart.com
      *
-     *  03/2024  project: authorizenet_cim v3.0.0 file: tpl_card_update_default.php
+     *  03/2024  project: authorizenet_cim v3.0.4 file: tpl_card_update_default.php
      */
 
     $def_month = '04';
@@ -72,7 +72,7 @@
                         ?>
                     </div>
                     <?php
-                    require($template->get_template_dir('tpl_modules_address_book_details.php', DIR_WS_TEMPLATE,
+                    require($template->get_template_dir('tpl_card_update_address.php', DIR_WS_TEMPLATE,
                             $current_page_base,
                             'templates') . '/' . 'tpl_card_update_address.php');
                     ?>
@@ -127,7 +127,7 @@
                 </div>
 
                 <?php
-                require($template->get_template_dir('tpl_modules_address_book_details.php', DIR_WS_TEMPLATE,
+                require($template->get_template_dir('tpl_card_update_address.php', DIR_WS_TEMPLATE,
                         $current_page_base,
                         'templates') . '/' . 'tpl_card_update_address.php');
                 ?>
