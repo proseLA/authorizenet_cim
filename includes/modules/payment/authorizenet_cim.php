@@ -101,6 +101,9 @@
             if ($this->enabled && is_object($order)) {
                 $this->update_status();
             }
+            if (!$this->enabled) {
+                return;
+            }
             if (in_array(MODULE_PAYMENT_AUTHORIZENET_CIM_TESTMODE, ['Test', 'Sandbox'])) {
                 $this->testMode = true;
             }

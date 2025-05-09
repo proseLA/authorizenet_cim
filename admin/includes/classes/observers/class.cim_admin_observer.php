@@ -28,6 +28,10 @@
     {
         public function __construct()
         {
+            global $sniffer;
+            if (!$sniffer->table_exists(TABLE_CIM_PAYMENTS)) {
+                return;
+            }
             $this->attach($this, [
                 'NOTIFY_ADMIN_ORDERS_PAYMENTDATA_COLUMN2',
                 'NOTIFY_ADMIN_CUSTOMERS_MENU_BUTTONS',
