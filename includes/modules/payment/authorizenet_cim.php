@@ -927,7 +927,7 @@
             $this->notify('NOTIFY_CIM_OVERRIDE_CHECK_EMAIL', [], $error, $email, $customerCheck->fields['customers_email_address']);
             if ($error) {
                 sleep(45);
-                trigger_error($customerID . ' was logged off and should be looked at!');
+                error_log($customerID . ' logged off. functionEmail:' . $email . '; customerCheck:' . ($customerCheck->fields['customers_email_address'] ?? 'none!') . '.');
                 zen_redirect(zen_href_link(FILENAME_LOGOFF, '', 'SSL', true, false));
             }
 

@@ -105,9 +105,9 @@
             //$_SESSION['saved_cc_index'] = $_POST['saved_cc_index'];
 
             if (MODULE_PAYMENT_AUTHORIZENET_COF_USE_CVV == 'True') {
-                $length = strlen($_POST['authorizenet_cof_cc_cvv']);
+                $length = strlen($_POST['authorizenet_cof_cc_cvv'] ?? '');
                 if ($length < 3 || $length > 4) {
-                    $payment_error_return = 'payment_error=' . $this->code . '&authorizenet_cof_cc_cvv=' . urlencode($_POST['authorizenet_cof_cc_cvv']);
+                    $payment_error_return = 'payment_error=' . $this->code . '&authorizenet_cof_cc_cvv=' . urlencode($_POST['authorizenet_cof_cc_cvv'] ?? '');
                     $messageStack->add_session('checkout_payment',
                                                MODULE_PAYMENT_AUTHORIZENET_COF_TEXT_JS_CC_CVV . '<!-- [' . $this->code . '] -->', 'error');
                     zen_redirect(zen_href_link(FILENAME_CHECKOUT_PAYMENT, $payment_error_return, 'SSL', true, false));
