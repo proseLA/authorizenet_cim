@@ -58,6 +58,11 @@ class CustomerPaymentProfileMaskedType extends CustomerPaymentProfileBaseType im
     private $originalAuthAmount = null;
 
     /**
+     * @property boolean $excludeFromAccountUpdater
+     */
+    private $excludeFromAccountUpdater = null;
+
+    /**
      * Gets as customerProfileId
      *
      * @return string
@@ -289,11 +294,32 @@ class CustomerPaymentProfileMaskedType extends CustomerPaymentProfileBaseType im
         return $this;
     }
 
+    /**
+     * Gets as excludeFromAccountUpdater
+     *
+     * @return boolean
+     */
+    public function getExcludeFromAccountUpdater()
+    {
+        return $this->excludeFromAccountUpdater;
+    }
+
+    /**
+     * Sets a new excludeFromAccountUpdater
+     *
+     * @param boolean $excludeFromAccountUpdater
+     * @return self
+     */
+    public function setExcludeFromAccountUpdater($excludeFromAccountUpdater)
+    {
+        $this->excludeFromAccountUpdater = $excludeFromAccountUpdater;
+        return $this;
+    }
+
 
     // Json Serialize Code
     #[\ReturnTypeWillChange]
-    public function jsonSerialize(): mixed
-    {
+    public function jsonSerialize(){
         $values = array_filter((array)get_object_vars($this),
         function ($val){
             return !is_null($val);
