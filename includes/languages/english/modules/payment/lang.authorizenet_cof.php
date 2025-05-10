@@ -10,6 +10,10 @@
 
        04/2020  project: authorizenet_cim; file: authorizenet_cof.php; version 2.0
     */
+    $pathInfo = dirname(__FILE__, 1);
+
+    $cimDefines = require $pathInfo . '/lang.authorizenet_cim.php';
+
     $define = [
         'MODULE_PAYMENT_SAVED_CC_TEXT_TITLE' => 'Authorize.net Card on File - COF',
         'MODULE_PAYMENT_SAVED_CC_TEXT_DESCRIPTION' => 'Use tokenized credit card.',
@@ -17,4 +21,4 @@
         'MODULE_PAYMENT_AUTHORIZENET_COF_TEXT_JS_CC_CVV' =>
             '* The 3 or 4 digit CVV number must be entered from the back of the credit card.',
     ];
-    return $define;
+    return array_merge($define, $cimDefines);

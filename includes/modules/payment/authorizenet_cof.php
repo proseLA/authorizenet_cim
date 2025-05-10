@@ -26,8 +26,6 @@
 
         function __construct()
         {
-            zen_include_language_file('authorizenet_cim.php', '/modules/payment/','inline');
-
             parent::__construct();
 
             $this->code = 'authorizenet_cof';
@@ -42,6 +40,9 @@
                 $this->sort_order = 1;                                                                        // Sort Order of this payment option on the customer payment page
             } else {
                 $this->title .= ' <span class="alert">(to enable; enable authorizenet CIM module)</span>';
+            }
+            if (zen_in_guest_checkout()) {
+                $this->enabled = false;
             }
         }
 
