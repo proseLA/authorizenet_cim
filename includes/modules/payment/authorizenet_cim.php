@@ -1940,6 +1940,9 @@ VALUES (:nameFull, :amount, :type, now(), :mod, :transID, :paymentProfileID, :ap
         function updateCustomer($customerID, $profileID): void
         {
             global $db;
+            if (zen_in_guest_checkout()) {
+                return;
+            }
             $sql = "SELECT * FROM " . TABLE_CUSTOMERS_CIM_PROFILE . " WHERE customers_id = :custID";
             $sql = $db->bindVars($sql, ':custID', $customerID, 'integer');
             $customer = $db->Execute($sql);
